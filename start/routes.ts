@@ -14,6 +14,8 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 import PermissionsController from '#controllers/permissions_controller'
 import UsersController from '#controllers/users_controller'
+import InstitutesController from '#controllers/institutes_controller'
+import DepartmentsController from '#controllers/departments_controller'
 
 router.post('login', [AuthController, 'login'])
 // router.post('admin/login', [AuthController, 'adminLogin'])
@@ -41,9 +43,9 @@ router
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
 router
-.get('/permissions', [PermissionsController, 'getAllPermissions'])
-.use(middleware.auth({ guards: ['adminapi', 'api'] }))
-.use(middleware.permission([PermissionKeys.PERMISSIONS_LIST]))
+  .get('/permissions', [PermissionsController, 'getAllPermissions'])
+  .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+  .use(middleware.permission([PermissionKeys.PERMISSIONS_LIST]))
 
 router
   .resource('users', UsersController)
@@ -68,6 +70,52 @@ router
 router
   .get('/users/:id/roles', [UsersController, 'getUserRoles'])
   .use(middleware.auth({ guards: ['adminapi'] }))
-  .use(middleware.permission([PermissionKeys.USER_ROLES_VIEW]))  
+  .use(middleware.permission([PermissionKeys.USER_ROLES_VIEW]))
 
-  
+router.group(() => {
+  router
+    .get('/', [InstitutesController, 'index'])
+    .use(middleware.permission([PermissionKeys.INSTITUTE_LIST]))
+
+  router
+    .post('/', [InstitutesController, 'store'])
+    .use(middleware.permission([PermissionKeys.INSTITUTE_CREATE]))
+
+  router
+    .get('/:id', [InstitutesController, 'show'])
+    .use(middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
+
+  router
+    .put('/:id', [InstitutesController, 'update'])
+    .use(middleware.permission([PermissionKeys.INSTITUTE_UPDATE]))
+
+  router
+    .delete('/:id', [InstitutesController, 'destroy'])
+    .use(middleware.permission([PermissionKeys.INSTITUTE_DELETE]))
+})
+  .prefix('/institutes')
+  .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+
+router.group(() => {
+  router
+    .get('/', [DepartmentsController, 'index'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_LIST]))
+
+  router
+    .post('/', [DepartmentsController, 'store'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
+
+  router
+    .get('/:id', [DepartmentsController, 'show'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
+
+  router
+    .put('/:id', [DepartmentsController, 'update'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_UPDATE]))
+
+  router
+    .delete('/:id', [DepartmentsController, 'destroy'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
+})
+  .prefix('/departments')
+  .use(middleware.auth({ guards: ['adminapi', 'api'] }))  

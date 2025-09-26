@@ -3,8 +3,7 @@ import Institute from "#models/institute";
 import { updateInstituteValidator } from "#validators/institute";
 import { inject } from "@adonisjs/core";
 import { HttpContext } from '@adonisjs/core/http'
-import { errorHandler } from "app/helper/error_handler.js";
-import { DateTime } from "luxon";
+import { errorHandler } from "../helper/error_handler.js";
 
 @inject()
 export default class InstituteServices {
@@ -94,10 +93,12 @@ export default class InstituteServices {
         id,
       })
       const institute = await Institute.query()
-        .where('LOWER(institute_name) = ?', [validatedData.instituteName!.trim().toLowerCase()])
+        .whereRaw('LOWER(institute_name) = ?', [validatedData.instituteName!.trim().toLowerCase()])
         .whereNot('id', id)
         .apply((scope) => scope.softDeletes())
-        .firstOrFail()
+        .first()
+
+
       if (institute) {
         return this.ctx.response.status(422).send({
           status: false,
@@ -124,19 +125,8 @@ export default class InstituteServices {
   async deleteOne() {
     try {
       const id = this.ctx.request.param('id')
-      const institute = await Institute.query()
-        .where('id', id)
-        .apply((scope) => scope.softDeletes())
-        .firstOrFail()
-      if (!institute) {
-        return {
-          status: false,
-          Message: messages.institute_not_found,
-          Data: null
-        }
-      }
-      institute.deletedAt = DateTime.now()
-      await institute.save()
+      const institute = await Institute.findOrFail(id)
+      await institute.delete()  
       return {
         status: true,
         Message: messages.common_messages_record_deleted,
@@ -149,6 +139,6 @@ export default class InstituteServices {
         error: errorHandler(error)
       }
     }
-
   }
+
 }
