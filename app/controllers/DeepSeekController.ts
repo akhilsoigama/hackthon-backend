@@ -13,14 +13,21 @@ export default class DeepSeekController {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-        model: "deepseek/deepseek-chat-v3.1:free",
-        // model: 'deepseek/deepseek-r1:free',
-        // model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
-        // model: 'meta-llama/llama-3.2-3b-instruct:free',
-        // model: 'anthropic/claude-3-haiku',
-        // model: 'openai/gpt-3.5-turbo',
-        // model: 'meta-llama/llama-3.1-8b-instruct',
-        // model: 'google/gemini-flash-1.5',
+          // slow but can speak better punjabi :)
+            // model: "deepseek/deepseek-chat-v3.1:free",
+
+          // decent speed and can speak punjabi
+            model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
+
+          // good speed
+            // model: 'meta-llama/llama-3.2-3b-instruct:free', 
+
+          // cannot speak punjabi
+            // model: 'anthropic/claude-3-haiku', 
+
+          // fast and can speak punjabi
+            // model: 'openai/gpt-3.5-turbo',
+            // model: 'meta-llama/llama-3.1-8b-instruct',
           messages,
         }),
       })
