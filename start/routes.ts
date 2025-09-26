@@ -16,10 +16,12 @@ import PermissionsController from '#controllers/permissions_controller'
 import UsersController from '#controllers/users_controller'
 import InstitutesController from '#controllers/institutes_controller'
 import DepartmentsController from '#controllers/departments_controller'
+import DeepSeekController from '#controllers/DeepSeekController'
 
 router.post('login', [AuthController, 'login'])
 // router.post('admin/login', [AuthController, 'adminLogin'])
-router.get('profile', [AuthController, 'getProfile'])
+router.get('profile', [AuthController, 'getProfile']);
+router.post('/chatbot', [DeepSeekController, 'chat']);
 
 router
   .group(() => {
