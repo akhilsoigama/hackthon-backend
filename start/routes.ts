@@ -15,6 +15,7 @@ import { middleware } from './kernel.js'
 import PermissionsController from '#controllers/permissions_controller'
 import UsersController from '#controllers/users_controller'
 import InstitutesController from '#controllers/institutes_controller'
+import DepartmentsController from '#controllers/departments_controller'
 
 router.post('login', [AuthController, 'login'])
 // router.post('admin/login', [AuthController, 'adminLogin'])
@@ -94,3 +95,27 @@ router.group(() => {
 })
   .prefix('/institutes')
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+
+router.group(() => {
+  router
+    .get('/', [DepartmentsController, 'index'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_LIST]))
+
+  router
+    .post('/', [DepartmentsController, 'store'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
+
+  router
+    .get('/:id', [DepartmentsController, 'show'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
+
+  router
+    .put('/:id', [DepartmentsController, 'update'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_UPDATE]))
+
+  router
+    .delete('/:id', [DepartmentsController, 'destroy'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
+})
+  .prefix('/departments')
+  .use(middleware.auth({ guards: ['adminapi', 'api'] }))  
