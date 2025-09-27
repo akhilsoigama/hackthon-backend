@@ -5,10 +5,10 @@ export const createFacultyValidator = vine.compile(
     facultyName: vine.string().trim().minLength(2).maxLength(100),
     facultyId: vine.number().positive(),
     designation: vine.string().trim().minLength(2).maxLength(50),
-    departmentIds: vine.array(
+    departmentId: vine.array(
       vine.number().positive()
     ),
-    instituteIds: vine.array(
+    instituteId: vine.array(
       vine.number().positive()
     ),
     roles: vine.array(
