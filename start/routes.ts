@@ -16,8 +16,8 @@ import PermissionsController from '#controllers/permissions_controller'
 import UsersController from '#controllers/users_controller'
 import InstitutesController from '#controllers/institutes_controller'
 import DepartmentsController from '#controllers/departments_controller'
-import ChatBotController from '#controllers/ChatBotController'
 import FacultyController from '#controllers/faculties_controller'
+import ChatBotController from '#controllers/chatBotController'
 
 
 router.post('login', [AuthController, 'login'])

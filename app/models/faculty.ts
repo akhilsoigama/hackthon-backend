@@ -1,27 +1,25 @@
-import { BaseModel, column, manyToMany, scope } from "@adonisjs/lucid/orm";
-import Department from "./department.js";
-import { DEPARTMENT, INSTITUTES, ROLE_PERMISSIONS } from "#database/constants/table_names";
-import type { ManyToMany } from "@adonisjs/lucid/types/relations";
-import { DateTime } from "luxon";
-import Institute from "./institute.js";
-import Role from "./role.js";
+import { BaseModel, belongsTo, column, scope } from "@adonisjs/lucid/orm"
+import type { BelongsTo } from "@adonisjs/lucid/types/relations"
+import { DateTime } from "luxon"
+import Department from "./department.js"
+import Institute from "./institute.js"
+import Role from "./role.js"
 
 export default class Faculty extends BaseModel {
-    static softDeletes = scope((query) => {
-        query.whereNull('deleted_at')
-    })
-    @column({ isPrimary: true })
-    declare id: number
+  static softDeletes = scope((query) => {
+    query.whereNull('deleted_at')
+  })
 
-    @column()
-    declare facultyName: string
+  @column({ isPrimary: true })
+  declare id: number
 
-    @column()
-    declare facultyId: number
+  @column()
+  declare facultyName: string
 
-    @column()
-    declare designation: string
+  @column()
+  declare facultyId: number
 
+<<<<<<< HEAD
     @manyToMany(() => Department, {
         pivotTable: DEPARTMENT,
     })
@@ -31,21 +29,44 @@ export default class Faculty extends BaseModel {
         pivotTable: INSTITUTES,
     })
     declare instituteId: ManyToMany<typeof Institute>
+=======
+  @column()
+  declare designation: string
 
-    @manyToMany(() => Role, {
-        pivotTable: ROLE_PERMISSIONS,
-    })
-    declare roles: ManyToMany<typeof Role>
+  @column()
+  declare departmentId: number
+>>>>>>> 3e483d4 (solve faculty module issue)
 
-    @column()
-    declare isActive: boolean
+  @column()
+  declare instituteId: number
 
-    @column.dateTime({ autoCreate: true })
-    declare createdAt: DateTime
+  @column()
+  declare roleId: number
 
-    @column.dateTime({ autoCreate: true, autoUpdate: true })
-    declare updatedAt: DateTime
+  @column()
+  declare isActive: boolean
 
-    @column.dateTime()
-    declare deletedAt: DateTime | null
+  @belongsTo(() => Department, {
+    foreignKey: 'departmentId',
+  })
+  declare department: BelongsTo<typeof Department>
+
+  @belongsTo(() => Institute, {
+    foreignKey: 'instituteId',
+  })
+  declare institute: BelongsTo<typeof Institute>
+
+  @belongsTo(() => Role, {
+    foreignKey: 'roleId',
+  })
+  declare role: BelongsTo<typeof Role>
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+
+  @column.dateTime()
+  declare deletedAt: DateTime | null
 }
