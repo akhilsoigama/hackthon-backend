@@ -25,12 +25,12 @@ export default class Faculty extends BaseModel {
     @manyToMany(() => Department, {
         pivotTable: DEPARTMENT,
     })
-    declare departmentId: ManyToMany<typeof Department>
+    declare departmentIds: ManyToMany<typeof Department>
 
     @manyToMany(() => Institute, {
         pivotTable: INSTITUTES,
     })
-    declare instituteId: ManyToMany<typeof Institute>
+    declare instituteIds: ManyToMany<typeof Institute>
 
     @manyToMany(() => Role, {
         pivotTable: ROLE_PERMISSIONS,

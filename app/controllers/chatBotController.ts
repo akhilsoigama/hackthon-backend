@@ -1,7 +1,7 @@
 import env from '#start/env'
 import type { HttpContext } from '@adonisjs/core/http'
 
-export default class DeepSeekController {
+export default class ChatBotController {
   public async chat({ request, response }: HttpContext) {
     try {
       const messages = request.input('messages')
