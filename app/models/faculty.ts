@@ -19,23 +19,11 @@ export default class Faculty extends BaseModel {
   @column()
   declare facultyId: number
 
-<<<<<<< HEAD
-    @manyToMany(() => Department, {
-        pivotTable: DEPARTMENT,
-    })
-    declare departmentId: ManyToMany<typeof Department>
-
-    @manyToMany(() => Institute, {
-        pivotTable: INSTITUTES,
-    })
-    declare instituteId: ManyToMany<typeof Institute>
-=======
   @column()
   declare designation: string
 
   @column()
   declare departmentId: number
->>>>>>> 3e483d4 (solve faculty module issue)
 
   @column()
   declare instituteId: number
