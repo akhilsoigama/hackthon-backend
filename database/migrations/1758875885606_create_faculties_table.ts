@@ -21,6 +21,8 @@ export default class extends BaseSchema {
         .references('id')
         .inTable('institutes')
         .onDelete('CASCADE')
+      table.integer('role_id').unsigned().references('id').inTable('roles').onDelete('CASCADE')
+
       table.boolean('is_active').defaultTo(true)
       table.timestamp('deleted_at').nullable()
 

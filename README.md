@@ -69,7 +69,7 @@
 
 ## 🎓 Faculty Management
 | Method | Route             | Handler                        | Middleware         |
-|--------|------------------|--------------------------------|--------------------|
+|--------|-------------------|--------------------------------|--------------------|
 | GET    | `/faculty`        | `FacultiesController.index`    | `auth, permission` |
 | POST   | `/faculty`        | `FacultiesController.store`    | `auth, permission` |
 | GET    | `/faculty/:id`    | `FacultiesController.show`     | `auth, permission` |
