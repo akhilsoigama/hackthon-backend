@@ -16,10 +16,15 @@ import PermissionsController from '#controllers/permissions_controller'
 import UsersController from '#controllers/users_controller'
 import InstitutesController from '#controllers/institutes_controller'
 import DepartmentsController from '#controllers/departments_controller'
+import FacultyController from '#controllers/faculties_controller'
+import ChatBotController from '#controllers/chatBotController'
+
 
 router.post('login', [AuthController, 'login'])
 // router.post('admin/login', [AuthController, 'adminLogin'])
-router.get('profile', [AuthController, 'getProfile'])
+router.get('profile', [AuthController, 'getProfile']);
+
+router.post('/chatbot', [ChatBotController, 'chat']);
 
 router
   .group(() => {
@@ -72,6 +77,7 @@ router
   .use(middleware.auth({ guards: ['adminapi'] }))
   .use(middleware.permission([PermissionKeys.USER_ROLES_VIEW]))
 
+  // Institute Routes
 router.group(() => {
   router
     .get('/', [InstitutesController, 'index'])
@@ -96,6 +102,8 @@ router.group(() => {
   .prefix('/institutes')
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
+
+  // Department Routes
 router.group(() => {
   router
     .get('/', [DepartmentsController, 'index'])
@@ -118,4 +126,31 @@ router.group(() => {
     .use(middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
 })
   .prefix('/departments')
-  .use(middleware.auth({ guards: ['adminapi', 'api'] }))  
+  .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+  
+  // Faculty Routes
+
+  router.group(() => { 
+    router
+    .get('/', [FacultyController, 'index'])
+    .use(middleware.permission([PermissionKeys.FACULTY_LIST]))
+
+    router
+    .post('/', [FacultyController, 'store'])
+    .use(middleware.permission([PermissionKeys.FACULTY_CREATE]))
+
+    router
+    .get('/:id', [FacultyController, 'show'])
+    .use(middleware.permission([PermissionKeys.FACULTY_VIEW]))
+
+    router
+    .put('/:id', [FacultyController, 'update'])
+    .use(middleware.permission([PermissionKeys.FACULTY_UPDATE]))
+
+    router
+    .delete('/:id', [FacultyController, 'destroy'])
+    .use(middleware.permission([PermissionKeys.FACULTY_DELETE]))
+
+   })
+    .prefix('/faculty')
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))

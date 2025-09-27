@@ -27,6 +27,16 @@ const messages = {
   department_updated_successfully:'Department Updated successfully',
   department_update_failed:'Failed to update department',
   department_already_exists:'Department already exists',
+
+  faculty_fetched_successfully: 'Faculties fetched successfully',
+  faculty_not_found: 'Faculty not found',
+  faculty_created_successfully: 'Faculty created successfully',
+  faculty_creation_failed:'Failed to create faculty',
+  faculty_updated_successfully:'Faculty Updated successfully',
+  faculty_update_failed:'Failed to update faculty',
+  faculty_already_exists:'Faculty already exists',
+
+  
 }
 
 export default messages
