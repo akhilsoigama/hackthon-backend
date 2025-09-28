@@ -18,6 +18,7 @@ import InstitutesController from '#controllers/institutes_controller'
 import DepartmentsController from '#controllers/departments_controller'
 import FacultyController from '#controllers/faculties_controller'
 import ChatBotController from '#controllers/ChatBotController'
+import TranslatesController from '#controllers/translates_controller'
 
 
 router.post('login', [AuthController, 'login'])
@@ -25,6 +26,9 @@ router.post('login', [AuthController, 'login'])
 router.get('profile', [AuthController, 'getProfile']);
 
 router.post('/chatbot', [ChatBotController, 'chat']);
+
+router.post('/translate',[TranslatesController,'translateMessage'])
+
 
 router
   .group(() => {
