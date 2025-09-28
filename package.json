@@ -5,7 +5,7 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
-    "build": "node ace build",
+    "build": "node ace build --production",
     "start": "node build/server.js",
     "dev": "node ace serve --watch",
     "test": "node ace test",
@@ -48,7 +48,6 @@
     "pino-pretty": "^13.0.0",
     "prettier": "^3.5.3",
     "ts-node": "^10.9.2",
-    "ts-node-maintained": "^10.9.6",
     "typescript": "~5.8"
   },
   "dependencies": {
