@@ -10,9 +10,9 @@
     "dev": "node ace serve --watch",
     "test": "node ace test",
     "lint": "eslint .",
-    "seed": "node ace db:seed --force",
-    "migrate": "node ace migration:run --force",
-    "migrate:fresh": "node ace migration:fresh --force",
+    "seed": "node ace db:seed",
+    "migrate": "node ace migration:run",
+    "migrate:fresh": "node ace migration:fresh",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },
