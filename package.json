@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "node ace build",
-    "start": "node ace serve",
+    "start": "node build/server.js",
     "dev": "node ace serve --watch",
     "test": "node ace test",
     "lint": "eslint .",
@@ -20,7 +20,7 @@
     "#mails/*": "./app/mails/*.js",
     "#services/*": "./app/services/*.js",
     "#listeners/*": "./app/listeners/*.js",
-    "#events/*": "./app/events/*.js",  
+    "#events/*": "./app/events/*.js",
     "#middleware/*": "./app/middleware/*.js",
     "#validators/*": "./app/validators/*.js",
     "#providers/*": "./providers/*.js",
