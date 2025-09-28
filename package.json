@@ -10,6 +10,7 @@
     "dev": "node ace serve --watch",
     "test": "node ace test",
     "lint": "eslint .",
+    "seed": "node ace db:seed",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },
