@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "node ace build",
-    "start": "node build/server.js",
+    "start": "node build/bin/server.js",
     "dev": "node ace serve --watch",
     "test": "node ace test",
     "lint": "eslint .",
