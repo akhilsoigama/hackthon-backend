@@ -12,7 +12,7 @@
     "lint": "eslint .",
     "seed": "node ace db:seed",
     "migrate": "node ace migration:run",
-    "migrate:fresh": "node ace migration:fresh",
+    "migrate:seed": "ts-node scripts/migration-seed.ts",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
   },
