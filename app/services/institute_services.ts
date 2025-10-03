@@ -4,37 +4,53 @@ import { updateInstituteValidator ,createInstituteValidator } from "#validators/
 import { inject } from "@adonisjs/core";
 import { HttpContext } from '@adonisjs/core/http'
 import { errorHandler } from "../helper/error_handler.js";
+import messages from '#database/constants/messages';
+import Faculty from '#models/faculty';
+import { createFacultyValidator, updateFacultyValidator } from '#validators/faculty';
+import { inject } from '@adonisjs/core';
+import { HttpContext } from '@adonisjs/core/http';
+import { errorHandler } from '../helper/error_handler.js';
 
 @inject()
-export default class InstituteServices {
-  constructor(protected ctx: HttpContext) { }
+export default class FacultyController {
+  constructor(protected ctx: HttpContext) {}
 
-  async findAll({ searchFor }: { searchFor?: string | null }) {
+  async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      let query = Institute.query().apply((scopes) => scopes.softDeletes())
+
+      let query = Faculty.query()
+        .preload('department')
+        .preload('institute')
+        .preload('role')
+        .apply((scopes) => scopes.softDeletes());
+
       if (searchFor === 'create') {
-        query = query.where('isActive', true)
+        query = query.where('isActive', true);
       }
-      const institutes = await query
-      if (institutes && Array.isArray(institutes) && institutes.length > 0) {
+
+      const faculties = await query;
+
+      if (faculties && faculties.length > 0) {
         return {
           status: true,
-          Message: messages.indtitute_fetched_successfully,
-          Data: institutes
-        }
+          message: messages.faculty_fetched_successfully,
+          data: faculties,
+        };
       } else {
+
         return {
           status: false,
-          Message: messages.institute_not_found,
-          Data: []
-        }
+          message: messages.faculty_not_found,
+          data: [],
+        };
       }
     } catch (error) {
+      console.error('Error in findAll:', error);
       return {
         status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
+        message: messages.common_messages_error,
+        error: errorHandler(error),
+      };
     }
   }
 
@@ -48,89 +64,164 @@ export default class InstituteServices {
         Message: messages.institute_created_successfully,
         Data: institute,
       }
-    } catch (error) {
-      return {
-        status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
-    }
-  }
-  async findOne() {
-    try {
-      const id = this.ctx.request.param('id')
-      const institute = await Institute.query()
-        .where('id', id)
-        .apply((scope) => scope.softDeletes())
-        .firstOrFail()
-      return {
-        status: true,
-        message: messages.common_messages_record_available,
-        data: institute,
-      }
-    } catch (error) {
-      return {
-        status: false,
-        message: messages.common_messages_no_record_found,
-        error: errorHandler(error),
-      }
-    }
-  }
-  async updateone() {
-    try {
-      const id = this.ctx.request.param('id')
-      const requestData = this.ctx.request.all()
-      const validatedData = await updateInstituteValidator.validate({
-        ...requestData,
-        id,
-      })
-      const institute = await Institute.query()
-        .whereRaw('LOWER(institute_name) = ?', [validatedData.instituteName!.trim().toLowerCase()])
-        .whereNot('id', id)
-        .apply((scope) => scope.softDeletes())
-        .first()
+      const requestData = this.ctx.request.all();
 
+      const requiredFields = ['facultyName', 'facultyEmail', 'facultyPassword', 'designation'];
+      for (const field of requiredFields) {
+        if (!requestData[field]) {
+          return this.ctx.response.status(400).send({
+            status: false,
+            message: `${field} is required`,
+          });
+        }
+      }
 
-      if (institute) {
+      const existingFaculty = await Faculty.query()
+        .where('facultyEmail', requestData.facultyEmail)
+        .apply((scope) => scope.softDeletes())
+        .first();
+
+      if (existingFaculty) {
         return this.ctx.response.status(422).send({
           status: false,
-          message: messages.institute_already_exists,
-          data: institute,
-        })
+          message: 'Faculty with this email already exists',
+        });
       }
-      const instituteToUpdate = await Institute.findOrFail(id)
-      instituteToUpdate.merge(validatedData)
-      await instituteToUpdate.save()
+
+      const validatedData = await createFacultyValidator.validate(requestData);
+      const faculty = await Faculty.create({
+        ...validatedData,
+        facultyId: validatedData.facultyId || `FAC${Date.now()}`,
+        isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+      });
+
+
       return {
         status: true,
-        message: messages.institute_updated_successfully,
-        data: instituteToUpdate,
-      }
+        message: 'Faculty created successfully',
+        data: faculty,
+      };
     } catch (error) {
       return {
         status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
-    }
-  }
-  async deleteOne() {
-    try {
-      const id = this.ctx.request.param('id')
-      const institute = await Institute.findOrFail(id)
-      await institute.delete()  
-      return {
-        status: true,
-        Message: messages.common_messages_record_deleted,
-        Data: null
-      }
-    } catch (error) {
-      return {
-        status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
+        message: 'Failed to create faculty',
+        error: error.message,
+      };
     }
   }
 
+  async findOne() {
+    try {
+      const id = this.ctx.request.param('id');
+
+      if (!id || isNaN(Number(id))) {
+        return this.ctx.response.status(400).send({
+          status: false,
+          message: 'Invalid faculty ID',
+        });
+      }
+
+      const faculty = await Faculty.query()
+        .where('id', id)
+        .apply((scopes) => scopes.softDeletes())
+        .preload('department')
+        .preload('institute')
+        .preload('role')
+        .first();
+
+
+      if (faculty) {
+        return {
+          status: true,
+          message: messages.faculty_fetched_successfully,
+          data: faculty,
+        };
+      } else {
+        return {
+          status: false,
+          message: messages.faculty_not_found,
+          data: null,
+        };
+      }
+    } catch (error) {
+      return {
+        status: false,
+        message: messages.common_messages_error,
+        error: errorHandler(error),
+      };
+    }
+  }
+
+  async updateOne() {
+    try {
+      const id = this.ctx.request.param('id');
+      const requestData = this.ctx.request.all();
+
+      if (requestData.facultyMobile) {
+        requestData.facultyMobile = requestData.facultyMobile.toString().replace(/\D/g, '');
+      }
+
+      const validatedData = await updateFacultyValidator.validate(requestData);
+
+      const existingFaculty = await Faculty.find(id);
+      if (!existingFaculty || existingFaculty.deletedAt) {
+        return {
+          status: false,
+          message: messages.faculty_not_found,
+          data: null,
+        };
+      }
+
+      existingFaculty.merge(validatedData);
+      await existingFaculty.save();
+
+      await existingFaculty.load('department');
+      await existingFaculty.load('institute');
+      await existingFaculty.load('role');
+
+
+      return {
+        status: true,
+        message: messages.faculty_updated_successfully,
+        data: existingFaculty,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        message: messages.common_messages_error,
+        error: errorHandler(error),
+      };
+    }
+  }
+
+  async deleteOne() {
+    try {
+      const id = this.ctx.request.param('id');
+
+      const faculty = await Faculty.find(id);
+      if (!faculty || faculty.deletedAt) {
+        return {
+          status: false,
+          message: messages.faculty_not_found,
+          data: null,
+        };
+      }
+
+      faculty.deletedAt = new Date() as any;
+      await faculty.save();
+
+
+      return {
+        status: true,
+        message: messages.common_messages_record_deleted,
+        data: null,
+      };
+    } catch (error) {
+      return {
+        status: false,
+        message: messages.common_messages_error,
+        error: errorHandler(error),
+      };
+    }
+  }
 }

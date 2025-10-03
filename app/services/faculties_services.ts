@@ -1,6 +1,6 @@
 import messages from '#database/constants/messages'
 import Faculty from '#models/faculty'
-import { createFacultyValidator, updateFacultyValidator } from '#validators/faculty'
+import { updateFacultyValidator } from '#validators/faculty'
 import { inject } from '@adonisjs/core'
 import { HttpContext } from '@adonisjs/core/http'
 import { errorHandler } from '../helper/error_handler.js'
@@ -9,22 +9,25 @@ import { errorHandler } from '../helper/error_handler.js'
 export default class FacultyController {
   constructor(protected ctx: HttpContext) {}
 
-  // Fetch all faculties with related department, institute, role
-  async findAll({ searchFor }: { searchFor?: string | null }) {
+  async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      let query = Faculty.query().preload('department').preload('institute').preload('role').apply((scopes) => scopes.softDeletes())
+      let query = Faculty.query()
+        .preload('department')
+        .preload('institute')
+        .preload('role')
+        // .apply((scopes) => scopes.softDeletes()) // ✅ Soft delete applied
 
       if (searchFor === 'create') {
         query = query.where('isActive', true)
       }
 
-      const Faculties = await query
+      const faculties = await query
 
-      if (Faculties && Array.isArray(Faculties) && Faculties.length > 0) {
+      if (faculties && faculties.length > 0) {
         return {
           status: true,
           Message: messages.faculty_fetched_successfully,
-          Data: Faculties,
+          Data: faculties,
         }
       } else {
         return {
@@ -42,90 +45,83 @@ export default class FacultyController {
     }
   }
 
-  // Create a new faculty
   async create() {
     try {
       const requestData = this.ctx.request.all()
-      const validatedData = await createFacultyValidator.validate(requestData)
-      const faculty = await Faculty.create(validatedData)
 
-      // Reload with relations
-      // await faculty.preload('department').preload('institute').preload('role')
+      const requiredFields = ['facultyName', 'facultyEmail', 'facultyPassword', 'designation']
+      for (const field of requiredFields) {
+        if (!requestData[field]) {
+          return this.ctx.response.status(400).send({
+            status: false,
+            message: `${field} is required`,
+          })
+        }
+      }
+
+      const existingFaculty = await Faculty.query()
+        .where('facultyEmail', requestData.facultyEmail)
+        .apply((scope) => scope.softDeletes()) // ✅ Soft delete applied
+        .first()
+
+      if (existingFaculty) {
+        return this.ctx.response.status(422).send({
+          status: false,
+          message: 'Faculty with this email already exists',
+        })
+      }
+
+      const faculty = await Faculty.create({
+        ...requestData,
+        facultyId: requestData.facultyId || `FAC${Date.now()}`,
+        isActive: requestData.isActive !== undefined ? requestData.isActive : true,
+      })
 
       return {
         status: true,
-        Message: messages.faculty_created_successfully,
-        Data: faculty,
-      }
-    } catch (error) {
-      console.error('Faculty creation error:', error)
-      return {
-        status: false,
-        Message: messages.faculty_creation_failed,
-        error: errorHandler(error),
-        data: [],
-      }
-    }
-  }
-
-  // Fetch single faculty by ID with relations
-  async findOne() {
-    try {
-      const id = this.ctx.request.param('id')
-      const faculty = await Faculty.query()
-        .where('id', id)
-        .preload('department')
-        .preload('institute')
-        .preload('role')
-        .apply((scope) => scope.softDeletes())
-        .firstOrFail()
-
-      return {
-        status: true,
-        Message: messages.faculty_fetched_successfully,
+        message: 'Faculty created successfully',
         data: faculty,
       }
     } catch (error) {
       return {
         status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error),
+        message: 'Failed to create faculty',
+        error: error.message,
       }
     }
   }
 
-  // Update faculty
-  async updateOne() {
+  async findOne() {
     try {
       const id = this.ctx.request.param('id')
-      const requestData = this.ctx.request.all()
-      const validatedData = await updateFacultyValidator.validate(requestData)
+
+      if (!id || isNaN(Number(id))) {
+        return this.ctx.response.status(400).send({
+          status: false,
+          Message: 'Invalid faculty ID',
+        })
+      }
 
       const faculty = await Faculty.query()
-        .whereILike('facultyName', validatedData.facultyName!.trim())
-        .whereNot('id', id)
-        .apply((scope) => scope.softDeletes())
+        .where('id', id)
+        // .apply((scopes) => scopes.softDeletes()) 
+        .preload('department')
+        .preload('institute')
+        .preload('role')
         .first()
 
       if (faculty) {
         return {
-          status: false,
-          Message: messages.faculty_already_exists,
-          Data: null,
+          status: true,
+          Message: messages.faculty_fetched_successfully,
+          data: faculty,
         }
-      }
-
-      const FacultiesData = await Faculty.findOrFail(id)
-      FacultiesData.merge(validatedData)
-      await FacultiesData.save()
-
-      // Reload with relations
-      // await FacultiesData.preload('department').preload('institute').preload('role')
-
-      return {
-        status: true,
-        Message: messages.faculty_updated_successfully,
-        Data: FacultiesData,
+      } else {
+        return {
+          status: false,
+          Message: messages.faculty_not_found,
+          data: null,
+        }
       }
     } catch (error) {
       return {
@@ -136,12 +132,63 @@ export default class FacultyController {
     }
   }
 
-  // Delete faculty
+  async updateOne() {
+    try {
+      const id = this.ctx.request.param('id')
+      const requestData = this.ctx.request.all()
+
+      if (requestData.facultyMobile) {
+        requestData.facultyMobile = requestData.facultyMobile.toString().replace(/\D/g, '')
+      }
+
+      const validatedData = await updateFacultyValidator.validate(requestData)
+
+      const existingFaculty = await Faculty.find(id)
+      if (!existingFaculty || existingFaculty.deletedAt) { 
+        return {
+          status: false,
+          Message: messages.faculty_not_found,
+          Data: null,
+        }
+      }
+
+      existingFaculty.merge(validatedData)
+      await existingFaculty.save()
+
+      await existingFaculty.load('department')
+      await existingFaculty.load('institute')
+      await existingFaculty.load('role')
+
+      return {
+        status: true,
+        Message: messages.faculty_updated_successfully,
+        Data: existingFaculty,
+      }
+    } catch (error) {
+      return {
+        status: false,
+        Message: messages.common_messages_error,
+        error: errorHandler(error),
+      }
+    }
+  }
+
   async deleteOne() {
     try {
       const id = this.ctx.request.param('id')
-      const faculty = await Faculty.findOrFail(id)
-      await faculty.delete()
+
+      const faculty = await Faculty.find(id)
+      if (!faculty || faculty.deletedAt) { 
+        return {
+          status: false,
+          Message: messages.faculty_not_found,
+          Data: null,
+        }
+      }
+
+      faculty.deletedAt = new Date() as any
+      await faculty.save()
+
       return {
         status: true,
         Message: messages.common_messages_record_deleted,

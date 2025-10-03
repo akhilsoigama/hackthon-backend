@@ -12,6 +12,10 @@ const messages = {
   common_messages_record_deleted: 'Record deleted successfully.',
   common_messages_record_deleted_failed: 'Failed to delete the record.',
 
+  user_login_failed:'user login failed',
+  institute_login_failed:'institute login failed',
+  faculty_login_failed:'faculty login failed',
+  
   indtitute_fetched_successfully: 'Institutes fetched successfully',
   institute_not_found: 'Institute not found',
   institute_created_successfully: 'Institute created successfully',

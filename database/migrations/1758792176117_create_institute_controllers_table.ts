@@ -7,8 +7,8 @@ export default class extends BaseSchema {
   async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id') // primary key
-
       table.string('institute_name').notNullable()
+      table.string('institute_password').notNullable()
       table.string('institute_address').nullable()
       table.string('institute_phone').nullable()
       table.string('institute_email').nullable()
@@ -26,7 +26,6 @@ export default class extends BaseSchema {
       table.string('principal_qualification').nullable()
       table.integer('principal_experience').nullable()
       table.boolean('is_active').defaultTo(true)
-
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })
       table.timestamp('deleted_at', { useTz: true }).nullable()
