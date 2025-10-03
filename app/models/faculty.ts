@@ -1,12 +1,15 @@
-import { BaseModel, belongsTo, column, scope } from "@adonisjs/lucid/orm"
-import type { BelongsTo } from "@adonisjs/lucid/types/relations"
-import { DateTime } from "luxon"
-import Department from "./department.js"
-import Institute from "./institute.js"
-import Role from "./role.js"
+// app/models/faculty.ts
+import { BaseModel, column, beforeSave, belongsTo, scope } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import hash from '@adonisjs/core/services/hash'
+import Institute from './institute.js'
+import Department from './department.js'
+import Role from './role.js'
+import { DateTime } from 'luxon'
 
 export default class Faculty extends BaseModel {
-  static softDeletes = scope((query) => {
+  // Soft delete scope
+  public static softDeletes = scope((query) => {
     query.whereNull('deleted_at')
   })
 
@@ -17,7 +20,13 @@ export default class Faculty extends BaseModel {
   declare facultyName: string
 
   @column()
-  declare facultyId: number
+  declare facultyEmail: string
+
+  @column()
+  declare facultyPassword: string
+
+  @column()
+  declare facultyMobile: string
 
   @column()
   declare designation: string
@@ -32,21 +41,18 @@ export default class Faculty extends BaseModel {
   declare roleId: number
 
   @column()
+  declare facultyId: string
+
+  @column()
   declare isActive: boolean
 
-  @belongsTo(() => Department, {
-    foreignKey: 'departmentId',
-  })
-  declare department: BelongsTo<typeof Department>
-
-  @belongsTo(() => Institute, {
-    foreignKey: 'instituteId',
-  })
+  @belongsTo(() => Institute)
   declare institute: BelongsTo<typeof Institute>
 
-  @belongsTo(() => Role, {
-    foreignKey: 'roleId',
-  })
+  @belongsTo(() => Department)
+  declare department: BelongsTo<typeof Department>
+
+  @belongsTo(() => Role)
   declare role: BelongsTo<typeof Role>
 
   @column.dateTime({ autoCreate: true })
@@ -55,6 +61,18 @@ export default class Faculty extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
+  // deletedAt should be nullable for soft delete to work
   @column.dateTime()
-  declare deletedAt: DateTime | null
+  declare deletedAt?: DateTime
+
+  @beforeSave()
+  public static async hashPassword(faculty: Faculty) {
+    if (faculty.$dirty.facultyPassword) {
+      faculty.facultyPassword = await hash.make(faculty.facultyPassword)
+    }
+  }
+
+  public async verifyPassword(password: string): Promise<boolean> {
+    return await hash.verify(this.facultyPassword, password)
+  }
 }

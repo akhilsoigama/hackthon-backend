@@ -1,14 +1,29 @@
-import AdminUser from '#models/admin_user'
+import AdminUser, { UserType } from '#models/admin_user'
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 
 export default class extends BaseSeeder {
   public async run() {
-    const users = [
+    const users: {
+      fullName: string
+      email: string
+      password: string
+      mobile: string
+      userType: UserType
+      isAdmin: boolean
+      isActive: boolean
+      isEmailVerified: boolean
+      isMobileVerified: boolean
+    }[] = [
       {
         fullName: 'test test',
         email: 'test@test.com',
-        password: '12345678',
+        password: '12345678', // Store plain text - let model @beforeSave handle hashing
         mobile: '12345678',
+        userType: 'super_admin',
+        isAdmin: true,
+        isActive: true,
+        isEmailVerified: true,
+        isMobileVerified: true,
       },
     ]
 

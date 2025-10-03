@@ -1,6 +1,6 @@
 import messages from "#database/constants/messages";
 import Department from "#models/department";
-import { createDepartmentValidator, updateDepartmentValidator } from "#validators/department";
+import { updateDepartmentValidator } from "#validators/department";
 import { inject } from "@adonisjs/core";
 import { HttpContext } from '@adonisjs/core/http'
 import { errorHandler } from "../helper/error_handler.js";
@@ -41,22 +41,32 @@ export default class DepartmentServices {
         try {
             const requestData = this.ctx.request.all()
 
-            const validatedData = await createDepartmentValidator.validate(requestData)
+            const existingDepartment = await Department
+                .query()
+                .where('departmentName', requestData.departmentName)
+                .apply((scope) => scope.softDeletes())
+                .first()
 
-            const department = await Department.create(validatedData)
+            if (existingDepartment) {
+                return {
+                    status: false,
+                    Message: messages.department_already_exists,
+                }
+            }
+
+            const department = await Department.create(requestData)
 
             return {
                 status: true,
                 Message: messages.department_created_successfully,
-                Data: department
+                Data: department,
             }
+
         } catch (error) {
-            console.error('Department creation error:', error)
             return {
                 status: false,
-                Message: messages.department_creation_failed,
+                Message: messages.common_messages_error,
                 error: errorHandler(error),
-                data: []
             }
         }
     }
