@@ -26,6 +26,7 @@
 | POST   | `/roles`               | `RolesController.createRoleWithPermissions` | `auth, permission` |
 | PUT    | `/roles/:id`           | `RolesController.updateRole`                | `auth, permission` |
 | GET    | `/roles`               | `RolesController.getAllRoleWithPermissions` | `auth, permission` |
+| Delete | `/roles/:id`           | `RolesController.deleteRole`                | `auth, permission` |
 | GET    | `/permissions`         | `PermissionsController.getAllPermissions`   | `auth, permission` |
 
 ---

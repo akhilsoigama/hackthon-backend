@@ -84,4 +84,10 @@ export default class RolesService {
 
     return response.ok(role)
   }
+
+  public async deleteRole({ params, response }: HttpContext) {
+    const role = await Role.findOrFail(params.id)
+    await role.delete()
+    return response.ok({ message: 'Role deleted successfully' })
+  }
 }

@@ -23,4 +23,8 @@ export default class RolesController {
   async getRoleWithPermissions() {
     return this.rolesService.getRoleWithPermissions(this.ctx)
   }
+
+  async deleteRole() {
+    return this.rolesService.deleteRole(this.ctx)
+  }
 }

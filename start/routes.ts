@@ -30,6 +30,7 @@ router.post('/chatbot', [ChatBotController, 'chat']);
 router.post('/translate',[TranslatesController,'translateMessage'])
 
 
+// Roles
 router
   .group(() => {
     router
@@ -47,6 +48,10 @@ router
     router
       .get('/', [RolesController, 'getAllRoleWithPermissions'])
       .use(middleware.permission([PermissionKeys.ROLES_LIST]))
+
+      router
+      .delete('/:id', [RolesController, 'deleteRole'])
+      .use(middleware.permission([PermissionKeys.ROLES_DELETE]))
   })
   .prefix('/roles')
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))

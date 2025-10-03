@@ -1,6 +1,6 @@
 import messages from "#database/constants/messages";
 import Institute from "#models/institute";
-import { updateInstituteValidator } from "#validators/institute";
+import { updateInstituteValidator ,createInstituteValidator } from "#validators/institute";
 import { inject } from "@adonisjs/core";
 import { HttpContext } from '@adonisjs/core/http'
 import { errorHandler } from "../helper/error_handler.js";
@@ -41,20 +41,12 @@ export default class InstituteServices {
   async create() {
     try {
       const requestData = this.ctx.request.all()
-      const institute = await Institute.create(requestData)
-      const existingInstitute = await Institute.query().where('id', institute.id).apply((scope) => scope.softDeletes()).first()
-      if (existingInstitute) {
-        return {
-          status: true,
-          Message: messages.institute_created_successfully,
-          Data: existingInstitute
-        }
-      } else if (!existingInstitute) {
-        return {
-          status: false,
-          Message: messages.institute_not_found,
-          Data: null
-        }
+      const validatedData = await createInstituteValidator.validate(requestData);
+      const institute = await Institute.create(validatedData)
+     return {
+        status: true,
+        Message: messages.institute_created_successfully,
+        Data: institute,
       }
     } catch (error) {
       return {
