@@ -47,19 +47,18 @@ export default class AuthController {
       let token: any = null
       let authType: string = ''
 
+      // Try admin login first
       try {
         const adminUser = await AdminUser.verifyCredentials(email, password)
         user = adminUser
         token = await AdminUser.adminAccessTokens.create(user)
         authType = 'admin'
       } catch (adminError) {
-        return {
-          status: false,
-          message: messages.common_messages_no_record_found,
-          data: [],
-        };
+        // Don't return here, just continue to other login types
+        // console.log('Admin login failed, trying other types...')
       }
 
+      // If admin login failed, try institute login
       if (!user) {
         try {
           const institute = await Institute.query()
@@ -101,14 +100,12 @@ export default class AuthController {
             }
           }
         } catch (instituteError) {
-          return {
-          status: false,
-          message: messages.institute_login_failed,
-          data: [],
-        };
+          // console.log('Institute login failed:', instituteError)
+          // Continue to next login type
         }
       }
 
+      // If institute login failed, try faculty login
       if (!user) {
         try {
           const faculty = await Faculty.query()
@@ -147,11 +144,8 @@ export default class AuthController {
             }
           }
         } catch (facultyError) {
-           return {
-          status: false,
-          message: messages.faculty_login_failed,
-          data: [],
-        };
+          // console.log('Faculty login failed:', facultyError)
+          // Continue to next login type
         }
       }
 
@@ -162,19 +156,17 @@ export default class AuthController {
           await user.load('userRoles', (rolesQuery) => rolesQuery.preload('permissions'))
           authType = 'user'
         } catch (userError) {
-          return {
-            status: false,
-            message: messages.user_login_failed,
-            data: [],
-          };
+          // console.log('User login failed:', userError)
+          // All login attempts failed
         }
       }
 
+      // If no user found after all attempts
       if (!user || !token) {
         return response.unauthorized({
           success: false,
-          message: 'Invalid credentials',
-          error: 'Please check your email and password'
+          message: messages.common_messages_no_record_found,
+          data: []
         })
       }
 
@@ -205,6 +197,7 @@ export default class AuthController {
         user: userData,
       })
     } catch (error) {
+      console.error('Login error:', error)
       return response.unauthorized({
         success: false,
         message: 'Authentication failed',

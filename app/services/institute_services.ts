@@ -1,101 +1,101 @@
 import messages from '#database/constants/messages';
-import Faculty from '#models/faculty';
-import { createFacultyValidator, updateFacultyValidator } from '#validators/faculty';
 import { inject } from '@adonisjs/core';
 import { HttpContext } from '@adonisjs/core/http';
 import { errorHandler } from '../helper/error_handler.js';
+import Institute from '#models/institute';
+import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
 
 @inject()
-export default class FacultyController {
+export default class instituteController {
   constructor(protected ctx: HttpContext) {}
 
-  async findAll({ searchFor }: { searchFor?: string | null } = {}) {
-    try {
+ async findAll({ searchFor }: { searchFor?: string | null } = {}) {
+  try {
+    let query = Institute.query()
+      .preload('role') 
+      .apply((scopes) => scopes.softDeletes());
 
-      let query = Faculty.query()
-        .preload('department')
-        .preload('institute')
-        .preload('role')
-        .apply((scopes) => scopes.softDeletes());
-
-      if (searchFor === 'create') {
-        query = query.where('isActive', true);
-      }
-
-      const faculties = await query;
-
-      if (faculties && faculties.length > 0) {
-        return {
-          status: true,
-          message: messages.faculty_fetched_successfully,
-          data: faculties,
-        };
-      } else {
-
-        return {
-          status: false,
-          message: messages.faculty_not_found,
-          data: [],
-        };
-      }
-    } catch (error) {
-      console.error('Error in findAll:', error);
-      return {
-        status: false,
-        message: messages.common_messages_error,
-        error: errorHandler(error),
-      };
+    if (searchFor === 'create') {
+      query = query.where('isActive', true);
     }
-  }
 
-  async create() {
-    try {
-      const requestData = this.ctx.request.all();
+    const institute = await query;
 
-      const requiredFields = ['facultyName', 'facultyEmail', 'facultyPassword', 'designation'];
-      for (const field of requiredFields) {
-        if (!requestData[field]) {
-          return this.ctx.response.status(400).send({
-            status: false,
-            message: `${field} is required`,
-          });
-        }
-      }
-
-      const existingFaculty = await Faculty.query()
-        .where('facultyEmail', requestData.facultyEmail)
-        .apply((scope) => scope.softDeletes())
-        .first();
-
-      if (existingFaculty) {
-        return this.ctx.response.status(422).send({
-          status: false,
-          message: 'Faculty with this email already exists',
-        });
-      }
-
-      const validatedData = await createFacultyValidator.validate(requestData);
-      const faculty = await Faculty.create({
-        ...validatedData,
-        facultyId: validatedData.facultyId || `FAC${Date.now()}`,
-        isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
-      });
-
-
+    if (institute && institute.length > 0) {
       return {
         status: true,
-        message: 'Faculty created successfully',
-        data: faculty,
+        message: messages.indtitute_fetched_successfully,
+        data: institute,
       };
-    } catch (error) {
+    } else {
       return {
         status: false,
-        message: 'Failed to create faculty',
-        error: error.message,
+        message: messages.institute_not_found,
+        data: [],
       };
     }
+  } catch (error) {
+    console.error('Error in findAll:', error);
+    return {
+      status: false,
+      message: messages.common_messages_error,
+      error: errorHandler(error),
+    };
   }
+}
 
+ async create() {
+  try {
+    const requestData = this.ctx.request.all();
+
+    const requiredFields = ['instituteName', 'instituteEmail', 'institutePassword'];
+    for (const field of requiredFields) {
+      if (!requestData[field]) {
+        return this.ctx.response.status(400).send({
+          status: false,
+          message: `${field} is required`,
+        });
+      }
+    }
+
+    const existingInstitute = await Institute.query()
+      .where('instituteEmail', requestData.instituteEmail)
+      .apply((scope) => scope.softDeletes())
+      .first();
+
+    if (existingInstitute) {
+      return this.ctx.response.status(422).send({
+        status: false,
+        message: messages.institute_already_exists, // Update this message
+      });
+    }
+
+    const validatedData = await createInstituteValidator.validate(requestData);
+    
+    // Set a default roleId if not provided
+    const instituteData = {
+      ...validatedData,
+      instituteEmail: validatedData.instituteEmail,
+      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+      roleId: validatedData.roleId || null, // Ensure roleId is set, even if null
+    };
+
+    const institute = await Institute.create(instituteData);
+
+    // Don't preload role immediately after creation if roleId might be null
+    return {
+      status: true,
+      message: messages.institute_created_successfully,
+      data: institute,
+    };
+  } catch (error) {
+    return {
+      status: false,
+      message: 'Failed to create institute',
+      error: error.message,
+    };
+  }
+}
   async findOne() {
     try {
       const id = this.ctx.request.param('id');
@@ -103,29 +103,27 @@ export default class FacultyController {
       if (!id || isNaN(Number(id))) {
         return this.ctx.response.status(400).send({
           status: false,
-          message: 'Invalid faculty ID',
+          message: 'Invalid institute ID',
         });
       }
 
-      const faculty = await Faculty.query()
+      const institute = await Institute.query()
         .where('id', id)
         .apply((scopes) => scopes.softDeletes())
-        .preload('department')
-        .preload('institute')
         .preload('role')
         .first();
 
 
-      if (faculty) {
+      if (institute) {
         return {
           status: true,
-          message: messages.faculty_fetched_successfully,
-          data: faculty,
+          message: messages.indtitute_fetched_successfully,
+          data: institute,
         };
       } else {
         return {
           status: false,
-          message: messages.faculty_not_found,
+          message: messages.institute_not_found,
           data: null,
         };
       }
@@ -143,33 +141,31 @@ export default class FacultyController {
       const id = this.ctx.request.param('id');
       const requestData = this.ctx.request.all();
 
-      if (requestData.facultyMobile) {
-        requestData.facultyMobile = requestData.facultyMobile.toString().replace(/\D/g, '');
+      if (requestData.instituteMobile) {
+        requestData.instituteMobile = requestData.instituteMobile.toString().replace(/\D/g, '');
       }
 
-      const validatedData = await updateFacultyValidator.validate(requestData);
+      const validatedData = await updateInstituteValidator.validate(requestData);
 
-      const existingFaculty = await Faculty.find(id);
-      if (!existingFaculty || existingFaculty.deletedAt) {
+      const existinginstitute = await Institute.find(id);
+      if (!existinginstitute || existinginstitute.deletedAt) {
         return {
           status: false,
-          message: messages.faculty_not_found,
+          message: messages.institute_not_found,
           data: null,
         };
       }
 
-      existingFaculty.merge(validatedData);
-      await existingFaculty.save();
+      existinginstitute.merge(validatedData);
+      await existinginstitute.save();
 
-      await existingFaculty.load('department');
-      await existingFaculty.load('institute');
-      await existingFaculty.load('role');
+      await existinginstitute.load('role');
 
 
       return {
         status: true,
-        message: messages.faculty_updated_successfully,
-        data: existingFaculty,
+        message: messages.institute_updated_successfully,
+        data: existinginstitute,
       };
     } catch (error) {
       return {
@@ -184,17 +180,17 @@ export default class FacultyController {
     try {
       const id = this.ctx.request.param('id');
 
-      const faculty = await Faculty.find(id);
-      if (!faculty || faculty.deletedAt) {
+      const institute = await Institute.find(id);
+      if (!institute || institute.deletedAt) {
         return {
           status: false,
-          message: messages.faculty_not_found,
+          message: messages.institute_not_found,
           data: null,
         };
       }
 
-      faculty.deletedAt = new Date() as any;
-      await faculty.save();
+      institute.deletedAt = new Date() as any;
+      await institute.save();
 
 
       return {

@@ -21,6 +21,7 @@ export const createInstituteValidator = vine.compile(
     institutePinCode: vine.string().trim().minLength(4),
     principalQualification: vine.string().trim().optional(),
     principalExperience: vine.number().min(0).optional(),
+    roleId: vine.number().positive().optional(),
     isActive: vine.boolean().optional(),
     createdBy: vine.number().optional(),
   })
@@ -46,7 +47,7 @@ export const updateInstituteValidator = vine.compile(
     institutePinCode: vine.string().trim().minLength(4).optional(),
     principalQualification: vine.string().trim().optional(),
     principalExperience: vine.number().min(0).optional(),
-    roles: vine.number().positive().optional(),
+    roleId: vine.number().positive().optional(),
     isActive: vine.boolean().optional(),
   })
 )
