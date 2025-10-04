@@ -23,6 +23,9 @@ export default class extends BaseSchema {
       table.string('institute_state').nullable()
       table.string('institute_country').nullable()
       table.string('institute_pin_code').nullable()
+      table.integer('role_id').unsigned().nullable()
+      table.foreign('role_id').references('id').inTable('roles')
+
       table.string('principal_qualification').nullable()
       table.integer('principal_experience').nullable()
       table.boolean('is_active').defaultTo(true)

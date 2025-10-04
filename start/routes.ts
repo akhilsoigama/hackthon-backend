@@ -21,7 +21,7 @@ import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
 
 // Public Routes (No authentication required)
-router.post('login', [AuthController, 'login'])
+router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
 

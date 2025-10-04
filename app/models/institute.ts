@@ -20,7 +20,7 @@ export default class Institute extends BaseModel {
     declare instituteName: string
 
     @column()
-    declare institutePassword: string // This should be nullable if not always required
+    declare institutePassword: string
 
     @column()
     declare instituteAddress: string
@@ -76,6 +76,12 @@ export default class Institute extends BaseModel {
     @column()
     declare createdBy: number
 
+    // Fix: Add proper column definition with default value
+    @column({
+        serializeAs: null // Optional: hide from API responses if needed
+    })
+    declare roleId: number | null
+
     // Relationships
     @manyToMany(() => Permission, {
         pivotTable: ROLE_PERMISSIONS,
@@ -108,6 +114,7 @@ export default class Institute extends BaseModel {
             institute.institutePassword = await hash.make(institute.institutePassword)
         }
     }
+
     async verifyPassword(password: string): Promise<boolean> {
         return await hash.verify(this.institutePassword, password)
     }

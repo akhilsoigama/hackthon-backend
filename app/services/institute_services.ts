@@ -1,72 +1,131 @@
-import messages from "#database/constants/messages";
-import Institute from "#models/institute";
-import { updateInstituteValidator ,createInstituteValidator } from "#validators/institute";
-import { inject } from "@adonisjs/core";
-import { HttpContext } from '@adonisjs/core/http'
-import { errorHandler } from "../helper/error_handler.js";
+import messages from '#database/constants/messages';
+import { inject } from '@adonisjs/core';
+import { HttpContext } from '@adonisjs/core/http';
+import { errorHandler } from '../helper/error_handler.js';
+import Institute from '#models/institute';
+import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
 
 @inject()
-export default class InstituteServices {
-  constructor(protected ctx: HttpContext) { }
+export default class instituteController {
+  constructor(protected ctx: HttpContext) {}
 
-  async findAll({ searchFor }: { searchFor?: string | null }) {
-    try {
-      let query = Institute.query().apply((scopes) => scopes.softDeletes())
-      if (searchFor === 'create') {
-        query = query.where('isActive', true)
+ async findAll({ searchFor }: { searchFor?: string | null } = {}) {
+  try {
+    let query = Institute.query()
+      .preload('role') 
+      .apply((scopes) => scopes.softDeletes());
+
+    if (searchFor === 'create') {
+      query = query.where('isActive', true);
+    }
+
+    const institute = await query;
+
+    if (institute && institute.length > 0) {
+      return {
+        status: true,
+        message: messages.indtitute_fetched_successfully,
+        data: institute,
+      };
+    } else {
+      return {
+        status: false,
+        message: messages.institute_not_found,
+        data: [],
+      };
+    }
+  } catch (error) {
+    console.error('Error in findAll:', error);
+    return {
+      status: false,
+      message: messages.common_messages_error,
+      error: errorHandler(error),
+    };
+  }
+}
+
+ async create() {
+  try {
+    const requestData = this.ctx.request.all();
+
+    const requiredFields = ['instituteName', 'instituteEmail', 'institutePassword'];
+    for (const field of requiredFields) {
+      if (!requestData[field]) {
+        return this.ctx.response.status(400).send({
+          status: false,
+          message: `${field} is required`,
+        });
       }
-      const institutes = await query
-      if (institutes && Array.isArray(institutes) && institutes.length > 0) {
+    }
+
+    const existingInstitute = await Institute.query()
+      .where('instituteEmail', requestData.instituteEmail)
+      .apply((scope) => scope.softDeletes())
+      .first();
+
+    if (existingInstitute) {
+      return this.ctx.response.status(422).send({
+        status: false,
+        message: messages.institute_already_exists, // Update this message
+      });
+    }
+
+    const validatedData = await createInstituteValidator.validate(requestData);
+    
+    // Set a default roleId if not provided
+    const instituteData = {
+      ...validatedData,
+      instituteEmail: validatedData.instituteEmail,
+      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+      roleId: validatedData.roleId || null, // Ensure roleId is set, even if null
+    };
+
+    const institute = await Institute.create(instituteData);
+
+    // Don't preload role immediately after creation if roleId might be null
+    return {
+      status: true,
+      message: messages.institute_created_successfully,
+      data: institute,
+    };
+  } catch (error) {
+    return {
+      status: false,
+      message: 'Failed to create institute',
+      error: error.message,
+    };
+  }
+}
+  async findOne() {
+    try {
+      const id = this.ctx.request.param('id');
+
+      if (!id || isNaN(Number(id))) {
+        return this.ctx.response.status(400).send({
+          status: false,
+          message: 'Invalid institute ID',
+        });
+      }
+
+      const institute = await Institute.query()
+        .where('id', id)
+        .apply((scopes) => scopes.softDeletes())
+        .preload('role')
+        .first();
+
+
+      if (institute) {
         return {
           status: true,
-          Message: messages.indtitute_fetched_successfully,
-          Data: institutes
-        }
+          message: messages.indtitute_fetched_successfully,
+          data: institute,
+        };
       } else {
         return {
           status: false,
-          Message: messages.institute_not_found,
-          Data: []
-        }
-      }
-    } catch (error) {
-      return {
-        status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
-    }
-  }
-
-  async create() {
-    try {
-      const requestData = this.ctx.request.all()
-      const validatedData = await createInstituteValidator.validate(requestData);
-      const institute = await Institute.create(validatedData)
-     return {
-        status: true,
-        Message: messages.institute_created_successfully,
-        Data: institute,
-      }
-    } catch (error) {
-      return {
-        status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
-    }
-  }
-  async findOne() {
-    try {
-      const id = this.ctx.request.param('id')
-      const institute = await Institute.query()
-        .where('id', id)
-        .apply((scope) => scope.softDeletes())
-        .firstOrFail()
-      return {
-        status: true,
-        message: messages.common_messages_record_available,
-        data: institute,
+          message: messages.institute_not_found,
+          data: null,
+        };
       }
     } catch (error) {
       return {
@@ -78,34 +137,35 @@ export default class InstituteServices {
   }
   async updateOne() {
     try {
-      const id = this.ctx.request.param('id')
-      const requestData = this.ctx.request.all()
-      const validatedData = await updateInstituteValidator.validate({
-        ...requestData,
-        id,
-      })
-      const institute = await Institute.query()
-        .whereRaw('LOWER(institute_name) = ?', [validatedData.instituteName!.trim().toLowerCase()])
-        .whereNot('id', id)
-        .apply((scope) => scope.softDeletes())
-        .first()
+      const id = this.ctx.request.param('id');
+      const requestData = this.ctx.request.all();
 
-
-      if (institute) {
-        return this.ctx.response.status(422).send({
-          status: false,
-          message: messages.institute_already_exists,
-          data: institute,
-        })
+      if (requestData.instituteMobile) {
+        requestData.instituteMobile = requestData.instituteMobile.toString().replace(/\D/g, '');
       }
-      const instituteToUpdate = await Institute.findOrFail(id)
-      instituteToUpdate.merge(validatedData)
-      await instituteToUpdate.save()
+
+      const validatedData = await updateInstituteValidator.validate(requestData);
+
+      const existinginstitute = await Institute.find(id);
+      if (!existinginstitute || existinginstitute.deletedAt) {
+        return {
+          status: false,
+          message: messages.institute_not_found,
+          data: null,
+        };
+      }
+
+      existinginstitute.merge(validatedData);
+      await existinginstitute.save();
+
+      await existinginstitute.load('role');
+
+
       return {
         status: true,
         message: messages.institute_updated_successfully,
-        data: instituteToUpdate,
-      }
+        data: existinginstitute,
+      };
     } catch (error) {
       return {
         status: false,
@@ -116,9 +176,21 @@ export default class InstituteServices {
   }
   async deleteOne() {
     try {
-      const id = this.ctx.request.param('id')
-      const institute = await Institute.findOrFail(id)
-      await institute.delete()  
+      const id = this.ctx.request.param('id');
+
+      const institute = await Institute.find(id);
+      if (!institute || institute.deletedAt) {
+        return {
+          status: false,
+          message: messages.institute_not_found,
+          data: null,
+        };
+      }
+
+      institute.deletedAt = new Date() as any;
+      await institute.save();
+
+
       return {
         status: true,
         Message: messages.common_messages_record_deleted,
