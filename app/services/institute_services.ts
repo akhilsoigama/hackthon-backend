@@ -66,23 +66,21 @@ export default class instituteController {
     if (existingInstitute) {
       return this.ctx.response.status(422).send({
         status: false,
-        message: messages.institute_already_exists, // Update this message
+        message: messages.institute_already_exists, 
       });
     }
 
     const validatedData = await createInstituteValidator.validate(requestData);
     
-    // Set a default roleId if not provided
     const instituteData = {
       ...validatedData,
       instituteEmail: validatedData.instituteEmail,
       isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
-      roleId: validatedData.roleId || null, // Ensure roleId is set, even if null
+      roleId: validatedData.roleId || null, 
     };
 
     const institute = await Institute.create(instituteData);
 
-    // Don't preload role immediately after creation if roleId might be null
     return {
       status: true,
       message: messages.institute_created_successfully,
