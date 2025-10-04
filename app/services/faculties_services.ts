@@ -81,6 +81,7 @@ export default class FacultyController {
         isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
       });
 
+
       return {
         status: true,
         message: 'Faculty created successfully',

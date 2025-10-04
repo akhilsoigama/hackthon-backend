@@ -19,6 +19,7 @@ import DepartmentsController from '#controllers/departments_controller'
 import FacultyController from '#controllers/faculties_controller'
 import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
+import LectureUploadsController from '#controllers/lacture_uploads_controller'
 
 // Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
@@ -26,7 +27,7 @@ router.post('/chatbot', [ChatBotController, 'chat'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
 
 router.group(() => {
-  
+
   router.get('profile', [AuthController, 'me'])
   router.post('logout', [AuthController, 'logout'])
 
@@ -143,7 +144,30 @@ router
   })
     .prefix('/departments')
 
-  // Faculty Routes
+    //lecture upload
+  router.group(() => {
+    router
+      .get('/', [LectureUploadsController, 'index'])
+      .use(middleware.permission([PermissionKeys.LECTURE_LIST]))
+
+    router
+      .post('/', [LectureUploadsController, 'store'])
+      .use(middleware.permission([PermissionKeys.LECTURE_CREATE]))
+
+    router
+      .get('/:id', [LectureUploadsController, 'show'])
+      .use(middleware.permission([PermissionKeys.LECTURE_VIEW]))
+
+    router
+      .put('/:id', [LectureUploadsController, 'update'])
+      .use(middleware.permission([PermissionKeys.LECTURE_UPDATE]))
+
+    router
+      .delete('/:id', [LectureUploadsController, 'destroy'])
+      .use(middleware.permission([PermissionKeys.LECTURE_DELETE]))
+  })
+    .prefix('/lectures')
+
   router.group(() => {
     router
       .get('/', [FacultyController, 'index'])
