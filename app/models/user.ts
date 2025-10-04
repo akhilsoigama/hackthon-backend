@@ -1,13 +1,15 @@
+// app/models/user.ts
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, hasOne, manyToMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, manyToMany, belongsTo } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
-import type { HasOne, ManyToMany } from '@adonisjs/lucid/types/relations'
-import { AUTH_ACCESS_TOKENS, USER_ROLES } from '#database/constants/table_names'
+import type { ManyToMany, BelongsTo } from '@adonisjs/lucid/types/relations'
+import { AUTH_ACCESS_TOKENS, USER_ROLES, USERS } from '#database/constants/table_names'
 import Role from '#models/role'
-import Policy from './policy.js'
+import Institute from '#models/institute'
+import Faculty from '#models/faculty'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -15,8 +17,13 @@ const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
 })
 
 export default class User extends compose(BaseModel, AuthFinder) {
+  public static table = USERS
+
   @column({ isPrimary: true })
   declare id: number
+
+  @column()
+  declare userType: 'super_admin' | 'institute' | 'faculty' | 'student'
 
   @column()
   declare fullName: string | null
@@ -31,10 +38,28 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare password: string
 
   @column()
+  declare instituteId: number | null
+
+  @column()
+  declare facultyId: number | null
+
+  @column()
   declare isEmailVerified: boolean
 
   @column()
   declare isMobileVerified: boolean
+
+  @column()
+  declare isActive: boolean
+
+  // Relations
+  @belongsTo(() => Institute)
+  declare institute: BelongsTo<typeof Institute>
+
+  @belongsTo(() => Faculty, {
+    foreignKey: 'facultyId',
+  })
+  declare faculty: BelongsTo<typeof Faculty>
 
   @manyToMany(() => Role, {
     pivotTable: USER_ROLES,
@@ -42,9 +67,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
     pivotRelatedForeignKey: 'role_id',
   })
   declare userRoles: ManyToMany<typeof Role>
-
-  @hasOne(()=>Policy)
-  declare policy: HasOne<typeof Policy>
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -55,4 +77,21 @@ export default class User extends compose(BaseModel, AuthFinder) {
   static accessTokens = DbAccessTokensProvider.forModel(User, {
     table: AUTH_ACCESS_TOKENS,
   })
+
+  // Helper methods
+  isSuperAdmin(): boolean {
+    return this.userType === 'super_admin'
+  }
+
+  isInstitute(): boolean {
+    return this.userType === 'institute'
+  }
+
+  isFacultyUser(): boolean {
+    return this.userType === 'faculty'
+  }
+
+  isStudent(): boolean {
+    return this.userType === 'student'
+  }
 }

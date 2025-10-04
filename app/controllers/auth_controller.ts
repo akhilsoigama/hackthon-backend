@@ -1,62 +1,311 @@
-import AdminUser from '#models/admin_user'
+import { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
-import type { HttpContext } from '@adonisjs/core/http'
+import AdminUser from '#models/admin_user'
+import Institute from '#models/institute'
+import Faculty from '#models/faculty'
+import messages from '#database/constants/messages'
 
 export default class AuthController {
-    async login({ request, response }: HttpContext) {
-        const { email, password } = request.only(['email', 'password'])
-        try {
-            let user
-            let token
+  private isUserModel(user: any): user is User {
+    return user instanceof User
+  }
 
-            user = await AdminUser.findBy('email', email)
-            if (user) {
-                user = await AdminUser.verifyCredentials(email, password)
-                token = await AdminUser.adminAccessTokens.create(user)
-            } else {
-                user = await User.verifyCredentials(email, password)
+  private isAdminUserModel(user: any): user is AdminUser {
+    return user instanceof AdminUser
+  }
+
+  private getUserResponseData(user: User | AdminUser, authType: string) {
+    if (this.isUserModel(user)) {
+      return {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        userType: user.userType,
+        authType: authType,
+        instituteId: user.instituteId,
+        facultyId: user.facultyId,
+        mobile: user.mobile,
+        isActive: user.isActive,
+      }
+    } else if (this.isAdminUserModel(user)) {
+      return {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        authType: authType,
+      }
+    }
+
+    return null
+  }
+
+  public async login({ request, response }: HttpContext) {
+    const { email, password } = request.only(['email', 'password'])
+
+    try {
+      let user: User | AdminUser | null = null
+      let token: any = null
+      let authType: string = ''
+
+      // Try admin login first
+      try {
+        const adminUser = await AdminUser.verifyCredentials(email, password)
+        user = adminUser
+        token = await AdminUser.adminAccessTokens.create(user)
+        authType = 'admin'
+      } catch (adminError) {
+        // Don't return here, just continue to other login types
+        // console.log('Admin login failed, trying other types...')
+      }
+
+      // If admin login failed, try institute login
+      if (!user) {
+        try {
+          const institute = await Institute.query()
+            .where('instituteEmail', email)
+            .where('isActive', true)
+            .first()
+
+          if (institute) {
+            const isValid = await institute.verifyPassword(password)
+
+            if (isValid) {
+              user = await User.query()
+                .where('email', institute.instituteEmail)
+                .where('userType', 'institute')
+                .first()
+
+              if (!user) {
+                user = await User.create({
+                  fullName: institute.instituteName,
+                  email: institute.instituteEmail,
+                  password: password,
+                  userType: 'institute',
+                  instituteId: institute.id,
+                  mobile: institute.institutePhone || '0000000000',
+                  isActive: true,
+                  isEmailVerified: false,
+                  isMobileVerified: false,
+                })
+              } else {
+                const userPasswordValid = await user.verifyPassword(password)
+                if (!userPasswordValid) {
+                  user.password = password
+                  await user.save()
+                }
+              }
+
+              token = await User.accessTokens.create(user)
+              authType = 'institute'
+            }
+          }
+        } catch (instituteError) {
+          // console.log('Institute login failed:', instituteError)
+          // Continue to next login type
+        }
+      }
+
+      // If institute login failed, try faculty login
+      if (!user) {
+        try {
+          const faculty = await Faculty.query()
+            .where('facultyEmail', email)
+            .where('isActive', true)
+            .first()
+
+          if (faculty) {
+            if (typeof faculty.verifyPassword === 'function') {
+              const isValid = await faculty.verifyPassword(password)
+
+              if (isValid) {
+                user = await User.query()
+                  .where('email', faculty.facultyEmail)
+                  .where('userType', 'faculty')
+                  .first()
+
+                if (!user) {
+                  user = await User.create({
+                    fullName: faculty.facultyName,
+                    email: faculty.facultyEmail,
+                    password: password,
+                    userType: 'faculty',
+                    facultyId: faculty.id,
+                    instituteId: faculty.instituteId,
+                    mobile: faculty.facultyMobile || '0000000000',
+                    isActive: true,
+                    isEmailVerified: false,
+                    isMobileVerified: false,
+                  })
+                }
+
                 token = await User.accessTokens.create(user)
-
-                await user.load('userRoles', (rolesQuery) => {
-                    rolesQuery.preload('permissions')
-                })
+                authType = 'faculty'
+              }
             }
-            return response.ok({
-                message: 'Login successful',
-                token: token.value!.release(),
-                user: user,
-            })
-        } catch (err) {
-            return response.unauthorized({ error: 'Invalid credentials' })
-
+          }
+        } catch (facultyError) {
+          // console.log('Faculty login failed:', facultyError)
+          // Continue to next login type
         }
-    }
-    async getProfile({ response, auth }: HttpContext) {
+      }
+
+      if (!user) {
         try {
-            let user
-
-            if (await auth.use('adminapi').check()) {
-                user = await auth.use('adminapi').authenticate()
-            }
-            // If not an admin, try the user guard
-            else if (await auth.use('api').check()) {
-                user = await auth.use('api').authenticate()
-                await user.load('userRoles', (rolesQuery) => {
-                    rolesQuery.preload('permissions')
-                })
-            }
-            else {
-                return response.unauthorized({ error: 'Invalid token' })
-            }
-
-            return response.ok({
-                message: 'Profile fetched successfully',
-                user,
-            })
-        } catch (error) {
-            console.error('Get Profile Error: ', error)
-            return response.unauthorized({ error: 'Invalid token or error fetching profile' })
+          user = await User.verifyCredentials(email, password)
+          token = await User.accessTokens.create(user)
+          await user.load('userRoles', (rolesQuery) => rolesQuery.preload('permissions'))
+          authType = 'user'
+        } catch (userError) {
+          // console.log('User login failed:', userError)
+          // All login attempts failed
         }
-    }
+      }
 
+      // If no user found after all attempts
+      if (!user || !token) {
+        return response.unauthorized({
+          success: false,
+          message: messages.common_messages_no_record_found,
+          data: []
+        })
+      }
+
+      if (this.isUserModel(user)) {
+        if (authType === 'user') {
+          await user.load('userRoles', (rolesQuery) => rolesQuery.preload('permissions'))
+        } else if (authType === 'institute') {
+          await user.load('institute')
+        } else if (authType === 'faculty') {
+          await user.load('faculty')
+        }
+      }
+
+      const userData = this.getUserResponseData(user, authType)
+
+      if (!userData) {
+        return response.internalServerError({
+          success: false,
+          message: 'Failed to process user data'
+        })
+      }
+
+      return response.ok({
+        success: true,
+        message: 'Login successful',
+        authType: authType,
+        token: token.value!.release(),
+        user: userData,
+      })
+    } catch (error) {
+      console.error('Login error:', error)
+      return response.unauthorized({
+        success: false,
+        message: 'Authentication failed',
+        error: error.message
+      })
+    }
+  }
+
+  public async me({ auth, response }: HttpContext) {
+    try {
+      const user = auth.user
+      if (!user) {
+        return response.status(401).json({
+          success: false,
+          message: 'User not authenticated'
+        })
+      }
+
+      let authType = 'user'
+
+      if (this.isUserModel(user)) {
+        if (user.userType === 'institute') {
+          authType = 'institute'
+          await user.load('institute')
+        } else if (user.userType === 'faculty') {
+          authType = 'faculty'
+          await user.load('faculty')
+        } else if (user.userType === 'super_admin') {
+          authType = 'super_admin'
+        } else {
+          await user.load('userRoles', (rolesQuery) => rolesQuery.preload('permissions'))
+        }
+      } else if (this.isAdminUserModel(user)) {
+        authType = 'admin'
+      }
+
+      const userData = this.getUserResponseData(user, authType)
+
+      return response.ok({
+        success: true,
+        authType: authType,
+        data: userData
+      })
+    } catch (error) {
+      return response.status(500).json({
+        success: false,
+        message: 'Failed to fetch user data'
+      })
+    }
+  }
+
+  public async logout({ auth, response }: HttpContext) {
+    try {
+      const user = auth.user
+      const token = auth.user?.currentAccessToken
+
+      if (!user || !token) {
+        return response.status(401).json({
+          success: false,
+          message: 'User not authenticated'
+        })
+      }
+
+      if (this.isUserModel(user)) {
+        await User.accessTokens.delete(user, token.identifier)
+      } else if (this.isAdminUserModel(user)) {
+        await AdminUser.adminAccessTokens.delete(user, token.identifier)
+      }
+
+      return response.ok({
+        success: true,
+        message: 'Logged out successfully'
+      })
+    } catch (error) {
+      return response.status(500).json({
+        success: false,
+        message: 'Logout failed'
+      })
+    }
+  }
+
+  public async getAuthType({ auth, response }: HttpContext) {
+    try {
+      const user = auth.user
+      if (!user) {
+        return response.status(401).json({
+          success: false,
+          message: 'User not authenticated'
+        })
+      }
+
+      let authType = 'user'
+
+      if (this.isUserModel(user)) {
+        authType = user.userType || 'user'
+      } else if (this.isAdminUserModel(user)) {
+        authType = 'admin'
+      }
+
+      return response.ok({
+        success: true,
+        authType: authType
+      })
+    } catch (error) {
+      return response.status(500).json({
+        success: false,
+        message: 'Failed to get auth type'
+      })
+    }
+  }
 }

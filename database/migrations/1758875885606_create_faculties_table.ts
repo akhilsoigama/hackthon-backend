@@ -1,4 +1,3 @@
-// database/migrations/xxxx_create_faculties_table.ts
 import { FACULTIES } from '#database/constants/table_names'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
@@ -9,8 +8,12 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table.string('faculty_name').notNullable()
-      table.integer('faculty_id').notNullable()
+      table.string('faculty_id').notNullable().unique() 
       table.string('designation').notNullable()
+
+      table.string('faculty_email').notNullable().unique()
+      table.string('faculty_mobile').notNullable().unique()
+      table.string('faculty_password').notNullable()
 
       // Foreign keys
       table
@@ -38,6 +41,7 @@ export default class extends BaseSchema {
 
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })
+      table.timestamp('deleted_at', { useTz: true })
     })
   }
 

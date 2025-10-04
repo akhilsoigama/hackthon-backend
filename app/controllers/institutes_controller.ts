@@ -20,7 +20,7 @@ export default class InstitutesController {
   }
 
   async update() {
-    return this.instituteServices.updateone()
+    return this.instituteServices.updateOne()
   }
 
   async destroy() {
