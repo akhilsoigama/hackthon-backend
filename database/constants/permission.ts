@@ -86,6 +86,14 @@ export enum PermissionKeys {
   LESSON_DELETE = 'lesson_delete',
   LESSON_LIST = 'lesson_list',
 
+  //Lacture Upload 
+
+  LECTURE_CREATE = 'lecture_create',
+  LECTURE_LIST = 'lecture_list',
+  LECTURE_UPDATE = 'lecture_update',
+  LECTURE_VIEW = 'lecture_view',
+  LECTURE_DELETE = 'lecture_delete',
+
   // Student Management - Quiz
   QUIZ_VIEW = 'quiz_view',
   QUIZ_CREATE = 'quiz_create',
