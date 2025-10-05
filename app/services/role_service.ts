@@ -1,4 +1,5 @@
 import Role from "#models/role"
+import { HttpContext } from '@adonisjs/core/http';
 
 export default class RolesService {
   public async getAllRoleWithPermissions({ response }: any) {
@@ -83,4 +84,10 @@ export default class RolesService {
 
     return response.ok(role)
   }
+    public async deleteRole({ params, response }: HttpContext) {
+    const role = await Role.findOrFail(params.id)
+    await role.delete()
+    return response.ok({ message: 'Role deleted successfully' })
+  }
+
 }
