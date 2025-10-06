@@ -19,7 +19,7 @@ export default class Lecture extends BaseModel {
   declare facultyId: number
 
   @column({ columnName: 'subject' })
-  declare subjectId: string | null  
+  declare subject: string | null  
 
   @column({ columnName: 'thumbnail_url' })
   declare thumbnailUrl: string | null

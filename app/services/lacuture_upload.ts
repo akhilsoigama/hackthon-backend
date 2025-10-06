@@ -71,7 +71,7 @@ export default class LectureUploadServices {
         contentType: payload.content_type,
         duration: payload.duration_in_seconds ?? null,
         textContent: payload.text_content ?? null,
-        subjectId: payload.subject || null
+        subject: payload.subject || null
       })
 
       return response.created({ message: 'Lecture uploaded successfully', lecture })

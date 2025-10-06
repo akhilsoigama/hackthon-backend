@@ -4,6 +4,7 @@ import AdminUser from '#models/admin_user'
 import Institute from '#models/institute'
 import Faculty from '#models/faculty'
 import messages from '#database/constants/messages'
+import { errorHandler } from '..//helper/error_handler.js'
 
 export default class AuthController {
   private isUserModel(user: any): user is User {
@@ -47,18 +48,15 @@ export default class AuthController {
       let token: any = null
       let authType: string = ''
 
-      // Try admin login first
       try {
         const adminUser = await AdminUser.verifyCredentials(email, password)
         user = adminUser
         token = await AdminUser.adminAccessTokens.create(user)
         authType = 'admin'
       } catch (adminError) {
-        // Don't return here, just continue to other login types
-        // console.log('Admin login failed, trying other types...')
+        errorHandler(HttpContext)
       }
 
-      // If admin login failed, try institute login
       if (!user) {
         try {
           const institute = await Institute.query()
@@ -100,12 +98,10 @@ export default class AuthController {
             }
           }
         } catch (instituteError) {
-          // console.log('Institute login failed:', instituteError)
-          // Continue to next login type
+          errorHandler(HttpContext)
         }
       }
 
-      // If institute login failed, try faculty login
       if (!user) {
         try {
           const faculty = await Faculty.query()
@@ -144,8 +140,7 @@ export default class AuthController {
             }
           }
         } catch (facultyError) {
-          // console.log('Faculty login failed:', facultyError)
-          // Continue to next login type
+          errorHandler(HttpContext)
         }
       }
 
@@ -156,12 +151,10 @@ export default class AuthController {
           await user.load('userRoles', (rolesQuery) => rolesQuery.preload('permissions'))
           authType = 'user'
         } catch (userError) {
-          // console.log('User login failed:', userError)
-          // All login attempts failed
+          errorHandler(HttpContext)
         }
       }
 
-      // If no user found after all attempts
       if (!user || !token) {
         return response.unauthorized({
           success: false,
@@ -185,22 +178,21 @@ export default class AuthController {
       if (!userData) {
         return response.internalServerError({
           success: false,
-          message: 'Failed to process user data'
+          message: messages.user_failed_data
         })
       }
 
       return response.ok({
         success: true,
-        message: 'Login successful',
+        message: messages.user_login_success,
         authType: authType,
         token: token.value!.release(),
         user: userData,
       })
     } catch (error) {
-      console.error('Login error:', error)
       return response.unauthorized({
         success: false,
-        message: 'Authentication failed',
+        message: messages.user_authentication_failed,
         error: error.message
       })
     }
@@ -212,7 +204,7 @@ export default class AuthController {
       if (!user) {
         return response.status(401).json({
           success: false,
-          message: 'User not authenticated'
+          message: messages.user_not_authenticated
         })
       }
 
@@ -244,7 +236,7 @@ export default class AuthController {
     } catch (error) {
       return response.status(500).json({
         success: false,
-        message: 'Failed to fetch user data'
+        message: messages.failed_to_fetch_user_data
       })
     }
   }
@@ -257,7 +249,7 @@ export default class AuthController {
       if (!user || !token) {
         return response.status(401).json({
           success: false,
-          message: 'User not authenticated'
+          message: messages.user_not_authenticated
         })
       }
 
@@ -269,12 +261,12 @@ export default class AuthController {
 
       return response.ok({
         success: true,
-        message: 'Logged out successfully'
+        message: messages.user_logout_success
       })
     } catch (error) {
       return response.status(500).json({
         success: false,
-        message: 'Logout failed'
+        message: messages.user_logout_failed
       })
     }
   }
@@ -285,7 +277,7 @@ export default class AuthController {
       if (!user) {
         return response.status(401).json({
           success: false,
-          message: 'User not authenticated'
+          message: messages.user_not_authenticated
         })
       }
 
@@ -294,7 +286,7 @@ export default class AuthController {
       if (this.isUserModel(user)) {
         authType = user.userType || 'user'
       } else if (this.isAdminUserModel(user)) {
-        authType = 'admin'
+        authType = 'super_admin'
       }
 
       return response.ok({
@@ -304,7 +296,7 @@ export default class AuthController {
     } catch (error) {
       return response.status(500).json({
         success: false,
-        message: 'Failed to get auth type'
+        message: messages.user_auth_type_failed
       })
     }
   }

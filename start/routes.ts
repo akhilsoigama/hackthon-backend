@@ -158,7 +158,8 @@ router
           .use(middleware.permission([PermissionKeys.LECTURE_DELETE]))
       })
       .prefix('/lectures')
-
+      
+      //faculty create
     router
       .group(() => {
         router
