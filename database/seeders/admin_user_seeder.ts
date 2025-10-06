@@ -17,7 +17,7 @@ export default class extends BaseSeeder {
       {
         fullName: 'test test',
         email: 'test@test.com',
-        password: '12345678', // Store plain text - let model @beforeSave handle hashing
+        password: '12345678',
         mobile: '12345678',
         userType: 'super_admin',
         isAdmin: true,
