@@ -65,13 +65,13 @@ export default class LectureUploadServices {
       const lecture = await Lecture.create({
         title: payload.title,
         description: payload.description ?? null,
-        videoUrl: videoUrl,           // maps to content_url
+        videoUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
         facultyId: user.id,
         contentType: payload.content_type,
         duration: payload.duration_in_seconds ?? null,
         textContent: payload.text_content ?? null,
-        subjectId: payload.subject || null
+        subject: payload.subject || null
       })
 
       return response.created({ message: 'Lecture uploaded successfully', lecture })
@@ -145,12 +145,28 @@ export default class LectureUploadServices {
     }
   }
 
-  public async findAll({ auth, response }: HttpContext) {
+  public async findAll({ auth, request, response }: HttpContext) {
     try {
-      const lectures = await Lecture.query()
-        .where('faculty_id', auth.user!.id)
-        .orderBy('created_at', 'desc')
-      return response.ok({ lectures })
+      const query = Lecture.query().orderBy('created_at', 'desc')
+
+      // Dynamic filters from query string
+      const filters = request.qs()
+
+      if (filters.facultyId) query.where('faculty_id', filters.facultyId)
+      else if (auth.user) query.where('faculty_id', auth.user.id) // default to auth user
+
+      if (filters.subjectId) query.where('subject_id', filters.subjectId)
+      if (filters.contentType) query.where('content_type', filters.contentType)
+      if (filters.title) query.where('title', 'like', `%${filters.title}%`)
+      if (filters.createdAfter) query.where('created_at', '>=', filters.createdAfter)
+      if (filters.createdBefore) query.where('created_at', '<=', filters.createdBefore)
+
+      // Pagination
+      const page = Number(filters.page || 1)
+      const limit = Number(filters.limit || 10)
+
+      const lectures = await query.paginate(page, limit)
+      return response.ok(lectures)
     } catch (error: any) {
       return response.internalServerError({ message: 'Failed to fetch lectures', error: error.message })
     }

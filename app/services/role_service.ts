@@ -90,4 +90,5 @@ export default class RolesService {
     await role.delete()
     return response.ok({ message: 'Role deleted successfully' })
   }
+
 }

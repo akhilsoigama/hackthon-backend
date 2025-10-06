@@ -11,7 +11,6 @@ export default class extends BaseSchema {
       table.string('role_name')
       table.string('role_description')
       table.string('role_key')
-      table.string('role_access_level')
       table.boolean('is_default').defaultTo(false)
 
       table.timestamp('created_at')
