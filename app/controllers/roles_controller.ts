@@ -28,7 +28,4 @@ export default class RolesController {
     return this.rolesService.deleteRole(this.ctx)
   }
 
-  async deleteRole() {
-    return this.rolesService.deleteRole(this.ctx)
-  }
 }
