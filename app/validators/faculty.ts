@@ -6,14 +6,14 @@ import vine from '@vinejs/vine';
 export const createFacultyValidator = vine.compile(
   vine.object({
     facultyName: vine.string().trim().minLength(2).maxLength(100),
+    facultyEmail: vine.string().trim().email(),
+    facultyPassword: vine.string().trim().minLength(6),
+    facultyMobile: vine.string().trim().minLength(10).maxLength(15).optional(),
     facultyId: vine.string().trim().minLength(2).maxLength(50).optional(),
     designation: vine.string().trim().minLength(2).maxLength(50),
     departmentId: vine.number().positive(),
     instituteId: vine.number().positive(),
     roleId: vine.number().positive(),
-    facultyEmail: vine.string().trim().email(),
-    facultyMobile: vine.string().trim().minLength(10).maxLength(15).optional(),
-    facultyPassword: vine.string().trim().minLength(6),
     isActive: vine.boolean().optional(),
   })
 );

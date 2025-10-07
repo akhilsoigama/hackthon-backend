@@ -128,12 +128,11 @@ export default class instituteController {
     } catch (error) {
       return {
         status: false,
-        message: messages.common_messages_error,
+        message: messages.common_messages_no_record_found,
         error: errorHandler(error),
-      };
+      }
     }
   }
-
   async updateOne() {
     try {
       const id = this.ctx.request.param('id');
@@ -168,12 +167,11 @@ export default class instituteController {
     } catch (error) {
       return {
         status: false,
-        message: messages.common_messages_error,
-        error: errorHandler(error),
-      };
+        Message: messages.common_messages_error,
+        error: errorHandler(error)
+      }
     }
   }
-
   async deleteOne() {
     try {
       const id = this.ctx.request.param('id');
@@ -193,15 +191,16 @@ export default class instituteController {
 
       return {
         status: true,
-        message: messages.common_messages_record_deleted,
-        data: null,
-      };
+        Message: messages.common_messages_record_deleted,
+        Data: null
+      }
     } catch (error) {
       return {
         status: false,
-        message: messages.common_messages_error,
-        error: errorHandler(error),
-      };
+        Message: messages.common_messages_error,
+        error: errorHandler(error)
+      }
     }
   }
+
 }

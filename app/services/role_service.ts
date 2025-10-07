@@ -1,8 +1,8 @@
+import { HttpContext } from "@adonisjs/core/http"
 import Role from "#models/role"
-import { HttpContext } from '@adonisjs/core/http';
 
 export default class RolesService {
-  public async getAllRoleWithPermissions({ response }: any) {
+  public async getAllRoleWithPermissions({ response }: HttpContext) {
     try {
       const roles = await Role.query().preload('permissions')
       return response.ok({ success: true, data: roles })
@@ -16,7 +16,7 @@ export default class RolesService {
     }
   }
 
-  public async createRoleWithPermissions({ request, response }: any) {
+  public async createRoleWithPermissions({ request, response }: HttpContext) {
     const { roleName, roleDescription, roleKey, permissionIds } = request.only([
       'roleName',
       'roleDescription',
@@ -39,7 +39,7 @@ export default class RolesService {
     return response.created({ message: 'Role created successfully', role })
   }
 
-  public async updateRole({ params, request, response }: any) {
+  public async updateRole({ params, request, response }: HttpContext) {
     try {
       const { roleName, roleDescription, roleKey, permissionIds } = request.only([
         'roleName',
@@ -75,7 +75,7 @@ export default class RolesService {
     }
   }
 
-  public async getRoleWithPermissions({ params, response }: any) {
+  public async getRoleWithPermissions({ params, response }: HttpContext) {
     const role = await Role.query().where('id', params.id).preload('permissions').first()
 
     if (!role) {
@@ -84,10 +84,11 @@ export default class RolesService {
 
     return response.ok(role)
   }
-    public async deleteRole({ params, response }: HttpContext) {
+
+  public async deleteRole({ params, response }: HttpContext) {
     const role = await Role.findOrFail(params.id)
     await role.delete()
-    return response.ok({ message: 'Role deleted successfully' })
-  }
+    return response.ok({ message: 'Role deleted successfully' })
+  }
 
 }

@@ -26,6 +26,7 @@
 | POST   | `/roles`               | `RolesController.createRoleWithPermissions` | `auth, permission` |
 | PUT    | `/roles/:id`           | `RolesController.updateRole`                | `auth, permission` |
 | GET    | `/roles`               | `RolesController.getAllRoleWithPermissions` | `auth, permission` |
+| Delete | `/roles/:id`           | `RolesController.deleteRole`                | `auth, permission` |
 | GET    | `/permissions`         | `PermissionsController.getAllPermissions`   | `auth, permission` |
 
 ---
@@ -69,7 +70,7 @@
 
 ## 🎓 Faculty Management
 | Method | Route             | Handler                        | Middleware         |
-|--------|------------------|--------------------------------|--------------------|
+|--------|-------------------|--------------------------------|--------------------|
 | GET    | `/faculty`        | `FacultiesController.index`    | `auth, permission` |
 | POST   | `/faculty`        | `FacultiesController.store`    | `auth, permission` |
 | GET    | `/faculty/:id`    | `FacultiesController.show`     | `auth, permission` |
