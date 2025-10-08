@@ -23,6 +23,7 @@ export default class Lectures extends BaseSchema {
       table.string('subject').nullable()
 
       table.integer('faculty_id').unsigned().notNullable()
+      table.string('std').nullable()
       table
         .foreign('faculty_id')
         .references('id')
