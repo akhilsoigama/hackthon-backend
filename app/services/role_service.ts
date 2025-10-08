@@ -24,20 +24,47 @@ export default class RolesService {
       'permissionIds',
     ])
 
-    // Create Role
-    const role = await Role.create({
-      roleName,
-      roleDescription,
-      roleKey,
-    })
+    try {
+      // ✅ Check for duplicate role (by roleName or roleKey)
+      const existingRole = await Role.query()
+        .where('role_name', roleName)
+        .orWhere('role_key', roleKey)
+        .first()
 
-    // Assign permissions
-    if (permissionIds && permissionIds.length > 0) {
-      await role.related('permissions').sync(permissionIds)
+      if (existingRole) {
+        return response.conflict({
+          success: false,
+          message: 'A role with this name or key already exists',
+        })
+      }
+
+      // ✅ Create Role
+      const role = await Role.create({
+        roleName,
+        roleDescription,
+        roleKey,
+      })
+
+      // ✅ Assign permissions
+      if (permissionIds && Array.isArray(permissionIds) && permissionIds.length > 0) {
+        await role.related('permissions').sync(permissionIds)
+      }
+
+      return response.created({
+        success: true,
+        message: 'Role created successfully',
+        role,
+      })
+    } catch (error) {
+      console.error('Error creating role:', error)
+      return response.internalServerError({
+        success: false,
+        message: 'Error creating role',
+        error,
+      })
     }
-
-    return response.created({ message: 'Role created successfully', role })
   }
+
 
   public async updateRole({ params, request, response }: HttpContext) {
     try {
@@ -49,7 +76,17 @@ export default class RolesService {
       ])
 
       const roleId = params.id
+      const existingRole = await Role.query()
+        .where('role_name', roleName)
+        .orWhere('role_key', roleKey)
+        .first()
 
+      if (existingRole) {
+        return response.conflict({
+          success: false,
+          message: 'A role with this name or key already exists',
+        })
+      }
       const role = await Role.find(roleId)
       if (!role) {
         return response.notFound({ success: false, message: 'Role not found' })
@@ -66,7 +103,7 @@ export default class RolesService {
       // Update role permissions efficiently
       if (permissionIds && Array.isArray(permissionIds)) {
         await role.related('permissions').sync(permissionIds)
-      }
+      } 
 
       return response.ok({ success: true, message: 'Role updated successfully', role })
     } catch (error) {

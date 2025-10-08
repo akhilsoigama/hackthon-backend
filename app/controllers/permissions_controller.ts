@@ -6,7 +6,7 @@ inject()
 export default class PermissionsController {
   async getAllPermissions({ response }: HttpContext) {
     try {
-      const permissions = await Permission.query().orderBy('createdAt', 'asc') // Order by ID in ascending order
+      const permissions = await Permission.query().orderBy('createdAt', 'asc') 
       return response.ok({ success: true, data: permissions })
     } catch (error) {
       console.error('Error fetching permissions:', error)
