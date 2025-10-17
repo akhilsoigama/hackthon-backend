@@ -8,7 +8,6 @@ import Role from './role.js'
 import { DateTime } from 'luxon'
 
 export default class Faculty extends BaseModel {
-  // Soft delete scope
   public static softDeletes = scope((query) => {
     query.whereNull('deleted_at')
   })
@@ -22,7 +21,7 @@ export default class Faculty extends BaseModel {
   @column()
   declare facultyEmail: string
 
-  @column()
+  @column({ serializeAs: null })
   declare facultyPassword: string
 
   @column()
@@ -61,7 +60,6 @@ export default class Faculty extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  // deletedAt should be nullable for soft delete to work
   @column.dateTime()
   declare deletedAt?: DateTime
 
@@ -75,4 +73,5 @@ export default class Faculty extends BaseModel {
   public async verifyPassword(password: string): Promise<boolean> {
     return await hash.verify(this.facultyPassword, password)
   }
+
 }

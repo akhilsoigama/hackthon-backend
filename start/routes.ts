@@ -22,15 +22,25 @@ import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
 
 // Public Routes (No authentication required)
-
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
+
+// Manual sync routes (temporary - no auth required for initial setup)
+router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
+router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
+router.post('/sync/institute', [AuthController, 'syncInstitute'])
+router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
 router
   .group(() => {
     router.get('/profile', [AuthController, 'me'])
     router.post('logout', [AuthController, 'logout'])
+
+    // Auth related routes
+    router.get('/auth-type', [AuthController, 'getAuthType'])
+    router.get('/my-permissions', [AuthController, 'getMyPermissions']) // Changed from /permissions to /my-permissions
+    router.post('/check-permission', [AuthController, 'checkPermission'])
 
     // Roles routes
     router
@@ -57,7 +67,7 @@ router
       })
       .prefix('/roles')
 
-    // Permissions route
+    // Permissions route (this was causing duplicate)
     router
       .get('/permissions', [PermissionsController, 'getAllPermissions'])
       .use(middleware.permission([PermissionKeys.PERMISSIONS_LIST]))
@@ -134,7 +144,7 @@ router
       })
       .prefix('/departments')
 
-    //lecture upload
+    // Lecture upload routes
     router
       .group(() => {
         router
@@ -159,7 +169,7 @@ router
       })
       .prefix('/lectures')
       
-      //faculty create
+    // Faculty routes
     router
       .group(() => {
         router

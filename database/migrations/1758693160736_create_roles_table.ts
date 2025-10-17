@@ -8,13 +8,14 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
 
-      table.string('role_name')
-      table.string('role_description')
-      table.string('role_key')
+      table.string('role_name').notNullable()
+      table.string('role_description').nullable()
+      table.string('role_key').notNullable().unique()
       table.boolean('is_default').defaultTo(false)
 
-      table.timestamp('created_at')
-      table.timestamp('updated_at')
+
+      table.timestamp('created_at').defaultTo(this.now())
+      table.timestamp('updated_at').defaultTo(this.now())
     })
   }
 

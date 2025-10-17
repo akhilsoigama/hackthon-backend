@@ -15,8 +15,8 @@ export default class extends BaseSeeder {
       isMobileVerified: boolean
     }[] = [
       {
-        fullName: 'test test',
-        email: 'test@test.com',
+        fullName: 'Super Admin',
+        email: 'super@admin.com',
         password: '12345678',
         mobile: '12345678',
         userType: 'super_admin',

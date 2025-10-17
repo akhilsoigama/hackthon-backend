@@ -1,8 +1,8 @@
-import { BaseModel, belongsTo, column, manyToMany, scope, hasMany, beforeSave } from "@adonisjs/lucid/orm";
+// app/models/institute.ts
+import { BaseModel, belongsTo, column, scope, hasMany, beforeSave } from "@adonisjs/lucid/orm";
 import { DateTime } from "luxon";
-import Permission from "./permission.js";
-import { ROLE_PERMISSIONS } from "#database/constants/table_names";
-import type { BelongsTo, ManyToMany, HasMany } from '@adonisjs/lucid/types/relations'
+
+import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Role from "./role.js";
 import User from "./user.js";
 import Faculty from "./faculty.js";
@@ -19,7 +19,7 @@ export default class Institute extends BaseModel {
     @column()
     declare instituteName: string
 
-    @column()
+    @column({ serializeAs: null })
     declare institutePassword: string
 
     @column()
@@ -76,22 +76,13 @@ export default class Institute extends BaseModel {
     @column()
     declare createdBy: number
 
-    // Fix: Add proper column definition with default value
-    @column({
-        serializeAs: null // Optional: hide from API responses if needed
-    })
-    declare roleId: number | null
+    @column()
+    declare roleId: number
 
     // Relationships
-    @manyToMany(() => Permission, {
-        pivotTable: ROLE_PERMISSIONS,
-    })
-    declare permissions: ManyToMany<typeof Permission>
-
-    @belongsTo(() => Role, {
-        foreignKey: 'roleId',
-    })
+    @belongsTo(() => Role)
     declare role: BelongsTo<typeof Role>
+
 
     @hasMany(() => User)
     declare users: HasMany<typeof User>
@@ -118,4 +109,6 @@ export default class Institute extends BaseModel {
     async verifyPassword(password: string): Promise<boolean> {
         return await hash.verify(this.institutePassword, password)
     }
+
+    // REMOVE preload methods - Handle in controller
 }
