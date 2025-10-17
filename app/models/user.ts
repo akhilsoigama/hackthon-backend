@@ -94,4 +94,26 @@ export default class User extends compose(BaseModel, AuthFinder) {
   isStudent(): boolean {
     return this.userType === 'student'
   }
+
+  // Static method to check user permissions
+  static async hasPermission(userId: number, permissionKey: string): Promise<boolean> {
+    const user = await User.query()
+      .where('id', userId)
+      .preload('userRoles', (query) => {
+        query.preload('permissions')
+      })
+      .first()
+
+    if (!user) return false
+
+    // Super admin has all permissions
+    if (user.userType === 'super_admin') {
+      return true
+    }
+
+    // Check permissions from roles
+    return user.userRoles.some(role => 
+      role.permissions.some(permission => permission.permissionKey === permissionKey)
+    )
+  }
 }

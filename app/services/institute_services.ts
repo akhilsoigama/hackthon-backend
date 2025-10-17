@@ -7,93 +7,93 @@ import { createInstituteValidator, updateInstituteValidator } from '#validators/
 
 @inject()
 export default class instituteController {
-  constructor(protected ctx: HttpContext) {}
+  constructor(protected ctx: HttpContext) { }
 
- async findAll({ searchFor }: { searchFor?: string | null } = {}) {
-  try {
-    let query = Institute.query()
-      .preload('role') 
-      .apply((scopes) => scopes.softDeletes());
+  async findAll({ searchFor }: { searchFor?: string | null } = {}) {
+    try {
+      let query = Institute.query()
+        .preload('role')
+        .apply((scopes) => scopes.softDeletes());
 
-    if (searchFor === 'create') {
-      query = query.where('isActive', true);
-    }
+      if (searchFor === 'create') {
+        query = query.where('isActive', true);
+      }
 
-    const institute = await query;
+      const institute = await query;
 
-    if (institute && institute.length > 0) {
-      return {
-        status: true,
-        message: messages.indtitute_fetched_successfully,
-        data: institute,
-      };
-    } else {
+      if (institute && institute.length > 0) {
+        return {
+          status: true,
+          message: messages.indtitute_fetched_successfully,
+          data: institute,
+        };
+      } else {
+        return {
+          status: false,
+          message: messages.institute_not_found,
+          data: [],
+        };
+      }
+    } catch (error) {
+      console.error('Error in findAll:', error);
       return {
         status: false,
-        message: messages.institute_not_found,
-        data: [],
+        message: messages.common_messages_error,
+        error: errorHandler(error),
       };
     }
-  } catch (error) {
-    console.error('Error in findAll:', error);
-    return {
-      status: false,
-      message: messages.common_messages_error,
-      error: errorHandler(error),
-    };
   }
-}
 
- async create() {
-  try {
-    const requestData = this.ctx.request.all();
+  async create() {
+    try {
+      const requestData = this.ctx.request.all();
 
-    const requiredFields = ['instituteName', 'instituteEmail', 'institutePassword'];
-    for (const field of requiredFields) {
-      if (!requestData[field]) {
-        return this.ctx.response.status(400).send({
+      const requiredFields = ['instituteName', 'instituteEmail', 'institutePassword'];
+      for (const field of requiredFields) {
+        if (!requestData[field]) {
+          return this.ctx.response.status(400).send({
+            status: false,
+            message: `${field} is required`,
+          });
+        }
+      }
+
+      const existingInstitute = await Institute.query()
+        .where('instituteEmail', requestData.instituteEmail)
+        .apply((scope) => scope.softDeletes())
+        .first();
+
+      if (existingInstitute) {
+        return this.ctx.response.status(422).send({
           status: false,
-          message: `${field} is required`,
+          message: messages.institute_already_exists,
         });
       }
-    }
 
-    const existingInstitute = await Institute.query()
-      .where('instituteEmail', requestData.instituteEmail)
-      .apply((scope) => scope.softDeletes())
-      .first();
+      const validatedData = await createInstituteValidator.validate(requestData);
 
-    if (existingInstitute) {
-      return this.ctx.response.status(422).send({
+      const instituteData = {
+        ...validatedData,
+        instituteEmail: validatedData.instituteEmail,
+        isActive: validatedData.isActive ?? true,
+        roleId: validatedData.roleId ?? undefined,
+      };
+
+      const institute = await Institute.create(instituteData);
+
+      return {
+        status: true,
+        message: messages.institute_created_successfully,
+        data: institute,
+      };
+    } catch (error) {
+      return {
         status: false,
-        message: messages.institute_already_exists, 
-      });
+        message: 'Failed to create institute',
+        error: error.message,
+      };
     }
-
-    const validatedData = await createInstituteValidator.validate(requestData);
-    
-    const instituteData = {
-      ...validatedData,
-      instituteEmail: validatedData.instituteEmail,
-      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
-      roleId: validatedData.roleId || null, 
-    };
-
-    const institute = await Institute.create(instituteData);
-
-    return {
-      status: true,
-      message: messages.institute_created_successfully,
-      data: institute,
-    };
-  } catch (error) {
-    return {
-      status: false,
-      message: 'Failed to create institute',
-      error: error.message,
-    };
   }
-}
   async findOne() {
     try {
       const id = this.ctx.request.param('id');

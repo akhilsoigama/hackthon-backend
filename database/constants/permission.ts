@@ -86,8 +86,7 @@ export enum PermissionKeys {
   LESSON_DELETE = 'lesson_delete',
   LESSON_LIST = 'lesson_list',
 
-  //Lacture Upload 
-
+  // Lecture Upload 
   LECTURE_CREATE = 'lecture_create',
   LECTURE_LIST = 'lecture_list',
   LECTURE_UPDATE = 'lecture_update',
@@ -151,6 +150,7 @@ export enum PermissionKeys {
   ADMIN_ACCESS = 'admin_access',
   SUPER_ADMIN = 'super_admin',
   MODERATOR_ACCESS = 'moderator_access',
+  INSTITUTE_ACCESS = 'institute_access',
 
   // Export/Import  
   DATA_EXPORT = 'data_export',
