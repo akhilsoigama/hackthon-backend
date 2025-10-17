@@ -20,13 +20,13 @@ export default class DepartmentServices {
                 return {
                     status: true,
                     Message: messages.department_fetched_successfully,
-                    Data: departments
+                    data: departments
                 }
             } else {
                 return {
                     status: false,
                     Message: messages.department_not_found,
-                    Data: []
+                    data: []
                 }
             }
         } catch (error) {

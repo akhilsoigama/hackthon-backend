@@ -1,10 +1,13 @@
+// app/models/permission.ts
 import { DateTime } from 'luxon'
 import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
-import Role from './role.js'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
-import { ROLE_PERMISSIONS } from '#database/constants/table_names'
+import { PERMISSIONS, ROLE_PERMISSIONS } from '#database/constants/table_names'
+import Role from './role.js'
 
 export default class Permission extends BaseModel {
+  public static table = PERMISSIONS
+
   @column({ isPrimary: true })
   declare id: number
 
@@ -15,7 +18,9 @@ export default class Permission extends BaseModel {
   declare permissionKey: string
 
   @manyToMany(() => Role, {
-    pivotTable: ROLE_PERMISSIONS, // This is the pivot table
+    pivotTable: ROLE_PERMISSIONS,
+    pivotForeignKey: 'permission_id',
+    pivotRelatedForeignKey: 'role_id',
   })
   declare roles: ManyToMany<typeof Role>
 

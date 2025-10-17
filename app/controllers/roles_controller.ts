@@ -6,21 +6,26 @@ export default class RolesController {
   constructor(
     protected rolesService: RolesService,
     protected ctx: HttpContext
-  ) {}
+  ) { }
 
-  async getAllRoleWithPermissions(ctx: any) {
-    return this.rolesService.getAllRoleWithPermissions(ctx)
+  async getAllRoleWithPermissions() {
+    return this.rolesService.getAllRoleWithPermissions(this.ctx)
   }
 
-  async createRoleWithPermissions(ctx: any) {
-    return this.rolesService.createRoleWithPermissions(ctx)
+  async createRoleWithPermissions() {
+    return this.rolesService.createRoleWithPermissions(this.ctx)
   }
 
-  async updateRole(ctx: any) {
-    return this.rolesService.updateRole(ctx)
+  async updateRole() {
+    return this.rolesService.updateRole(this.ctx)
   }
 
-  async getRoleWithPermissions(ctx: any) {
-    return this.rolesService.getRoleWithPermissions(ctx)
+  async getRoleWithPermissions() {
+    return this.rolesService.getRoleWithPermissions(this.ctx)
   }
+
+  async deleteRole() {
+    return this.rolesService.deleteRole(this.ctx)
+  }
+
 }

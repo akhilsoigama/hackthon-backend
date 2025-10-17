@@ -1,7 +1,8 @@
+import { HttpContext } from "@adonisjs/core/http"
 import Role from "#models/role"
 
 export default class RolesService {
-  public async getAllRoleWithPermissions({ response }: any) {
+  public async getAllRoleWithPermissions({ response }: HttpContext) {
     try {
       const roles = await Role.query().preload('permissions')
       return response.ok({ success: true, data: roles })
@@ -15,7 +16,7 @@ export default class RolesService {
     }
   }
 
-  public async createRoleWithPermissions({ request, response }: any) {
+  public async createRoleWithPermissions({ request, response }: HttpContext) {
     const { roleName, roleDescription, roleKey, permissionIds } = request.only([
       'roleName',
       'roleDescription',
@@ -23,22 +24,49 @@ export default class RolesService {
       'permissionIds',
     ])
 
-    // Create Role
-    const role = await Role.create({
-      roleName,
-      roleDescription,
-      roleKey,
-    })
+    try {
+      // ✅ Check for duplicate role (by roleName or roleKey)
+      const existingRole = await Role.query()
+        .where('role_name', roleName)
+        .orWhere('role_key', roleKey)
+        .first()
 
-    // Assign permissions
-    if (permissionIds && permissionIds.length > 0) {
-      await role.related('permissions').sync(permissionIds)
+      if (existingRole) {
+        return response.conflict({
+          success: false,
+          message: 'A role with this name or key already exists',
+        })
+      }
+
+      // ✅ Create Role
+      const role = await Role.create({
+        roleName,
+        roleDescription,
+        roleKey,
+      })
+
+      // ✅ Assign permissions
+      if (permissionIds && Array.isArray(permissionIds) && permissionIds.length > 0) {
+        await role.related('permissions').sync(permissionIds)
+      }
+
+      return response.created({
+        success: true,
+        message: 'Role created successfully',
+        role,
+      })
+    } catch (error) {
+      console.error('Error creating role:', error)
+      return response.internalServerError({
+        success: false,
+        message: 'Error creating role',
+        error,
+      })
     }
-
-    return response.created({ message: 'Role created successfully', role })
   }
 
-  public async updateRole({ params, request, response }: any) {
+
+  public async updateRole({ params, request, response }: HttpContext) {
     try {
       const { roleName, roleDescription, roleKey, permissionIds } = request.only([
         'roleName',
@@ -48,7 +76,17 @@ export default class RolesService {
       ])
 
       const roleId = params.id
+      const existingRole = await Role.query()
+        .where('role_name', roleName)
+        .orWhere('role_key', roleKey)
+        .first()
 
+      if (existingRole) {
+        return response.conflict({
+          success: false,
+          message: 'A role with this name or key already exists',
+        })
+      }
       const role = await Role.find(roleId)
       if (!role) {
         return response.notFound({ success: false, message: 'Role not found' })
@@ -65,7 +103,7 @@ export default class RolesService {
       // Update role permissions efficiently
       if (permissionIds && Array.isArray(permissionIds)) {
         await role.related('permissions').sync(permissionIds)
-      }
+      } 
 
       return response.ok({ success: true, message: 'Role updated successfully', role })
     } catch (error) {
@@ -74,7 +112,7 @@ export default class RolesService {
     }
   }
 
-  public async getRoleWithPermissions({ params, response }: any) {
+  public async getRoleWithPermissions({ params, response }: HttpContext) {
     const role = await Role.query().where('id', params.id).preload('permissions').first()
 
     if (!role) {
@@ -83,4 +121,11 @@ export default class RolesService {
 
     return response.ok(role)
   }
+
+  public async deleteRole({ params, response }: HttpContext) {
+    const role = await Role.findOrFail(params.id)
+    await role.delete()
+    return response.ok({ message: 'Role deleted successfully' })
+  }
+
 }
