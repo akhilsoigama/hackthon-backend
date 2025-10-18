@@ -5,16 +5,12 @@
   "type": "module",
   "license": "UNLICENSED",
   "scripts": {
+    "dev": "node ace serve --watch",
     "build": "node ace build",
     "start": "node build/bin/server.js",
-    "dev": "node ace serve --watch",
-    "test": "node ace test",
-    "lint": "eslint .",
-    "seed": "node ace db:seed",
     "migrate": "node ace migration:run",
     "migrate:fresh": "node ace migration:fresh",
-    "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "seed": "node ace db:seed"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
