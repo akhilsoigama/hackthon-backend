@@ -21,6 +21,16 @@ import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
 
+router.get('/env-test', async ({ response }) => {
+  return response.json({
+    success: true,
+    NODE_ENV: process.env.NODE_ENV,
+    DB_HOST: process.env.DB_HOST,
+    DB_USER: process.env.DB_USER,
+    DB_PASSWORD: process.env.DB_PASSWORD ? '****' : null, // hide sensitive info
+    PORT: process.env.PORT,
+  })
+})
 // Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat'])
