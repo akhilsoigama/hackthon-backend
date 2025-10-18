@@ -4,7 +4,6 @@ import AdminUser from '#models/admin_user'
 import Institute from '#models/institute'
 import Faculty from '#models/faculty'
 import messages from '#database/constants/messages'
-import { errorHandler } from '../helper/error_handler.js'
 
 export default class AuthController {
   private isUserModel(user: any): user is User {
@@ -38,7 +37,7 @@ export default class AuthController {
       if (authType === 'user') {
         if (user.userRoles) {
           roles = user.userRoles.map(role => role.roleKey)
-          permissions = user.userRoles.flatMap(role => 
+          permissions = user.userRoles.flatMap(role =>
             role.permissions ? role.permissions.map(p => p.permissionKey) : []
           )
           roleName = user.userRoles.length > 0 ? user.userRoles[0].roleName : user.userType
@@ -74,7 +73,7 @@ export default class AuthController {
       return {
         ...baseData,
         roles: roles,
-        permissions: [...new Set(permissions)], 
+        permissions: [...new Set(permissions)],
         roleName: roleName
       }
     } else if (this.isAdminUserModel(user)) {
@@ -96,6 +95,7 @@ export default class AuthController {
 
     return null
   }
+
   private async syncInstituteToUser(institute: Institute, password: string) {
     try {
       let user = await User.query()
@@ -123,7 +123,7 @@ export default class AuthController {
           isMobileVerified: false,
         })
       }
-      
+
       return user
     } catch (error) {
       console.error('❌ Error syncing institute to user:', error)
@@ -131,19 +131,14 @@ export default class AuthController {
     }
   }
 
-  /**
-   * Sync Faculty to User table
-   */
   private async syncFacultyToUser(faculty: Faculty, password: string) {
     try {
-      // Check if user already exists
       let user = await User.query()
         .where('email', faculty.facultyEmail)
         .where('userType', 'faculty')
         .first()
 
       if (user) {
-        // Update existing user
         user.fullName = faculty.facultyName
         user.mobile = faculty.facultyMobile || '0000000000'
         user.instituteId = faculty.instituteId
@@ -165,32 +160,35 @@ export default class AuthController {
           isMobileVerified: false,
         })
       }
-      
+
       return user
     } catch (error) {
-      errorHandler(HttpContext)
+      console.error('❌ Error syncing faculty to user:', error)
       throw error
     }
   }
 
   public async login({ request, response }: HttpContext) {
-    const { email, password } = request.only(['email', 'password'])
-
     try {
+      const { email, password } = request.only(['email', 'password'])
+
       let user: User | AdminUser | null = null
       let token: any = null
       let authType: string = ''
 
+      // Try Admin authentication first
       try {
         const adminUser = await AdminUser.verifyCredentials(email, password)
-        user = adminUser
-        token = await AdminUser.adminAccessTokens.create(user)
-        authType = 'admin'
+        if (adminUser) {
+          user = adminUser
+          token = await AdminUser.adminAccessTokens.create(user)
+          authType = 'admin'
+        }
       } catch (adminError) {
-        errorHandler(HttpContext)
+        console.log('Admin authentication failed, trying other methods...')
       }
 
-      // Try Institute
+      // Try Institute authentication
       if (!user) {
         try {
           const institute = await Institute.query()
@@ -199,7 +197,7 @@ export default class AuthController {
             .first()
 
           if (institute) {
-            const isValid = await institute.verifyPassword(password)
+            const isValid = await (institute as any).verifyPassword?.(password)
             if (isValid) {
               user = await this.syncInstituteToUser(institute, password)
               token = await User.accessTokens.create(user)
@@ -207,11 +205,11 @@ export default class AuthController {
             }
           }
         } catch (instituteError) {
-          errorHandler(HttpContext)
+          console.log('Institute authentication failed, trying other methods...')
         }
       }
 
-      // Try Faculty
+      // Try Faculty authentication
       if (!user) {
         try {
           const faculty = await Faculty.query()
@@ -220,7 +218,7 @@ export default class AuthController {
             .first()
 
           if (faculty) {
-            const isValid = await faculty.verifyPassword(password)
+            const isValid = await (faculty as any).verifyPassword?.(password)
             if (isValid) {
               user = await this.syncFacultyToUser(faculty, password)
               token = await User.accessTokens.create(user)
@@ -228,21 +226,24 @@ export default class AuthController {
             }
           }
         } catch (facultyError) {
-          errorHandler(HttpContext)
+          console.log('Faculty authentication failed, trying other methods...')
         }
       }
 
-      // Try Regular User
+      // Try Regular User authentication
       if (!user) {
         try {
           user = await User.verifyCredentials(email, password)
-          token = await User.accessTokens.create(user)
-          authType = 'user'
+          if (user) {
+            token = await User.accessTokens.create(user)
+            authType = 'user'
+          }
         } catch (userError) {
-          errorHandler(HttpContext)
+          console.log('User authentication failed...')
         }
       }
 
+      // If no user found or token created
       if (!user || !token) {
         return response.unauthorized({
           success: false,
@@ -251,6 +252,7 @@ export default class AuthController {
         })
       }
 
+      // Load user relations if it's a User model
       if (this.isUserModel(user)) {
         const userWithRelations = await User.query()
           .where('id', user.id)
@@ -285,7 +287,7 @@ export default class AuthController {
       return response.unauthorized({
         success: false,
         message: messages.user_authentication_failed,
-        error: error.message
+        error: (error as Error).message
       })
     }
   }
@@ -310,7 +312,7 @@ export default class AuthController {
         } else if (user.userType === 'super_admin') {
           authType = 'super_admin'
         }
-        
+
         const userWithRelations = await User.query()
           .where('id', user.id)
           .preload('userRoles', (query) => {
@@ -336,7 +338,7 @@ export default class AuthController {
       } else if (this.isAdminUserModel(user)) {
         authType = 'admin'
         const userData = await this.getUserResponseData(user, authType)
-        
+
         return response.ok({
           success: true,
           authType: authType,
@@ -439,7 +441,7 @@ export default class AuthController {
           .first()
 
         if (userWithPermissions) {
-          hasPermission = userWithPermissions.userRoles.some(role => 
+          hasPermission = userWithPermissions.userRoles.some(role =>
             role.permissions.some(permission => permission.permissionKey === permissionKey)
           )
         }
@@ -482,13 +484,13 @@ export default class AuthController {
           .first()
 
         if (userWithPermissions && userWithPermissions.userRoles) {
-          permissions = userWithPermissions.userRoles.flatMap(role => 
+          permissions = userWithPermissions.userRoles.flatMap(role =>
             role.permissions ? role.permissions.map(p => p.permissionKey) : []
           )
-          permissions = [...new Set(permissions)] 
+          permissions = [...new Set(permissions)]
         }
       } else if (this.isAdminUserModel(user)) {
-        permissions = ['*'] 
+        permissions = ['*']
       }
 
       return response.ok({
@@ -515,7 +517,7 @@ export default class AuthController {
           await this.syncInstituteToUser(institute, defaultPassword)
           syncedCount++
         } catch (error) {
-          const errorMsg = `Failed to sync institute ${institute.instituteEmail}: ${error.message}`
+          const errorMsg = `Failed to sync institute ${institute.instituteEmail}: ${(error as Error).message}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -532,7 +534,7 @@ export default class AuthController {
       return response.internalServerError({
         success: false,
         message: 'Failed to sync institutes',
-        error: error.message
+        error: (error as Error).message
       })
     }
   }
@@ -549,7 +551,7 @@ export default class AuthController {
           await this.syncFacultyToUser(faculty, defaultPassword)
           syncedCount++
         } catch (error) {
-          const errorMsg = `Failed to sync faculty ${faculty.facultyEmail}: ${error.message}`
+          const errorMsg = `Failed to sync faculty ${faculty.facultyEmail}: ${(error as Error).message}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -566,7 +568,7 @@ export default class AuthController {
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculties',
-        error: error.message
+        error: (error as Error).message
       })
     }
   }
@@ -574,7 +576,7 @@ export default class AuthController {
   public async syncInstitute({ request, response }: HttpContext) {
     try {
       const { instituteId, password } = request.only(['instituteId', 'password'])
-      
+
       const institute = await Institute.query()
         .where('id', instituteId)
         .first()
@@ -601,14 +603,15 @@ export default class AuthController {
       return response.internalServerError({
         success: false,
         message: 'Failed to sync institute',
-        error: error.message
+        error: (error as Error).message
       })
     }
   }
+
   public async syncFaculty({ request, response }: HttpContext) {
     try {
       const { facultyId, password } = request.only(['facultyId', 'password'])
-      
+
       const faculty = await Faculty.query()
         .where('id', facultyId)
         .first()
@@ -635,7 +638,7 @@ export default class AuthController {
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculty',
-        error: error.message
+        error: (error as Error).message
       })
     }
   }
