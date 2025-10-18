@@ -25,7 +25,7 @@ import LectureUploadsController from '#controllers/lacture_uploads_controller'
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
-
+router.get('/test-db',[AuthController,'testDB'])
 // Manual sync routes (temporary - no auth required for initial setup)
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
 router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
