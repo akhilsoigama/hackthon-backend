@@ -13,22 +13,22 @@ export default class AuthController {
   private isAdminUserModel(user: any): user is AdminUser {
     return user instanceof AdminUser
   }
-// Test database connection
-public async testDB({ response }: HttpContext) {
-  try {
-    const user = await AdminUser.findBy('email', 'super@admin.com')
-    return response.json({ 
-      success: true, 
-      userExists: !!user,
-      user: user 
-    })
-  } catch (error) {
-    return response.json({ 
-      success: false, 
-      error: error.message 
-    })
-  }
-}
+  // Test database connection
+  // public async testDB({ response }: HttpContext) {
+  //   try {
+  //     const user = await AdminUser.findBy('email', 'super@admin.com')
+  //     return response.json({
+  //       success: true,
+  //       userExists: !!user,
+  //       user: user
+  //     })
+  //   } catch (error) {
+  //     return response.json({
+  //       success: false,
+  //       error: error.message
+  //     })
+  //   }
+  // }
   private async getUserResponseData(user: User | AdminUser, authType: string) {
     if (this.isUserModel(user)) {
       const baseData = {

@@ -5,12 +5,12 @@ export default defineConfig({
 
   origin: [
     'https://hackthon-web-gilt.vercel.app', 
-    'http://localhost:5173',              
+    'http://localhost:5173',
   ],
 
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
   headers: true,
-  exposeHeaders: ['cache-control', 'content-language', 'content-type'],
+  exposeHeaders: ['cache-control', 'content-language', 'content-type', 'Authorization'], // add Authorization if using JWT
   credentials: true,
   maxAge: 90,
 })
