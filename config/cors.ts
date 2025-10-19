@@ -4,13 +4,13 @@ export default defineConfig({
   enabled: true,
 
   origin: [
-    'https://hackthon-web-gilt.vercel.app', 
-    'http://localhost:5173',
+    'https://eduhub-frontend.vercel.app',
+    'http://localhost:5173',              
   ],
 
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
   headers: true,
-  exposeHeaders: ['cache-control', 'content-language', 'content-type', 'Authorization'], // add Authorization if using JWT
+  exposeHeaders: [],
   credentials: true,
   maxAge: 90,
 })
