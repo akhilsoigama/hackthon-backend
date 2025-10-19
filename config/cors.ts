@@ -1,19 +1,17 @@
-import { defineConfig } from '@adonisjs/cors'
+import { defineConfig } from "@adonisjs/cors";
 
-/**
- * Configuration options to tweak the CORS policy. The following
- * options are documented on the official documentation website.
- *
- * https://docs.adonisjs.com/guides/security/cors
- */
-const corsConfig = defineConfig({
+export default defineConfig({
   enabled: true,
-  origin: true,
+
+  // 👇 apne frontend ka origin yahan daal
+  origin: [
+    'https://eduhub-frontend.vercel.app', // <-- change this to your frontend URL
+    'http://localhost:5173',              // for local testing
+  ],
+
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
   headers: true,
   exposeHeaders: [],
   credentials: true,
   maxAge: 90,
 })
-
-export default corsConfig
