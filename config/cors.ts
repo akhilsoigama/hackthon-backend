@@ -5,7 +5,7 @@ export default defineConfig({
 
   // 👇 apne frontend ka origin yahan daal
   origin: [
-    'https://eduhub-frontend.vercel.app', // <-- change this to your frontend URL
+    'https://hackthon-web-gilt.vercel.app', // <-- change this to your frontend URL
     'http://localhost:5173',              // for local testing
   ],
 
