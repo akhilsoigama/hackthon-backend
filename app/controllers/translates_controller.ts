@@ -13,23 +13,21 @@ export default class TranslatesController {
         return response.status(400).json({ message: 'Invalid targetLang code' })
       }
 
-      // Dynamic import
       const translateModule = await import('@vitalets/google-translate-api')
+      const translate = (translateModule as any).default?.translate || translateModule.translate
 
-      // Pick the correct function
-      const translate = (translateModule as any).translate ?? (translateModule as any).default?.translate
-
-      if (typeof translate !== 'function') {
+      if (!translate) {
         return response.status(500).json({ message: 'Translation service unavailable' })
       }
 
-      // Perform translation
       const result = await translate(text, { to: targetLang })
 
       return response.status(200).json({
         original: text,
         translated: result.text,
         from: result.from?.language?.iso || null,
+        cached: result.cached || false,
+        expiresAt: Date.now() + 1000 * 60 * 60, 
       })
     } catch (error: any) {
       return response.status(500).json({
