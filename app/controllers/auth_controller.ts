@@ -5,14 +5,19 @@ import Institute from '#models/institute'
 import Faculty from '#models/faculty'
 import messages from '#database/constants/messages'
 
+// Define types for better TypeScript support
+type AdminUserType = InstanceType<typeof AdminUser>
+type AuthUserType = User | AdminUserType
+
 export default class AuthController {
   private isUserModel(user: any): user is User {
     return user instanceof User
   }
 
-  private isAdminUserModel(user: any): user is AdminUser {
+  private isAdminUserModel(user: any): user is AdminUserType {
     return user instanceof AdminUser
   }
+
   // Test database connection
   public async testDB({ response }: HttpContext) {
     try {
@@ -22,14 +27,15 @@ export default class AuthController {
         userExists: !!user,
         user: user
       })
-    } catch (error) {
+    } catch (error: any) {
       return response.json({
         success: false,
         error: error.message
       })
     }
   }
-  private async getUserResponseData(user: User | AdminUser, authType: string) {
+
+  private async getUserResponseData(user: AuthUserType, authType: string) {
     if (this.isUserModel(user)) {
       const baseData = {
         id: user.id,
@@ -187,7 +193,7 @@ export default class AuthController {
     try {
       const { email, password } = request.only(['email', 'password'])
 
-      let user: User | AdminUser | null = null
+      let user: AuthUserType | null = null
       let token: any = null
       let authType: string = ''
 
@@ -199,9 +205,7 @@ export default class AuthController {
           token = await AdminUser.adminAccessTokens.create(user)
           authType = 'admin'
         }
-      } catch (adminError) {
-        console.log('Admin authentication failed, trying other methods...')
-      }
+      } catch {}
 
       // Try Institute authentication
       if (!user) {
@@ -297,81 +301,106 @@ export default class AuthController {
         token: token.value!.release(),
         user: userData,
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error)
       return response.unauthorized({
         success: false,
         message: messages.user_authentication_failed,
-        error: (error as Error).message
+        error: error.message
       })
     }
   }
 
-  public async me({ auth, response }: HttpContext) {
+ public async me({ auth, response }: HttpContext) {
+  try {
+    let authenticatedUser: AuthUserType | null = null
+
     try {
-      const user = auth.user
-      if (!user) {
-        return response.status(401).json({
-          success: false,
-          message: messages.user_not_authenticated
-        })
+      const apiAuth = auth.use('api')
+      const apiCheck = await apiAuth.check()
+      const apiUser = apiAuth.user as AuthUserType | undefined
+
+      if (apiCheck && apiUser) {
+        authenticatedUser = apiUser
+      }
+    } catch (apiError: any) {
+      console.log('❌ API Guard Error:', apiError.message)
+    }
+
+    try {
+      const adminapiAuth = auth.use('adminapi')
+      const adminapiCheck = await adminapiAuth.check()
+      const adminapiUser = adminapiAuth.user as AuthUserType | undefined
+      if (adminapiCheck && adminapiUser) {
+        authenticatedUser = adminapiUser
+      }
+    } catch (adminapiError: any) {
+      console.log('❌ AdminAPI Guard Error:', adminapiError.message)
+    }
+
+    if (!authenticatedUser) {
+      return response.unauthorized({
+        success: false,
+        message: 'Not authenticated'
+      })
+    }
+
+    let authType = 'user'
+
+    if (this.isUserModel(authenticatedUser)) {
+      if (authenticatedUser.userType === 'institute') {
+        authType = 'institute'
+      } else if (authenticatedUser.userType === 'faculty') {
+        authType = 'faculty'
+      } else if (authenticatedUser.userType === 'super_admin') {
+        authType = 'super_admin'
       }
 
-      let authType = 'user'
+      const userWithRelations = await User.query()
+        .where('id', authenticatedUser.id)
+        .preload('userRoles', (query) => {
+          query.preload('permissions')
+        })
+        .first()
 
-      if (this.isUserModel(user)) {
-        if (user.userType === 'institute') {
-          authType = 'institute'
-        } else if (user.userType === 'faculty') {
-          authType = 'faculty'
-        } else if (user.userType === 'super_admin') {
-          authType = 'super_admin'
-        }
-
-        const userWithRelations = await User.query()
-          .where('id', user.id)
-          .preload('userRoles', (query) => {
-            query.preload('permissions')
-          })
-          .first()
-
-        if (userWithRelations) {
-          const userData = await this.getUserResponseData(userWithRelations, authType)
-          return response.ok({
-            success: true,
-            authType: authType,
-            data: userData
-          })
-        } else {
-          const userData = await this.getUserResponseData(user, authType)
-          return response.ok({
-            success: true,
-            authType: authType,
-            data: userData
-          })
-        }
-      } else if (this.isAdminUserModel(user)) {
-        authType = 'admin'
-        const userData = await this.getUserResponseData(user, authType)
-
+      if (userWithRelations) {
+        const userData = await this.getUserResponseData(userWithRelations, authType)
+        return response.ok({
+          success: true,
+          authType: authType,
+          data: userData
+        })
+      } else {
+        // Fallback to basic user data
+        const userData = await this.getUserResponseData(authenticatedUser, authType)
         return response.ok({
           success: true,
           authType: authType,
           data: userData
         })
       }
-
-      return response.status(401).json({
-        success: false,
-        message: messages.user_not_authenticated
-      })
-    } catch (error) {
-      return response.status(500).json({
-        success: false,
-        message: messages.failed_to_fetch_user_data
+    } else if (this.isAdminUserModel(authenticatedUser)) {
+      authType = 'admin'
+      const userData = await this.getUserResponseData(authenticatedUser, authType)
+      return response.ok({
+        success: true,
+        authType: authType,
+        data: userData
       })
     }
+
+    return response.unauthorized({
+      success: false,
+      message: 'Unknown user type'
+    })
+
+  } catch (error: any) {
+    return response.status(500).json({
+      success: false,
+      message: 'Failed to fetch user data'
+    })
   }
+}
 
   public async logout({ auth, response }: HttpContext) {
     try {
@@ -395,7 +424,8 @@ export default class AuthController {
         success: true,
         message: messages.user_logout_success
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Logout error:', error)
       return response.status(500).json({
         success: false,
         message: messages.user_logout_failed
@@ -425,7 +455,8 @@ export default class AuthController {
         success: true,
         authType: authType
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Get auth type error:', error)
       return response.status(500).json({
         success: false,
         message: messages.user_auth_type_failed
@@ -469,7 +500,8 @@ export default class AuthController {
         hasPermission,
         permissionKey
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Check permission error:', error)
       return response.status(500).json({
         success: false,
         message: 'Failed to check permission'
@@ -512,7 +544,8 @@ export default class AuthController {
         success: true,
         permissions
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Get my permissions error:', error)
       return response.status(500).json({
         success: false,
         message: 'Failed to get permissions'
@@ -531,8 +564,8 @@ export default class AuthController {
           const defaultPassword = 'defaultPassword123'
           await this.syncInstituteToUser(institute, defaultPassword)
           syncedCount++
-        } catch (error) {
-          const errorMsg = `Failed to sync institute ${institute.instituteEmail}: ${(error as Error).message}`
+        } catch (error: any) {
+          const errorMsg = `Failed to sync institute ${institute.instituteEmail}: ${error.message}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -545,11 +578,12 @@ export default class AuthController {
         totalInstitutes: institutes.length,
         errors: errors.length > 0 ? errors : undefined
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Sync all institutes error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync institutes',
-        error: (error as Error).message
+        error: error.message
       })
     }
   }
@@ -565,8 +599,8 @@ export default class AuthController {
           const defaultPassword = 'defaultPassword123'
           await this.syncFacultyToUser(faculty, defaultPassword)
           syncedCount++
-        } catch (error) {
-          const errorMsg = `Failed to sync faculty ${faculty.facultyEmail}: ${(error as Error).message}`
+        } catch (error: any) {
+          const errorMsg = `Failed to sync faculty ${faculty.facultyEmail}: ${error.message}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -579,11 +613,12 @@ export default class AuthController {
         totalFaculties: faculties.length,
         errors: errors.length > 0 ? errors : undefined
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Sync all faculties error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculties',
-        error: (error as Error).message
+        error: error.message
       })
     }
   }
@@ -614,11 +649,12 @@ export default class AuthController {
           userType: user.userType
         }
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Sync institute error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync institute',
-        error: (error as Error).message
+        error: error.message
       })
     }
   }
@@ -649,11 +685,12 @@ export default class AuthController {
           userType: user.userType
         }
       })
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Sync faculty error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculty',
-        error: (error as Error).message
+        error: error.message
       })
     }
   }

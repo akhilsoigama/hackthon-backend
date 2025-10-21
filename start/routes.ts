@@ -20,12 +20,13 @@ import FacultyController from '#controllers/faculties_controller'
 import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
+// Add these debug routes BEFORE the protected routes group
 
 // Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
-router.get('/test-db',[AuthController,'testDB'])
+router.get('/test-db', [AuthController, 'testDB'])
 // Manual sync routes (temporary - no auth required for initial setup)
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
 router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
@@ -168,7 +169,7 @@ router
           .use(middleware.permission([PermissionKeys.LECTURE_DELETE]))
       })
       .prefix('/lectures')
-      
+
     // Faculty routes
     router
       .group(() => {
