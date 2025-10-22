@@ -9,39 +9,35 @@ export default class ChatBotController {
       const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${env.get('CHATBOT_API_KEY')}`,
+          Authorization: `Bearer ${env.get('CHATBOT_API_KEY')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // slow but can speak better punjabi :)
-            // model: "deepseek/deepseek-chat-v3.1:free",
+          // ✅ Choose your model (uncomment only one)
+          // model: "deepseek/deepseek-chat-v3.1:free", // slow but can speak better Punjabi
+          // model: "deepseek/deepseek-r1-0528-qwen3-8b:free", // decent speed, can speak Punjabi
+          // model: 'meta-llama/llama-3.2-3b-instruct:free', // good speed
+          // model: 'anthropic/claude-3-haiku', // cannot speak Punjabi
+          // model: 'openai/gpt-3.5-turbo', // fast and can speak Punjabi
+          model: 'meta-llama/llama-3.1-8b-instruct', // default
 
-          // decent speed and can speak punjabi
-            model: "deepseek/deepseek-r1-0528-qwen3-8b:free",
-
-          // good speed
-            // model: 'meta-llama/llama-3.2-3b-instruct:free', 
-
-          // cannot speak punjabi
-            // model: 'anthropic/claude-3-haiku', 
-
-          // fast and can speak punjabi
-            // model: 'openai/gpt-3.5-turbo',
-            // model: 'meta-llama/llama-3.1-8b-instruct',
           messages,
         }),
       })
 
       const data = await apiRes.json()
       return response.status(apiRes.status).json(data)
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof Error) {
         console.error('Error during API call:', error.message)
         console.error(error.stack)
       } else {
         console.error('An unexpected error occurred:', error)
       }
-      return response.status(500).json({ message: 'An internal server error occurred.' })
+
+      return response
+        .status(500)
+        .json({ message: 'An internal server error occurred.' })
     }
   }
 }

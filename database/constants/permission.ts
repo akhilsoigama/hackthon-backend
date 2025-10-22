@@ -6,6 +6,7 @@ export enum PermissionKeys {
   ROLES_UPDATE = 'roles_update',
   ROLES_DELETE = 'roles_delete',
   ROLES_LIST = 'roles_list',
+  ROLES_ACCESS = 'roles_access',
 
   PERMISSIONS_VIEW = 'permissions_view',
   PERMISSIONS_LIST = 'permissions_list',
@@ -159,7 +160,69 @@ export enum PermissionKeys {
   // Audit & Reports
   AUDIT_LOGS_VIEW = 'audit_logs_view',
   REPORTS_GENERATE = 'reports_generate',
-  REPORTS_VIEW = 'reports_view'
+  REPORTS_VIEW = 'reports_view',
+
+  // ========== NEW PERMISSIONS ADDED FROM MODULES ==========
+  
+  // Nabha Management Module
+  NABHA_MANAGEMENT_ACCESS = 'nabha_management_access',
+  
+  // Role Permission Module
+  ROLE_PERMISSION_ACCESS = 'role_permission_access',
+  
+  // Institute Management Module
+  INSTITUTE_MANAGEMENT_ACCESS = 'institute_management_access',
+  
+  // Faculty Management Module
+  FACULTY_MANAGEMENT_ACCESS = 'faculty_management_access',
+  
+  // Student Query Module
+  STUDENT_QUERY_ACCESS = 'student_query_access',
+  
+  // Leave Management Module
+  LEAVE_MANAGEMENT_ACCESS = 'leave_management_access',
+  
+  // Student Upload Module
+  STUDENT_UPLOAD_ACCESS = 'student_upload_access',
+  
+  // Dashboard Module
+  DASHBOARD_ACCESS = 'dashboard_access',
+  
+  // Gamification Module
+  GAMIFICATION_ACCESS = 'gamification_access',
+  
+  // Offline Library Module
+  OFFLINE_LIBRARY_ACCESS = 'offline_library_access',
+  
+  // Communication Module
+  COMMUNICATION_ACCESS = 'communication_access',
+  
+  // Issue/Discussion Module
+  ISSUE_DISCUSSION_ACCESS = 'issue_discussion_access',
+  
+  // Settings Module
+  SETTINGS_ACCESS = 'settings_access',
+
+  // Additional permissions for specific actions
+  MATERIAL_VIEW = 'material_view',
+  MATERIAL_CREATE = 'material_create',
+  MATERIAL_LIST = 'material_list',
+  
+  QNA_VIEW = 'qna_view',
+  QNA_CREATE = 'qna_create',
+  QNA_LIST = 'qna_list',
+  
+  ACHIEVEMENTS_VIEW = 'achievements_view',
+  BADGES_VIEW = 'badges_view',
+  
+  LIBRARY_ACCESS = 'library_access',
+  LIBRARY_DOWNLOAD = 'library_download',
+  
+  CHAT_ACCESS = 'chat_access',
+  
+  QUESTION_VIEW = 'question_view',
+  QUESTION_CREATE = 'question_create',
+  QUESTION_LIST = 'question_list'
 }
 
 export const permissions = Object.values(PermissionKeys).map((key) => ({

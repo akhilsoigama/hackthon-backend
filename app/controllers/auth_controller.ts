@@ -1,8 +1,10 @@
+// app/controllers/auth_controller.ts
 import { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import AdminUser from '#models/admin_user'
 import Institute from '#models/institute'
 import Faculty from '#models/faculty'
+import Role from '#models/role'
 import messages from '#database/constants/messages'
 
 // Define types for better TypeScript support
@@ -35,6 +37,21 @@ export default class AuthController {
     }
   }
 
+  // Helper method to auto-assign roles to users
+  private async assignRoleToUser(user: User, role: Role) {
+    try {
+      // Check if user already has this role
+      const existingRole = await user.related('userRoles').query().where('roles.id', role.id).first()
+      
+      if (!existingRole) {
+        await user.related('userRoles').attach([role.id])
+        console.log(`✅ Auto-assigned role ${role.roleName} to user ${user.email}`)
+      }
+    } catch (error) {
+      console.error('❌ Error assigning role to user:', error)
+    }
+  }
+
   private async getUserResponseData(user: AuthUserType, authType: string) {
     if (this.isUserModel(user)) {
       const baseData = {
@@ -55,15 +72,24 @@ export default class AuthController {
       let permissions: string[] = []
       let roleName: string = user.userType
 
-      if (authType === 'user') {
-        if (user.userRoles) {
-          roles = user.userRoles.map(role => role.roleKey)
-          permissions = user.userRoles.flatMap(role =>
-            role.permissions ? role.permissions.map(p => p.permissionKey) : []
-          )
-          roleName = user.userRoles.length > 0 ? user.userRoles[0].roleName : user.userType
-        }
-      } else if (authType === 'institute' && user.instituteId) {
+      // 🔥 FIX: Load user with roles first
+      const userWithRoles = await User.query()
+        .where('id', user.id)
+        .preload('userRoles', (query) => {
+          query.preload('permissions')
+        })
+        .first()
+
+      if (userWithRoles && userWithRoles.userRoles && userWithRoles.userRoles.length > 0) {
+        // User has direct role assignments
+        roles = userWithRoles.userRoles.map(role => role.roleKey)
+        permissions = userWithRoles.userRoles.flatMap(role =>
+          role.permissions ? role.permissions.map(p => p.permissionKey) : []
+        )
+        roleName = userWithRoles.userRoles[0].roleName
+      } 
+      else if (authType === 'institute' && user.instituteId) {
+        // Institute user - get role from institute
         const instituteWithRole = await Institute.query()
           .where('id', user.instituteId)
           .preload('role', (query) => {
@@ -75,8 +101,13 @@ export default class AuthController {
           roles = [instituteWithRole.role.roleKey]
           permissions = instituteWithRole.role.permissions.map(p => p.permissionKey)
           roleName = instituteWithRole.role.roleName
+          
+          // 🔥 AUTO-ASSIGN ROLE TO USER
+          await this.assignRoleToUser(user, instituteWithRole.role)
         }
-      } else if (authType === 'faculty' && user.facultyId) {
+      }
+      else if (authType === 'faculty' && user.facultyId) {
+        // Faculty user - get role from faculty
         const facultyWithRole = await Faculty.query()
           .where('id', user.facultyId)
           .preload('role', (query) => {
@@ -88,6 +119,9 @@ export default class AuthController {
           roles = [facultyWithRole.role.roleKey]
           permissions = facultyWithRole.role.permissions.map(p => p.permissionKey)
           roleName = facultyWithRole.role.roleName
+          
+          // 🔥 AUTO-ASSIGN ROLE TO USER
+          await this.assignRoleToUser(user, facultyWithRole.role)
         }
       }
 
@@ -311,67 +345,76 @@ export default class AuthController {
     }
   }
 
- public async me({ auth, response }: HttpContext) {
-  try {
-    let authenticatedUser: AuthUserType | null = null
-
+  public async me({ auth, response }: HttpContext) {
     try {
-      const apiAuth = auth.use('api')
-      const apiCheck = await apiAuth.check()
-      const apiUser = apiAuth.user as AuthUserType | undefined
+      let authenticatedUser: AuthUserType | null = null
 
-      if (apiCheck && apiUser) {
-        authenticatedUser = apiUser
-      }
-    } catch (apiError: any) {
-      console.log('❌ API Guard Error:', apiError.message)
-    }
+      try {
+        const apiAuth = auth.use('api')
+        const apiCheck = await apiAuth.check()
+        const apiUser = apiAuth.user as AuthUserType | undefined
 
-    try {
-      const adminapiAuth = auth.use('adminapi')
-      const adminapiCheck = await adminapiAuth.check()
-      const adminapiUser = adminapiAuth.user as AuthUserType | undefined
-      if (adminapiCheck && adminapiUser) {
-        authenticatedUser = adminapiUser
-      }
-    } catch (adminapiError: any) {
-      console.log('❌ AdminAPI Guard Error:', adminapiError.message)
-    }
-
-    if (!authenticatedUser) {
-      return response.unauthorized({
-        success: false,
-        message: 'Not authenticated'
-      })
-    }
-
-    let authType = 'user'
-
-    if (this.isUserModel(authenticatedUser)) {
-      if (authenticatedUser.userType === 'institute') {
-        authType = 'institute'
-      } else if (authenticatedUser.userType === 'faculty') {
-        authType = 'faculty'
-      } else if (authenticatedUser.userType === 'super_admin') {
-        authType = 'super_admin'
+        if (apiCheck && apiUser) {
+          authenticatedUser = apiUser
+        }
+      } catch (apiError: any) {
+        console.log('❌ API Guard Error:', apiError.message)
       }
 
-      const userWithRelations = await User.query()
-        .where('id', authenticatedUser.id)
-        .preload('userRoles', (query) => {
-          query.preload('permissions')
+      try {
+        const adminapiAuth = auth.use('adminapi')
+        const adminapiCheck = await adminapiAuth.check()
+        const adminapiUser = adminapiAuth.user as AuthUserType | undefined
+        if (adminapiCheck && adminapiUser) {
+          authenticatedUser = adminapiUser
+        }
+      } catch (adminapiError: any) {
+        console.log('❌ AdminAPI Guard Error:', adminapiError.message)
+      }
+
+      if (!authenticatedUser) {
+        return response.unauthorized({
+          success: false,
+          message: 'Not authenticated'
         })
-        .first()
+      }
 
-      if (userWithRelations) {
-        const userData = await this.getUserResponseData(userWithRelations, authType)
-        return response.ok({
-          success: true,
-          authType: authType,
-          data: userData
-        })
-      } else {
-        // Fallback to basic user data
+      let authType = 'user'
+
+      if (this.isUserModel(authenticatedUser)) {
+        if (authenticatedUser.userType === 'institute') {
+          authType = 'institute'
+        } else if (authenticatedUser.userType === 'faculty') {
+          authType = 'faculty'
+        } else if (authenticatedUser.userType === 'super_admin') {
+          authType = 'super_admin'
+        }
+
+        const userWithRelations = await User.query()
+          .where('id', authenticatedUser.id)
+          .preload('userRoles', (query) => {
+            query.preload('permissions')
+          })
+          .first()
+
+        if (userWithRelations) {
+          const userData = await this.getUserResponseData(userWithRelations, authType)
+          return response.ok({
+            success: true,
+            authType: authType,
+            data: userData
+          })
+        } else {
+          // Fallback to basic user data
+          const userData = await this.getUserResponseData(authenticatedUser, authType)
+          return response.ok({
+            success: true,
+            authType: authType,
+            data: userData
+          })
+        }
+      } else if (this.isAdminUserModel(authenticatedUser)) {
+        authType = 'admin'
         const userData = await this.getUserResponseData(authenticatedUser, authType)
         return response.ok({
           success: true,
@@ -379,28 +422,19 @@ export default class AuthController {
           data: userData
         })
       }
-    } else if (this.isAdminUserModel(authenticatedUser)) {
-      authType = 'admin'
-      const userData = await this.getUserResponseData(authenticatedUser, authType)
-      return response.ok({
-        success: true,
-        authType: authType,
-        data: userData
+
+      return response.unauthorized({
+        success: false,
+        message: 'Unknown user type'
+      })
+
+    } catch (error: any) {
+      return response.status(500).json({
+        success: false,
+        message: 'Failed to fetch user data'
       })
     }
-
-    return response.unauthorized({
-      success: false,
-      message: 'Unknown user type'
-    })
-
-  } catch (error: any) {
-    return response.status(500).json({
-      success: false,
-      message: 'Failed to fetch user data'
-    })
   }
-}
 
   public async logout({ auth, response }: HttpContext) {
     try {
@@ -694,4 +728,71 @@ export default class AuthController {
       })
     }
   }
+
+  // 🔥 NEW: Fix institute roles route
+  // In AuthController - fix the fixInstituteRoles method
+// AuthController mein yeh method replace karo
+public async fixInstituteRoles({ response }: HttpContext) {
+  try {
+    // Method 1: Simple query without whereDoesntHave
+    const allInstituteUsers = await User.query()
+      .where('userType', 'institute')
+      .preload('userRoles')
+
+    // Filter users who don't have any roles
+    const instituteUsersWithoutRoles = allInstituteUsers.filter(user => 
+      !user.userRoles || user.userRoles.length === 0
+    )
+
+    let fixedCount = 0
+    let errors: string[] = []
+
+    console.log(`🔧 Found ${instituteUsersWithoutRoles.length} institute users without roles`)
+
+    for (const user of instituteUsersWithoutRoles) {
+      try {
+        if (user.instituteId) {
+          const institute = await Institute.query()
+            .where('id', user.instituteId)
+            .preload('role')
+            .first()
+
+          if (institute?.role) {
+            await user.related('userRoles').attach([institute.role.id])
+            fixedCount++
+            console.log(`✅ Assigned role ${institute.role.roleName} to ${user.email}`)
+          } else {
+            const errorMsg = `Institute ${user.instituteId} has no role assigned for user ${user.email}`
+            errors.push(errorMsg)
+            console.log(`❌ ${errorMsg}`)
+          }
+        } else {
+          const errorMsg = `User ${user.email} has no instituteId`
+          errors.push(errorMsg)
+          console.log(`❌ ${errorMsg}`)
+        }
+      } catch (error: any) {
+        const errorMsg = `Failed to assign role to ${user.email}: ${error.message}`
+        errors.push(errorMsg)
+        console.log(`❌ ${errorMsg}`)
+      }
+    }
+
+    return response.json({
+      success: true,
+      message: `Fixed roles for ${fixedCount} institute users`,
+      fixedCount,
+      totalInstituteUsers: allInstituteUsers.length,
+      usersWithoutRoles: instituteUsersWithoutRoles.length,
+      errors: errors.length > 0 ? errors : undefined
+    })
+  } catch (error: any) {
+    console.error('❌ Error in fixInstituteRoles:', error)
+    return response.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
 }
+}
+

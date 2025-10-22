@@ -20,58 +20,58 @@ import FacultyController from '#controllers/faculties_controller'
 import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
-// Add these debug routes BEFORE the protected routes group
 
 // Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
 router.get('/test-db', [AuthController, 'testDB'])
+
 // Manual sync routes (temporary - no auth required for initial setup)
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
 router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
 router.post('/sync/institute', [AuthController, 'syncInstitute'])
 router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
+// Protected Routes (Authentication required)
 router
   .group(() => {
+    // Auth routes
     router.get('/profile', [AuthController, 'me'])
     router.post('logout', [AuthController, 'logout'])
-
-    // Auth related routes
     router.get('/auth-type', [AuthController, 'getAuthType'])
-    router.get('/my-permissions', [AuthController, 'getMyPermissions']) // Changed from /permissions to /my-permissions
+    router.get('/my-permissions', [AuthController, 'getMyPermissions'])
     router.post('/check-permission', [AuthController, 'checkPermission'])
 
-    // Roles routes
+    // Roles routes - FIXED: Using custom routes instead of resource
     router
-      .group(() => {
-        router
-          .get('/:id', [RolesController, 'getRoleWithPermissions'])
-          .use(middleware.permission([PermissionKeys.ROLES_VIEW]))
+      .get('/roles', [RolesController, 'getAllRoleWithPermissions'])
+      .use(middleware.permission([PermissionKeys.ROLES_LIST]))
 
-        router
-          .post('/', [RolesController, 'createRoleWithPermissions'])
-          .use(middleware.permission([PermissionKeys.ROLES_CREATE]))
+    router
+      .post('/roles', [RolesController, 'createRoleWithPermissions'])
+      .use(middleware.permission([PermissionKeys.ROLES_CREATE]))
 
-        router
-          .put('/:id', [RolesController, 'updateRole'])
-          .use(middleware.permission([PermissionKeys.ROLES_UPDATE]))
+    router
+      .get('/roles/:id', [RolesController, 'getRoleWithPermissions'])
+      .use(middleware.permission([PermissionKeys.ROLES_VIEW]))
 
-        router
-          .get('/', [RolesController, 'getAllRoleWithPermissions'])
-          .use(middleware.permission([PermissionKeys.ROLES_LIST]))
+    router
+      .put('/roles/:id', [RolesController, 'updateRole'])
+      .use(middleware.permission([PermissionKeys.ROLES_UPDATE]))
 
-        router
-          .delete('/:id', [RolesController, 'deleteRole'])
-          .use(middleware.permission([PermissionKeys.ROLES_DELETE]))
-      })
-      .prefix('/roles')
+    router
+      .delete('/roles/:id', [RolesController, 'deleteRole'])
+      .use(middleware.permission([PermissionKeys.ROLES_DELETE]))
 
-    // Permissions route (this was causing duplicate)
+    // Permissions routes
     router
       .get('/permissions', [PermissionsController, 'getAllPermissions'])
       .use(middleware.permission([PermissionKeys.PERMISSIONS_LIST]))
+
+    router
+      .get('/permissions/:id', [PermissionsController, 'show'])
+      .use(middleware.permission([PermissionKeys.PERMISSIONS_VIEW]))
 
     // Users routes
     router
@@ -83,6 +83,7 @@ router
       .middleware('index', middleware.permission([PermissionKeys.USERS_LIST]))
       .middleware('destroy', middleware.permission([PermissionKeys.USERS_DELETE]))
 
+    // User role management routes
     router
       .post('/users/:id/roles', [UsersController, 'assignRoles'])
       .use(middleware.permission([PermissionKeys.USER_ROLES_ASSIGN]))
@@ -97,106 +98,49 @@ router
 
     // Institute Routes
     router
-      .group(() => {
-        router
-          .get('/', [InstitutesController, 'index'])
-          .use(middleware.permission([PermissionKeys.INSTITUTE_LIST]))
-
-        router
-          .post('/', [InstitutesController, 'store'])
-          .use(middleware.permission([PermissionKeys.INSTITUTE_CREATE]))
-
-        router
-          .get('/:id', [InstitutesController, 'show'])
-          .use(middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
-
-        router
-          .put('/:id', [InstitutesController, 'update'])
-          .use(middleware.permission([PermissionKeys.INSTITUTE_UPDATE]))
-
-        router
-          .delete('/:id', [InstitutesController, 'destroy'])
-          .use(middleware.permission([PermissionKeys.INSTITUTE_DELETE]))
-      })
-      .prefix('/institutes')
+      .resource('institutes', InstitutesController)
+      .apiOnly()
+      .middleware('store', middleware.permission([PermissionKeys.INSTITUTE_CREATE]))
+      .middleware('update', middleware.permission([PermissionKeys.INSTITUTE_UPDATE]))
+      .middleware('show', middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
+      .middleware('index', middleware.permission([PermissionKeys.INSTITUTE_LIST]))
+      .middleware('destroy', middleware.permission([PermissionKeys.INSTITUTE_DELETE]))
 
     // Department Routes
     router
-      .group(() => {
-        router
-          .get('/', [DepartmentsController, 'index'])
-          .use(middleware.permission([PermissionKeys.DEPARTMENT_LIST]))
+      .resource('departments', DepartmentsController)
+      .apiOnly()
+      .middleware('store', middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
+      .middleware('update', middleware.permission([PermissionKeys.DEPARTMENT_UPDATE]))
+      .middleware('show', middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
+      .middleware('index', middleware.permission([PermissionKeys.DEPARTMENT_LIST]))
+      .middleware('destroy', middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
 
-        router
-          .post('/', [DepartmentsController, 'store'])
-          .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
-
-        router
-          .get('/:id', [DepartmentsController, 'show'])
-          .use(middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
-
-        router
-          .put('/:id', [DepartmentsController, 'update'])
-          .use(middleware.permission([PermissionKeys.DEPARTMENT_UPDATE]))
-
-        router
-          .delete('/:id', [DepartmentsController, 'destroy'])
-          .use(middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
-      })
-      .prefix('/departments')
 
     // Lecture upload routes
     router
-      .group(() => {
-        router
-          .get('/', [LectureUploadsController, 'index'])
-          .use(middleware.permission([PermissionKeys.LECTURE_LIST]))
-
-        router
-          .post('/', [LectureUploadsController, 'store'])
-          .use(middleware.permission([PermissionKeys.LECTURE_CREATE]))
-
-        router
-          .get('/:id', [LectureUploadsController, 'show'])
-          .use(middleware.permission([PermissionKeys.LECTURE_VIEW]))
-
-        router
-          .put('/:id', [LectureUploadsController, 'update'])
-          .use(middleware.permission([PermissionKeys.LECTURE_UPDATE]))
-
-        router
-          .delete('/:id', [LectureUploadsController, 'destroy'])
-          .use(middleware.permission([PermissionKeys.LECTURE_DELETE]))
-      })
-      .prefix('/lectures')
+      .resource('lectures', LectureUploadsController)
+      .apiOnly()
+      .middleware('store', middleware.permission([PermissionKeys.LECTURE_CREATE]))
+      .middleware('update', middleware.permission([PermissionKeys.LECTURE_UPDATE]))
+      .middleware('show', middleware.permission([PermissionKeys.LECTURE_VIEW]))
+      .middleware('index', middleware.permission([PermissionKeys.LECTURE_LIST]))
+      .middleware('destroy', middleware.permission([PermissionKeys.LECTURE_DELETE]))
 
     // Faculty routes
     router
-      .group(() => {
-        router
-          .get('/', [FacultyController, 'index'])
-          .use(middleware.permission([PermissionKeys.FACULTY_LIST]))
+      .resource('faculty', FacultyController)
+      .apiOnly()
+      .middleware('store', middleware.permission([PermissionKeys.FACULTY_CREATE]))
+      .middleware('update', middleware.permission([PermissionKeys.FACULTY_UPDATE]))
+      .middleware('show', middleware.permission([PermissionKeys.FACULTY_VIEW]))
+      .middleware('index', middleware.permission([PermissionKeys.FACULTY_LIST]))
+      .middleware('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
 
-        router
-          .post('/', [FacultyController, 'store'])
-          .use(middleware.permission([PermissionKeys.FACULTY_CREATE]))
-
-        router
-          .get('/:id', [FacultyController, 'show'])
-          .use(middleware.permission([PermissionKeys.FACULTY_VIEW]))
-
-        router
-          .put('/:id', [FacultyController, 'update'])
-          .use(middleware.permission([PermissionKeys.FACULTY_UPDATE]))
-
-        router
-          .delete('/:id', [FacultyController, 'destroy'])
-          .use(middleware.permission([PermissionKeys.FACULTY_DELETE]))
-      })
-      .prefix('/faculty')
   })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
+// 404 Handler
 router.any('*', ({ response }) => {
   return response.status(404).json({
     success: false,
