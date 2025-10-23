@@ -12,6 +12,7 @@ export default defineConfig({
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
   headers: true,
   exposeHeaders: [],
-  credentials: true,
+  credentials: true,  
   maxAge: 90,
 })
+    
