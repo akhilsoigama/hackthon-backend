@@ -20,6 +20,7 @@ import FacultyController from '#controllers/faculties_controller'
 import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
+import PingController from '#controllers/ping_controller'
 
 // Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
@@ -33,6 +34,7 @@ router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
 router.post('/sync/institute', [AuthController, 'syncInstitute'])
 router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
+router.get('/ping',[PingController])
 // Protected Routes (Authentication required)
 router
   .group(() => {
