@@ -4,12 +4,32 @@ import type { HttpContext } from '@adonisjs/core/http'
 export default class ChatBotController {
   public async chat({ request, response }: HttpContext) {
     try {
-      const messages = request.input('messages')
+      const userMessages = request.input('messages')
+
+      // 🧠 Inject EduGuide system prompt
+      const eduGuideSystemPrompt = {
+        role: 'system',
+        content: `
+You are EduGuide, an AI designed to assist faculty on the EduHub Learning Platform.  
+Your role is to help teachers with lesson design, quiz generation, content organization, and student evaluation ideas.  
+
+You communicate in a professional, supportive, and concise tone — but with a friendly touch that reflects Punjabi warmth and familiarity.  
+You may occasionally use simple Punjabi or culturally resonant expressions (e.g., "chalo", "theek hai", "achha") when it fits naturally, to make the interaction feel more human and approachable.  
+
+You understand academic standards and help teachers plan efficiently, offering practical examples and structured outputs.  
+Avoid answering student questions directly; instead, guide teachers on how to teach or explain those topics better.  
+
+Stay grounded, helpful, and encouraging — like a trusted teaching colleague who also knows a bit of tech.
+        `,
+      }
+
+      // Combine system + user messages
+      const messages = [eduGuideSystemPrompt, ...userMessages]
 
       const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.get('CHATBOT_API_KEY')}`,
+          'Authorization': `Bearer ${env.get('CHATBOT_API_KEY')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -35,9 +55,7 @@ export default class ChatBotController {
         console.error('An unexpected error occurred:', error)
       }
 
-      return response
-        .status(500)
-        .json({ message: 'An internal server error occurred.' })
+      return response.status(500).json({ message: 'An internal server error occurred.' })
     }
   }
 }
