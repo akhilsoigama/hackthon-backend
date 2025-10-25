@@ -2,7 +2,7 @@
 import { HttpContext } from '@adonisjs/core/http'
 
 export default class PingController {
-  async ping({ response }: HttpContext) {
+  public async handle({ response }: HttpContext) {
     return response.json({ status: true, message: 'alive' })
   }
 }
