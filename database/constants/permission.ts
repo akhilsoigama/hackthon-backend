@@ -207,6 +207,7 @@ export enum PermissionKeys {
   MATERIAL_VIEW = 'material_view',
   MATERIAL_CREATE = 'material_create',
   MATERIAL_LIST = 'material_list',
+  MATERIAL_UPDATE = 'material_update',
   
   QNA_VIEW = 'qna_view',
   QNA_CREATE = 'qna_create',
