@@ -1,6 +1,5 @@
-// services/permissions_resolver_service.ts
+// app/services/permissions_resolver_service.ts
 import { PermissionKeys } from '#database/constants/permission'
-
 import { HttpContext } from '@adonisjs/core/http'
 
 export default class PermissionsResolverService {
@@ -69,6 +68,11 @@ export default class PermissionsResolverService {
         userPermissions.includes(perm)
       )
 
+      console.log('🎯 Permission check result:', {
+        hasPermission,
+        missingPermissions: requiredPermissions.filter(perm => !userPermissions.includes(perm))
+      })
+
       return { 
         user, 
         userPermissions, 
@@ -78,7 +82,6 @@ export default class PermissionsResolverService {
 
     } catch (error) {
       console.error('❌ PERMISSIONS RESOLVER ERROR:', error)
-      // On error, deny access to be safe
       return { 
         user: null, 
         userPermissions: [], 
@@ -90,32 +93,30 @@ export default class PermissionsResolverService {
 
   private async checkIfSystemAdmin(user: any): Promise<boolean> {
     try {
-      // Method 1: Check if it's an AdminUser instance
-      const AdminUserModel = (await import('#models/admin_user')).default
-      if (user instanceof AdminUserModel) {
+      // Check userType field directly
+      if (user.userType === 'super_admin' || user.userType === 'system_admin' || user.userType === 'admin') {
         return true
       }
 
-      // Method 2: Check userType field directly
-      if (user.userType === 'super_admin' || user.userType === 'system_admin') {
-        return true
-      }
+      // Check database roles for User model
+      try {
+        const UserModel = (await import('#models/user')).default
+        if (user instanceof UserModel) {
+          const userWithRoles = await UserModel.query()
+            .where('id', user.id)
+            .preload('userRoles')
+            .first()
 
-      // Method 3: Check database roles for User model
-      const UserModel = (await import('#models/user')).default
-      if (user instanceof UserModel) {
-        const userWithRoles = await UserModel.query()
-          .where('id', user.id)
-          .preload('userRoles')
-          .first()
+          const isSuperAdmin = userWithRoles?.userRoles?.some(role => 
+            role.roleKey === 'super_admin' || 
+            role.roleKey === 'system_admin' ||
+            role.roleKey === 'admin'
+          ) || false
 
-        const isSuperAdmin = userWithRoles?.userRoles?.some(role => 
-          role.roleKey === 'super_admin' || 
-          role.roleKey === 'system_admin' ||
-          role.roleKey === 'admin'
-        ) || false
-
-        return isSuperAdmin
+          return isSuperAdmin
+        }
+      } catch (error) {
+        console.error('Error checking user roles:', error)
       }
 
       return false
@@ -127,18 +128,12 @@ export default class PermissionsResolverService {
 
   private async getUserPermissions(user: any): Promise<PermissionKeys[]> {
     try {
-      // For AdminUser, return all permissions
-      const AdminUserModel = (await import('#models/admin_user')).default
-      if (user instanceof AdminUserModel) {
+      // For admin users, return all permissions
+      if (user.userType === 'super_admin' || user.userType === 'system_admin' || user.userType === 'admin') {
         return Object.values(PermissionKeys) as PermissionKeys[]
       }
 
-      // For User with admin userType, return all permissions
-      if (user.userType === 'super_admin' || user.userType === 'system_admin') {
-        return Object.values(PermissionKeys) as PermissionKeys[]
-      }
-
-      // For regular User, load from database
+      // Load user with roles and permissions from database
       const UserModel = (await import('#models/user')).default
       const userWithRoles = await UserModel.query()
         .where('id', user.id)
@@ -147,17 +142,26 @@ export default class PermissionsResolverService {
         })
         .first()
 
+      if (!userWithRoles) {
+        return []
+      }
+
       const permissions: PermissionKeys[] = []
       
-      userWithRoles?.userRoles?.forEach((role) => {
+      userWithRoles.userRoles?.forEach((role) => {
         role.permissions?.forEach((permission) => {
-          if (Object.values(PermissionKeys).includes(permission.permissionKey as PermissionKeys)) {
-            permissions.push(permission.permissionKey as PermissionKeys)
+          // Use permissionKey directly if it matches PermissionKeys
+          if (permission.permissionKey && Object.values(PermissionKeys).includes(permission.permissionKey as PermissionKeys)) {
+            const permissionKey = permission.permissionKey as PermissionKeys
+            if (!permissions.includes(permissionKey)) {
+              permissions.push(permissionKey)
+            }
           }
         })
       })
 
-      return [...new Set(permissions)] // Remove duplicates
+      return permissions
+
     } catch (error) {
       console.error('❌ Error getting user permissions:', error)
       return []

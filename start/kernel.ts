@@ -16,6 +16,7 @@ server.errorHandler(() => import('#exceptions/handler'))
 server.use([
   () => import('#middleware/container_bindings_middleware'),
   () => import('#middleware/force_json_response_middleware'),
+  () => import('@adonisjs/cors/cors_middleware'), // CORS should be early in the chain
 ])
 
 /**
@@ -24,8 +25,8 @@ server.use([
  */
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
+  () => import('#middleware/secure_video_middleware'), // Add secure video middleware here
   () => import('@adonisjs/auth/initialize_auth_middleware'),
-  () => import('@adonisjs/cors/cors_middleware')
 ])
 
 /**

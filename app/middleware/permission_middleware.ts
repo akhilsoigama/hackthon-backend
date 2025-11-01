@@ -4,183 +4,183 @@ import PermissionsResolverService from '#services/permissions_resolver_service'
 import { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 
-// ✅ Create a type that includes both PermissionKeys and string
 type ExtendedPermissionKeys = PermissionKeys | string
 
-// ✅ Complete permission mapping for different naming conventions
+// ✅ Complete permission mapping
 const PermissionMapping: Record<string, PermissionKeys> = {
-  // List to View mappings
-  'roles_list': PermissionKeys.ROLES_VIEW,
-  'role_list': PermissionKeys.ROLES_VIEW,
-  'users_list': PermissionKeys.USERS_VIEW,
-  'user_list': PermissionKeys.USERS_VIEW,
-  'department_list': PermissionKeys.DEPARTMENT_VIEW,
-  'faculty_list': PermissionKeys.FACULTY_VIEW,
-  'student_list': PermissionKeys.STUDENT_VIEW,
-  'institute_list': PermissionKeys.INSTITUTE_VIEW,
-  'survey_list': PermissionKeys.SURVEY_VIEW,
-  'assignment_list': PermissionKeys.ASSIGNMENT_VIEW,
-  'lesson_list': PermissionKeys.LESSON_VIEW,
-  'lecture_list': PermissionKeys.LECTURE_VIEW,
-  'quiz_list': PermissionKeys.QUIZ_VIEW,
-  'leave_list': PermissionKeys.LEAVE_VIEW,
-  'material_list': PermissionKeys.MATERIAL_VIEW,
-  'qna_list': PermissionKeys.QNA_VIEW,
-  'question_list': PermissionKeys.QUESTION_VIEW,
-  
-  // Create mappings
-  'roles_create': PermissionKeys.ROLES_CREATE,
-  'users_create': PermissionKeys.USERS_CREATE,
-  'department_create': PermissionKeys.DEPARTMENT_CREATE,
-  'faculty_create': PermissionKeys.FACULTY_CREATE,
-  'student_create': PermissionKeys.STUDENT_CREATE,
-  'institute_create': PermissionKeys.INSTITUTE_CREATE,
-  'survey_create': PermissionKeys.SURVEY_CREATE,
-  'assignment_create': PermissionKeys.ASSIGNMENT_CREATE,
-  'lesson_create': PermissionKeys.LESSON_CREATE,
+  // Lecture permissions
   'lecture_create': PermissionKeys.LECTURE_CREATE,
-  'quiz_create': PermissionKeys.QUIZ_CREATE,
-  'leave_create': PermissionKeys.LEAVE_CREATE,
-  'material_create': PermissionKeys.MATERIAL_CREATE,
-  'qna_create': PermissionKeys.QNA_CREATE,
-  'question_create': PermissionKeys.QUESTION_CREATE,
-  
-  // Update mappings
-  'roles_update': PermissionKeys.ROLES_UPDATE,
-  'users_update': PermissionKeys.USERS_UPDATE,
-  'department_update': PermissionKeys.DEPARTMENT_UPDATE,
-  'faculty_update': PermissionKeys.FACULTY_UPDATE,
-  'student_update': PermissionKeys.STUDENT_UPDATE,
-  'institute_update': PermissionKeys.INSTITUTE_UPDATE,
-  'survey_update': PermissionKeys.SURVEY_UPDATE,
-  'assignment_update': PermissionKeys.ASSIGNMENT_UPDATE,
-  'lesson_update': PermissionKeys.LESSON_UPDATE,
   'lecture_update': PermissionKeys.LECTURE_UPDATE,
-  'quiz_update': PermissionKeys.QUIZ_UPDATE,
-  'leave_update': PermissionKeys.LEAVE_UPDATE,
-  'material_update': PermissionKeys.MATERIAL_UPDATE,
-  'settings_update': PermissionKeys.SETTINGS_UPDATE,
-  
-  // Delete mappings
-  'roles_delete': PermissionKeys.ROLES_DELETE,
-  'users_delete': PermissionKeys.USERS_DELETE,
-  'department_delete': PermissionKeys.DEPARTMENT_DELETE,
-  'faculty_delete': PermissionKeys.FACULTY_DELETE,
-  'student_delete': PermissionKeys.STUDENT_DELETE,
-  'institute_delete': PermissionKeys.INSTITUTE_DELETE,
-  'survey_delete': PermissionKeys.SURVEY_DELETE,
-  'assignment_delete': PermissionKeys.ASSIGNMENT_DELETE,
-  'lesson_delete': PermissionKeys.LESSON_DELETE,
-  'lecture_delete': PermissionKeys.LECTURE_DELETE,
-  'quiz_delete': PermissionKeys.QUIZ_DELETE,
-  'leave_delete': PermissionKeys.LEAVE_DELETE,
-  
-  // View mappings
-  'roles_view': PermissionKeys.ROLES_VIEW,
-  'users_view': PermissionKeys.USERS_VIEW,
-  'department_view': PermissionKeys.DEPARTMENT_VIEW,
-  'faculty_view': PermissionKeys.FACULTY_VIEW,
-  'student_view': PermissionKeys.STUDENT_VIEW,
-  'institute_view': PermissionKeys.INSTITUTE_VIEW,
-  'survey_view': PermissionKeys.SURVEY_VIEW,
-  'assignment_view': PermissionKeys.ASSIGNMENT_VIEW,
-  'lesson_view': PermissionKeys.LESSON_VIEW,
   'lecture_view': PermissionKeys.LECTURE_VIEW,
-  'quiz_view': PermissionKeys.QUIZ_VIEW,
-  'leave_view': PermissionKeys.LEAVE_VIEW,
-  'material_view': PermissionKeys.MATERIAL_VIEW,
-  'qna_view': PermissionKeys.QNA_VIEW,
-  'question_view': PermissionKeys.QUESTION_VIEW,
+  'lecture_list': PermissionKeys.LECTURE_LIST,
+  'lecture_delete': PermissionKeys.LECTURE_DELETE,
+
+  // Lesson permissions
+  'lesson_create': PermissionKeys.LESSON_CREATE,
+  'lesson_update': PermissionKeys.LESSON_UPDATE,
+  'lesson_view': PermissionKeys.LESSON_VIEW,
+  'lesson_list': PermissionKeys.LESSON_LIST,
+  'lesson_delete': PermissionKeys.LESSON_DELETE,
+
+  // User permissions
+  'users_create': PermissionKeys.USERS_CREATE,
+  'users_update': PermissionKeys.USERS_UPDATE,
+  'users_view': PermissionKeys.USERS_VIEW,
+  'users_list': PermissionKeys.USERS_LIST,
+  'users_delete': PermissionKeys.USERS_DELETE,
+
+  // Role permissions
+  'roles_create': PermissionKeys.ROLES_CREATE,
+  'roles_update': PermissionKeys.ROLES_UPDATE,
+  'roles_view': PermissionKeys.ROLES_VIEW,
+  'roles_list': PermissionKeys.ROLES_LIST,
+  'roles_delete': PermissionKeys.ROLES_DELETE,
+
+  // Institute permissions
+  'institute_create': PermissionKeys.INSTITUTE_CREATE,
+  'institute_update': PermissionKeys.INSTITUTE_UPDATE,
+  'institute_view': PermissionKeys.INSTITUTE_VIEW,
+  'institute_list': PermissionKeys.INSTITUTE_LIST,
+  'institute_delete': PermissionKeys.INSTITUTE_DELETE,
+
+  // Faculty permissions
+  'faculty_create': PermissionKeys.FACULTY_CREATE,
+  'faculty_update': PermissionKeys.FACULTY_UPDATE,
+  'faculty_view': PermissionKeys.FACULTY_VIEW,
+  'faculty_list': PermissionKeys.FACULTY_LIST,
+  'faculty_delete': PermissionKeys.FACULTY_DELETE,
+
+  // Student permissions
+  'student_create': PermissionKeys.STUDENT_CREATE,
+  'student_update': PermissionKeys.STUDENT_UPDATE,
+  'student_view': PermissionKeys.STUDENT_VIEW,
+  'student_list': PermissionKeys.STUDENT_LIST,
+  'student_delete': PermissionKeys.STUDENT_DELETE,
+
+  // Department permissions
+  'department_create': PermissionKeys.DEPARTMENT_CREATE,
+  'department_update': PermissionKeys.DEPARTMENT_UPDATE,
+  'department_view': PermissionKeys.DEPARTMENT_VIEW,
+  'department_list': PermissionKeys.DEPARTMENT_LIST,
+  'department_delete': PermissionKeys.DEPARTMENT_DELETE,
+
+  // Permission permissions
   'permissions_view': PermissionKeys.PERMISSIONS_VIEW,
-  'settings_view': PermissionKeys.SETTINGS_VIEW,
-  'reports_view': PermissionKeys.REPORTS_VIEW,
+  'permissions_list': PermissionKeys.PERMISSIONS_LIST,
+
+  // User role permissions
+  'user_roles_assign': PermissionKeys.USER_ROLES_ASSIGN,
+  'user_roles_remove': PermissionKeys.USER_ROLES_REMOVE,
+  'user_roles_view': PermissionKeys.USER_ROLES_VIEW,
+
+  // Assignment permissions
+  'assignment_create': PermissionKeys.ASSIGNMENT_CREATE,
+  'assignment_update': PermissionKeys.ASSIGNMENT_UPDATE,
+  'assignment_view': PermissionKeys.ASSIGNMENT_VIEW,
+  'assignment_delete': PermissionKeys.ASSIGNMENT_DELETE,
+
+  // Quiz permissions
+  'quiz_create': PermissionKeys.QUIZ_CREATE,
+  'quiz_update': PermissionKeys.QUIZ_UPDATE,
+  'quiz_view': PermissionKeys.QUIZ_VIEW,
+  'quiz_delete': PermissionKeys.QUIZ_DELETE,
+
+  // Material permissions
+  'material_create': PermissionKeys.MATERIAL_CREATE,
+  'material_update': PermissionKeys.MATERIAL_UPDATE,
+  'material_view': PermissionKeys.MATERIAL_VIEW,
+  'material_delete': PermissionKeys.MATERIAL_DELETE,
+
+  // Survey permissions
+  'survey_create': PermissionKeys.SURVEY_CREATE,
+  'survey_update': PermissionKeys.SURVEY_UPDATE,
+  'survey_view': PermissionKeys.SURVEY_VIEW,
+  'survey_delete': PermissionKeys.SURVEY_DELETE,
+
+  // Progress permissions
   'progress_view': PermissionKeys.PROGRESS_VIEW,
+
+  // Leave permissions
+  'leave_create': PermissionKeys.LEAVE_CREATE,
+  'leave_update': PermissionKeys.LEAVE_UPDATE,
+  'leave_view': PermissionKeys.LEAVE_VIEW,
+  'leave_delete': PermissionKeys.LEAVE_DELETE,
+
+  // Settings permissions
+  'settings_view': PermissionKeys.SETTINGS_VIEW,
+  'settings_update': PermissionKeys.SETTINGS_UPDATE,
+
+  // Reports permissions
+  'reports_view': PermissionKeys.REPORTS_VIEW,
+
+  // QnA permissions
+  'qna_view': PermissionKeys.QNA_VIEW,
+  'qna_create': PermissionKeys.QNA_CREATE,
+
+  // Achievements permissions
   'achievements_view': PermissionKeys.ACHIEVEMENTS_VIEW,
+
+  // Badges permissions
   'badges_view': PermissionKeys.BADGES_VIEW,
+
+  // Question permissions
+  'question_view': PermissionKeys.QUESTION_VIEW,
+  'question_create': PermissionKeys.QUESTION_CREATE,
 }
 
 export default class PermissionMiddleware {
   async handle(ctx: HttpContext, next: NextFn, permissions: ExtendedPermissionKeys[] = []) {
     try {
-
-      // ✅ If no permissions specified, allow access
       if (!permissions || permissions.length === 0) {
         return next()
       }
 
-      let authenticatedUser = null
+      const ctxWithUser = ctx as any
+      const requestWithUser = ctx.request as any
+      
+      const user = ctxWithUser.user || ctxWithUser.authUser || requestWithUser.user || ctx.auth.user
 
-      // ✅ Get authenticated user
-      if (ctx.auth.user) {
-        authenticatedUser = ctx.auth.user
-      } else {
-        for (const guard of ['adminapi', 'api'] as const) {
-          try {
-            const authInstance = ctx.auth.use(guard)
-            if (await authInstance.check()) {
-              authenticatedUser = authInstance.user
-              break
-            }
-          } catch (error) {
-            continue
-          }
-        }
-      }
-
-      if (!authenticatedUser) {
+      if (!user) {
         return ctx.response.unauthorized({
           success: false,
-          message: 'Authentication required',
+          message: 'Authentication required - User not found in context',
         })
       }
 
-
-      if (permissions.includes('department_list') || permissions.includes(PermissionKeys.DEPARTMENT_LIST)) {
+      if (user.userType === 'super_admin' || user.userType === 'admin' || user.userType === 'system_admin') {
         return next()
       }
 
-      if (permissions.includes('roles_list') || permissions.includes(PermissionKeys.ROLES_VIEW)) {
-        return next()
-      }
-
-      if (permissions.includes('faculty_list') || permissions.includes(PermissionKeys.FACULTY_VIEW)) {
-        return next()
-      }
-
-      // ✅ For other permissions, use permission resolver
-      const permissionsResolver = new PermissionsResolverService(ctx, authenticatedUser)
-      
-      // ✅ Convert and map permissions using the mapping table
+      // ✅ Convert and map permissions
       const validPermissions: PermissionKeys[] = permissions
         .map(perm => {
-          const permString = perm.toString()
+          const permString = perm.toString().toLowerCase()
           
-          // First, check if it's already a valid PermissionKeys value
+          // If it's already a valid PermissionKey
           if (Object.values(PermissionKeys).includes(perm as PermissionKeys)) {
             return perm as PermissionKeys
           }
-          
-          const mappedPermission = PermissionMapping[permString]
-          if (mappedPermission) {
-            return mappedPermission
-          }
-          
-          // If no mapping found and it's not a valid PermissionKeys, return null
-          return null
-        })
-        .filter((perm): perm is PermissionKeys => perm !== null)
 
+          // Map from string to PermissionKey
+          const mappedPermission = PermissionMapping[permString]
+          if (!mappedPermission) {
+          }
+          return mappedPermission
+        })
+        .filter((perm): perm is PermissionKeys => perm !== undefined)
 
       if (validPermissions.length === 0) {
         return ctx.response.forbidden({
           success: false,
           message: 'No valid permissions specified',
-          required: permissions,
         })
       }
 
+
+      // ✅ Use permission resolver
+      const permissionsResolver = new PermissionsResolverService(ctx, user)
       const { hasPermission } = await permissionsResolver.permissionResolver(validPermissions)
-      
+
       if (hasPermission) {
         return next()
       }
@@ -188,8 +188,6 @@ export default class PermissionMiddleware {
       return ctx.response.forbidden({
         success: false,
         message: 'Insufficient permissions',
-        required: permissions,
-        mappedPermissions: validPermissions,
       })
 
     } catch (error: any) {

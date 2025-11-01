@@ -33,8 +33,6 @@ export default class DepartmentServices {
   // ✅ SIMPLIFIED: Accept plain request data
   static async create(requestData: any) {
     try {
-      console.log('🟢 Department create service called')
-      console.log('📦 Request data:', requestData)
 
       // Validate request data
       const validatedData = await createDepartmentValidator.validate(requestData)

@@ -34,21 +34,25 @@ router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
 router.post('/sync/institute', [AuthController, 'syncInstitute'])
 router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
-router.get('/ping',[PingController])
+router.get('/ping', [PingController])
+
+
 // Protected Routes (Authentication required)
 router
   .group(() => {
+    console.log('🛡️ Protected routes group initialized')
+
     // Auth routes
     router.get('/profile', [AuthController, 'me'])
-    router.post('logout', [AuthController, 'logout'])
+    router.post('/logout', [AuthController, 'logout'])
     router.get('/auth-type', [AuthController, 'getAuthType'])
     router.get('/my-permissions', [AuthController, 'getMyPermissions'])
     router.post('/check-permission', [AuthController, 'checkPermission'])
 
-    // Roles routes - FIXED: Using custom routes instead of resource
+    // Roles routes
     router
       .get('/roles', [RolesController, 'getAllRoleWithPermissions'])
-      .use(middleware.permission([PermissionKeys.ROLES_LIST]))
+      .use(middleware.permission([PermissionKeys.ROLES_VIEW]))
 
     router
       .post('/roles', [RolesController, 'createRoleWithPermissions'])
@@ -69,7 +73,7 @@ router
     // Permissions routes
     router
       .get('/permissions', [PermissionsController, 'getAllPermissions'])
-      .use(middleware.permission([PermissionKeys.PERMISSIONS_LIST]))
+      .use(middleware.permission([PermissionKeys.PERMISSIONS_VIEW]))
 
     router
       .get('/permissions/:id', [PermissionsController, 'show'])
@@ -79,11 +83,12 @@ router
     router
       .resource('users', UsersController)
       .apiOnly()
-      .middleware('store', middleware.permission([PermissionKeys.USERS_CREATE]))
-      .middleware('update', middleware.permission([PermissionKeys.USERS_UPDATE]))
-      .middleware('show', middleware.permission([PermissionKeys.USERS_VIEW]))
-      .middleware('index', middleware.permission([PermissionKeys.USERS_LIST]))
-      .middleware('destroy', middleware.permission([PermissionKeys.USERS_DELETE]))
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.USERS_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.USERS_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.USERS_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.USERS_VIEW]))
+      .use('destroy', middleware.permission([PermissionKeys.USERS_DELETE]))
 
     // User role management routes
     router
@@ -102,44 +107,50 @@ router
     router
       .resource('institutes', InstitutesController)
       .apiOnly()
-      .middleware('store', middleware.permission([PermissionKeys.INSTITUTE_CREATE]))
-      .middleware('update', middleware.permission([PermissionKeys.INSTITUTE_UPDATE]))
-      .middleware('show', middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
-      .middleware('index', middleware.permission([PermissionKeys.INSTITUTE_LIST]))
-      .middleware('destroy', middleware.permission([PermissionKeys.INSTITUTE_DELETE]))
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.INSTITUTE_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.INSTITUTE_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
+      .use('destroy', middleware.permission([PermissionKeys.INSTITUTE_DELETE]))
 
     // Department Routes
     router
       .resource('departments', DepartmentsController)
       .apiOnly()
-      .middleware('store', middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
-      .middleware('update', middleware.permission([PermissionKeys.DEPARTMENT_UPDATE]))
-      .middleware('show', middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
-      .middleware('index', middleware.permission([PermissionKeys.DEPARTMENT_LIST]))
-      .middleware('destroy', middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.DEPARTMENT_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.DEPARTMENT_VIEW]))
+      .use('destroy', middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
 
-
-    // Lecture upload routes
+    // Lecture upload routes - SIMPLIFIED VERSION
+    // Lecture upload routes - FIXED VERSION (remove duplicate auth)
     router
       .resource('lectures', LectureUploadsController)
       .apiOnly()
-      .middleware('store', middleware.permission([PermissionKeys.LECTURE_CREATE]))
-      .middleware('update', middleware.permission([PermissionKeys.LECTURE_UPDATE]))
-      .middleware('show', middleware.permission([PermissionKeys.LECTURE_VIEW]))
-      .middleware('index', middleware.permission([PermissionKeys.LECTURE_LIST]))
-      .middleware('destroy', middleware.permission([PermissionKeys.LECTURE_DELETE]))
+      .use('store', middleware.permission([PermissionKeys.LECTURE_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.LECTURE_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.LECTURE_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.LECTURE_VIEW]))
+      .use('destroy', middleware.permission([PermissionKeys.LECTURE_DELETE]))
 
     // Faculty routes
     router
       .resource('faculty', FacultyController)
       .apiOnly()
-      .middleware('store', middleware.permission([PermissionKeys.FACULTY_CREATE]))
-      .middleware('update', middleware.permission([PermissionKeys.FACULTY_UPDATE]))
-      .middleware('show', middleware.permission([PermissionKeys.FACULTY_VIEW]))
-      .middleware('index', middleware.permission([PermissionKeys.FACULTY_LIST]))
-      .middleware('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.FACULTY_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.FACULTY_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.FACULTY_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.FACULTY_VIEW]))
+      .use('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
+
+    console.log('✅ All protected routes registered')
 
   })
+  // Main auth middleware for entire group
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
 // 404 Handler
