@@ -126,14 +126,14 @@ router
       .use('destroy', middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
 
     // Lecture upload routes - SIMPLIFIED VERSION
-    // Lecture upload routes - FIXED VERSION (remove duplicate auth)
+
     router
       .resource('lectures', LectureUploadsController)
       .apiOnly()
       .use('store', middleware.permission([PermissionKeys.LECTURE_CREATE]))
       .use('update', middleware.permission([PermissionKeys.LECTURE_UPDATE]))
       .use('show', middleware.permission([PermissionKeys.LECTURE_VIEW]))
-      .use('index', middleware.permission([PermissionKeys.LECTURE_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.LECTURE_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.LECTURE_DELETE]))
 
     // Faculty routes

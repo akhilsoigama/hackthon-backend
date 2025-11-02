@@ -27,23 +27,13 @@ export default class AuthMiddleware {
       try {
         const authInstance = ctx.auth.use(guard)
         
-        // First try to check if already authenticated
-        const isAuthenticated = await authInstance.check()
-        
-        if (isAuthenticated) {
-          authenticatedGuard = guard
-          authenticatedUser = authInstance.user
-          console.log(`✅ Already authenticated with guard: ${guard}`, {
-            userId: authInstance.user?.id,
-            userType: authInstance.user?.userType
-          })
-          break
-        }
-        
-        // If not authenticated, try to authenticate
+        // Try to authenticate with the current guard
         await authInstance.authenticate()
+        
+        // If we reach here, authentication was successful
         authenticatedGuard = guard
         authenticatedUser = authInstance.user
+        
         console.log(`✅ Successfully authenticated with guard: ${guard}`, {
           userId: authInstance.user?.id,
           userType: authInstance.user?.userType
@@ -62,6 +52,12 @@ export default class AuthMiddleware {
         guardsAttempted: guards,
         lastError: authError
       })
+      
+      // Check if it's a preflight request
+      if (ctx.request.method() === 'OPTIONS') {
+        return ctx.response.noContent()
+      }
+      
       return ctx.response.unauthorized({
         success: false,
         message: 'Authentication failed - Please login again',
@@ -70,21 +66,29 @@ export default class AuthMiddleware {
       })
     }
 
-    // ✅✅✅ CRITICAL FIX: Set user in multiple locations with proper typing
-    // Use type assertion to bypass TypeScript checks for custom properties
-    const ctxWithUser = ctx as any
-    ctxWithUser.user = authenticatedUser
-    ctxWithUser.authUser = authenticatedUser
-    
-    const requestWithUser = ctx.request as any
-    requestWithUser.user = authenticatedUser
-    
-    console.log(`🎯 Auth successful with guard: ${authenticatedGuard}`, {
-      userId: authenticatedUser?.id,
-      userEmail: authenticatedUser?.email,
-      userType: authenticatedUser?.userType
-    })
+    // Set user in context with proper error handling
+    try {
+      const ctxWithUser = ctx as any
+      ctxWithUser.user = authenticatedUser
+      ctxWithUser.authUser = authenticatedUser
+      
+      const requestWithUser = ctx.request as any
+      requestWithUser.user = authenticatedUser
+      
+      console.log(`🎯 Auth successful with guard: ${authenticatedGuard}`, {
+        userId: authenticatedUser?.id,
+        userEmail: authenticatedUser?.email,
+        userType: authenticatedUser?.userType
+      })
 
-    return next()
+      return next()
+    } catch (error: any) {
+      console.error('❌ Error setting user in context:', error)
+      return ctx.response.unauthorized({
+        success: false,
+        message: 'Authentication context setup failed',
+        code: 'AUTH_CONTEXT_ERROR'
+      })
+    }
   }
 }
