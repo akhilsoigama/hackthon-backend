@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: your-adonis-app
+    env: node
+    buildCommand: npm install && node ace build --production
+    startCommand: node build/server.js
+    healthCheckPath: /ping
+    healthCheckTimeout: 120s
+    envVars:
+      - key: NODE_ENV
+        value: production
