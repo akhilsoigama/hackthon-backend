@@ -93,15 +93,14 @@ const PermissionMapping: Record<string, PermissionKeys> = {
   material_delete: PermissionKeys.MATERIAL_DELETE,
 
   // Survey
-  survey_create: PermissionKeys.SURVEY_CREATE,
-  survey_update: PermissionKeys.SURVEY_UPDATE,
-  survey_view: PermissionKeys.SURVEY_VIEW,
-  survey_delete: PermissionKeys.SURVEY_DELETE,
+  survey_create: PermissionKeys.GOVT_SURVEY_CREATE,
+  survey_update: PermissionKeys.GOVT_SURVEY_UPDATE,
+  survey_view: PermissionKeys.GOVT_SURVEY_VIEW,
+  survey_delete: PermissionKeys.GOVT_SURVEY_DELETE,
 
   // Progress
   progress_view: PermissionKeys.PROGRESS_VIEW,
 
-  // Leave
   leave_create: PermissionKeys.LEAVE_CREATE,
   leave_update: PermissionKeys.LEAVE_UPDATE,
   leave_view: PermissionKeys.LEAVE_VIEW,
@@ -129,10 +128,7 @@ const PermissionMapping: Record<string, PermissionKeys> = {
   question_create: PermissionKeys.QUESTION_CREATE,
 }
 
-/**
- * ✅ Helper:
- * If a route requires *_LIST permission but user has *_VIEW, grant access
- */
+
 function hasEquivalentViewPermission(
   required: PermissionKeys[],
   userPermissions: PermissionKeys[]
@@ -142,7 +138,6 @@ function hasEquivalentViewPermission(
       const equivalentView = perm.toString().replace('_LIST', '_VIEW') as keyof typeof PermissionKeys
       const viewKey = PermissionKeys[equivalentView]
       if (viewKey && userPermissions.includes(viewKey)) {
-        console.log(`🎯 Allowed fallback: '${perm}' because user has '${viewKey}'`)
         return true
       }
     }
@@ -153,7 +148,6 @@ function hasEquivalentViewPermission(
 export default class PermissionMiddleware {
   public async handle(ctx: HttpContext, next: NextFn, permissions: ExtendedPermissionKeys[] = []) {
     try {
-      // ✅ Skip if no permission required
       if (!permissions || permissions.length === 0) return next()
 
       const user =
@@ -169,12 +163,10 @@ export default class PermissionMiddleware {
         })
       }
 
-      // ✅ Auto-allow super admins
       if (['super_admin', 'admin', 'system_admin'].includes(user.userType)) {
         return next()
       }
 
-      // ✅ Normalize incoming permission strings → valid enum keys
       const validPermissions: PermissionKeys[] = permissions
         .map((perm) => {
           const lowerKey = perm.toString().toLowerCase()
@@ -192,7 +184,6 @@ export default class PermissionMiddleware {
         })
       }
 
-      // ✅ Check via resolver
       const permissionsResolver = new PermissionsResolverService(ctx, user)
       const { hasPermission, userPermissions } =
         await permissionsResolver.permissionResolver(validPermissions)
@@ -208,7 +199,6 @@ export default class PermissionMiddleware {
         userHas: userPermissions,
       })
     } catch (error: any) {
-      console.error('❌ Permission middleware error:', error)
       return ctx.response.internalServerError({
         success: false,
         message: 'Permission check failed.',

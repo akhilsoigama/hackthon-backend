@@ -39,14 +39,13 @@ export enum PermissionKeys {
   INSTITUTE_DELETE = 'institute_delete',
   INSTITUTE_LIST = 'institute_list',
 
-  // Govt Survey
-  SURVEY_VIEW = 'survey_view',
-  SURVEY_CREATE = 'survey_create',
-  SURVEY_UPDATE = 'survey_update',
-  SURVEY_DELETE = 'survey_delete',
-  SURVEY_LIST = 'survey_list',
-  SURVEY_SUBMIT = 'survey_submit',
-  SURVEY_APPROVE = 'survey_approve',
+  GOVT_SURVEY_VIEW = 'govt_survey_view',
+  GOVT_SURVEY_CREATE = 'govt_survey_create',
+  GOVT_SURVEY_UPDATE = 'govt_survey_update',
+  GOVT_SURVEY_DELETE = 'govt_survey_delete',
+  GOVT_SURVEY_LIST = 'govt_survey_list',
+  GOVT_SURVEY_SUBMIT = 'govt_survey_submit',
+  GOVT_SURVEY_APPROVE = 'govt_survey_approve',
 
   // ========== INSTITUTE MANAGEMENT MODULE ==========
   INSTITUTE_MANAGEMENT_ACCESS = 'institute_management_access',
@@ -126,8 +125,8 @@ export enum PermissionKeys {
   LEAVE_UPDATE = 'leave_update',
   LEAVE_DELETE = 'leave_delete',
   LEAVE_LIST = 'leave_list',
-  LEAVE_APPROVE = 'leave_approve',
-  LEAVE_REJECT = 'leave_reject',
+  LEAVE_APPROVE_VIEW = 'leave_approve_view',
+  LEAVE_REJECT_VIEW = 'leave_reject_view',
 
   // ========== STUDENT UPLOAD MODULE ==========
   STUDENT_UPLOAD_ACCESS = 'student_upload_access',
@@ -149,10 +148,10 @@ export enum PermissionKeys {
   // ========== DASHBOARD MODULE ==========
   DASHBOARD_ACCESS = 'dashboard_access',
   
-  DASHBOARD_OVERVIEW = 'dashboard_overview',
-  DASHBOARD_PROGRESS = 'dashboard_progress',
-  DASHBOARD_EVENTS = 'dashboard_events',
-  DASHBOARD_QUIZ = 'dashboard_quiz',
+  DASHBOARD_OVERVIEW_VIEW = 'dashboard_overview_view',
+  DASHBOARD_PROGRESS_VIEW = 'dashboard_progress_view',
+  DASHBOARD_EVENTS_VIEW = 'dashboard_events_view',
+  DASHBOARD_QUIZ_VIEW = 'dashboard_quiz_view',
 
   // ========== COMMUNICATION MODULE ==========
   COMMUNICATION_ACCESS = 'communication_access',
@@ -257,13 +256,13 @@ export const PermissionModules = {
       PermissionKeys.INSTITUTE_UPDATE,
       PermissionKeys.INSTITUTE_DELETE,
       PermissionKeys.INSTITUTE_LIST,
-      PermissionKeys.SURVEY_VIEW,
-      PermissionKeys.SURVEY_CREATE,
-      PermissionKeys.SURVEY_UPDATE,
-      PermissionKeys.SURVEY_DELETE,
-      PermissionKeys.SURVEY_LIST,
-      PermissionKeys.SURVEY_SUBMIT,
-      PermissionKeys.SURVEY_APPROVE,
+      PermissionKeys.GOVT_SURVEY_VIEW,
+      PermissionKeys.GOVT_SURVEY_CREATE,
+      PermissionKeys.GOVT_SURVEY_UPDATE,
+      PermissionKeys.GOVT_SURVEY_DELETE,
+      PermissionKeys.GOVT_SURVEY_LIST,
+      PermissionKeys.GOVT_SURVEY_SUBMIT,
+      PermissionKeys.GOVT_SURVEY_APPROVE,
     ]
   },
   INSTITUTE_MANAGEMENT: {
@@ -333,8 +332,8 @@ export const PermissionModules = {
       PermissionKeys.LEAVE_UPDATE,
       PermissionKeys.LEAVE_DELETE,
       PermissionKeys.LEAVE_LIST,
-      PermissionKeys.LEAVE_APPROVE,
-      PermissionKeys.LEAVE_REJECT,
+      PermissionKeys.LEAVE_APPROVE_VIEW,
+      PermissionKeys.LEAVE_REJECT_VIEW,
     ]
   },
   STUDENT_UPLOAD: {
@@ -357,10 +356,10 @@ export const PermissionModules = {
     name: 'Dashboard',
     permissions: [
       PermissionKeys.DASHBOARD_ACCESS,
-      PermissionKeys.DASHBOARD_OVERVIEW,
-      PermissionKeys.DASHBOARD_PROGRESS,
-      PermissionKeys.DASHBOARD_EVENTS,
-      PermissionKeys.DASHBOARD_QUIZ,
+      PermissionKeys.DASHBOARD_OVERVIEW_VIEW,
+      PermissionKeys.DASHBOARD_PROGRESS_VIEW,
+      PermissionKeys.DASHBOARD_EVENTS_VIEW,
+      PermissionKeys.DASHBOARD_QUIZ_VIEW,
     ]
   },
   COMMUNICATION: {
