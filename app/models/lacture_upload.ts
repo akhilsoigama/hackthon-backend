@@ -12,23 +12,26 @@ export default class Lecture extends BaseModel {
   @column()
   declare description: string | null
 
+  @column()
+  declare subject: string | null
+
+  @column()
+  declare std: string | null
+
   @column({ columnName: 'content_type' })
   declare contentType: 'video' | 'pdf' | 'audio' | 'text' | 'image'
 
   @column({ columnName: 'faculty_id' })
   declare facultyId: number
 
-  @column({ columnName: 'subject' })
-  declare subject: string | null  
-
   @column({ columnName: 'thumbnail_url' })
   declare thumbnailUrl: string | null
 
-  @column({ columnName: 'content_url' })
-  declare videoUrl: string | null
+  @column({ columnName: 'content_url' }) 
+  declare contentUrl: string | null 
 
   @column({ columnName: 'duration_in_seconds' })
-  declare duration: number | null
+  declare durationInSeconds: number | null
 
   @column({ columnName: 'text_content' })
   declare textContent: string | null

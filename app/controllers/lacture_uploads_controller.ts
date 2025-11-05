@@ -1,32 +1,28 @@
-import LectureUploadServices from '#services/lacuture_upload'
+// app/controllers/lacture_uploads_controller.ts
+import LectureUploadServices from '#services/lacuture_upload_services'
 import { inject } from '@adonisjs/core'
 import type { HttpContext } from '@adonisjs/core/http'
 
 @inject()
 export default class LectureUploadsController {
-  constructor(protected lectureUploadServices: LectureUploadServices) {}
+  constructor(private lectureUploadServices: LectureUploadServices) {}
 
-  // GET /lectures
-  async index(ctx: HttpContext) {
-    return this.lectureUploadServices.findAll(ctx)
-  }
-
-  // POST /lectures
   async store(ctx: HttpContext) {
     return this.lectureUploadServices.create(ctx)
   }
 
-  // GET /lectures/:id
+  async index(ctx: HttpContext) {
+    return this.lectureUploadServices.findAll(ctx)
+  }
+
   async show(ctx: HttpContext) {
     return this.lectureUploadServices.findOne(ctx)
   }
 
-  // PUT /lectures/:id
   async update(ctx: HttpContext) {
     return this.lectureUploadServices.updateOne(ctx)
   }
 
-  // DELETE /lectures/:id
   async destroy(ctx: HttpContext) {
     return this.lectureUploadServices.deleteOne(ctx)
   }

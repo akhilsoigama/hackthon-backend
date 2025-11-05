@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "node ace build",
-    "start": "node build/bin/server.js",
+    "start": "node build/ace.js",
     "dev": "node ace serve --watch",
     "test": "node ace test",
     "lint": "eslint .",
@@ -14,7 +14,9 @@
     "migrate": "node ace migration:run",
     "migrate:fresh": "node ace migration:fresh",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy:setup": "ts-node scripts/deploy-setup.ts",
+    "render-build": "npm run build && npm run deploy:setup"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
@@ -47,6 +49,7 @@
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/luxon": "^3.7.1",
     "@types/node": "^22.15.18",
+    "@types/pg": "^8.15.5",
     "eslint": "^9.26.0",
     "hot-hook": "^0.4.0",
     "pino-pretty": "^13.0.0",
@@ -63,6 +66,7 @@
     "@adonisjs/lucid": "^21.6.1",
     "@vinejs/vine": "^3.0.1",
     "@vitalets/google-translate-api": "^9.2.1",
+    "bcrypt": "^6.0.0",
     "cloudinary": "^2.7.0",
     "fluent-ffmpeg": "^2.1.3",
     "luxon": "^3.7.2",

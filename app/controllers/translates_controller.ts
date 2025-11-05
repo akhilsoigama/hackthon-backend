@@ -4,24 +4,36 @@ export default class TranslatesController {
   public async translateMessage({ request, response }: HttpContext) {
     try {
       const { text, targetLang } = request.only(['text', 'targetLang'])
+
       if (!text || !targetLang) {
         return response.status(400).json({ message: 'Text and targetLang are required' })
       }
 
-      // Dynamic import
+      if (typeof targetLang !== 'string' || targetLang.length !== 2) {
+        return response.status(400).json({ message: 'Invalid targetLang code' })
+      }
+
       const translateModule = await import('@vitalets/google-translate-api')
-      // Use `.translate` property which exists in CJS version
-      const translate = (translateModule as any).translate as (text: string, options: { to: string }) => Promise<any>
+      const translate = (translateModule as any).default?.translate || translateModule.translate
+
+      if (!translate) {
+        return response.status(500).json({ message: 'Translation service unavailable' })
+      }
 
       const result = await translate(text, { to: targetLang })
 
       return response.status(200).json({
         original: text,
         translated: result.text,
+        from: result.from?.language?.iso || null,
+        cached: result.cached || false,
+        expiresAt: Date.now() + 1000 * 60 * 60, 
       })
-    } catch (error) {
-      console.error('Translation error:', error)
-      return response.status(500).json({ message: 'Translation failed' })
+    } catch (error: any) {
+      return response.status(500).json({
+        message: 'Translation failed',
+        error: error.message || error,
+      })
     }
   }
 }

@@ -2,19 +2,34 @@ import { HttpContext } from "@adonisjs/core/http"
 import Role from "#models/role"
 
 export default class RolesService {
-  public async getAllRoleWithPermissions({ response }: HttpContext) {
-    try {
-      const roles = await Role.query().preload('permissions')
-      return response.ok({ success: true, data: roles })
-    } catch (error) {
-      console.error('Error fetching roles with permissions:', error)
-      return response.internalServerError({
-        success: false,
-        message: 'Error fetching roles',
-        error,
+ public async getAllRoleWithPermissions({ response }: HttpContext) {
+  try {
+    console.time('RolesQueryTime')
+    
+    const roles = await Role.query()
+      .select(['id', 'role_name', 'role_key', 'role_description', 'created_at', 'updated_at'])
+      .preload('permissions', (permissionsQuery) => {
+        permissionsQuery.select(['id', 'permission_name', 'permission_key'])
       })
-    }
+      .orderBy('role_name', 'asc')
+
+    console.timeEnd('RolesQueryTime')
+    console.log(`✅ Fetched ${roles.length} roles with permissions`)
+
+    return response.ok({ 
+      success: true, 
+      data: roles,
+      count: roles.length 
+    })
+  } catch (error) {
+    console.error('❌ Error fetching roles with permissions:', error)
+    return response.internalServerError({
+      success: false,
+      message: 'Error fetching roles',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    })
   }
+}
 
   public async createRoleWithPermissions({ request, response }: HttpContext) {
     const { roleName, roleDescription, roleKey, permissionIds } = request.only([

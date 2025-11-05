@@ -110,5 +110,4 @@ export default class Institute extends BaseModel {
         return await hash.verify(this.institutePassword, password)
     }
 
-    // REMOVE preload methods - Handle in controller
 }
