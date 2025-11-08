@@ -2,34 +2,34 @@ import { HttpContext } from "@adonisjs/core/http"
 import Role from "#models/role"
 
 export default class RolesService {
- public async getAllRoleWithPermissions({ response }: HttpContext) {
-  try {
-    console.time('RolesQueryTime')
-    
-    const roles = await Role.query()
-      .select(['id', 'role_name', 'role_key', 'role_description', 'created_at', 'updated_at'])
-      .preload('permissions', (permissionsQuery) => {
-        permissionsQuery.select(['id', 'permission_name', 'permission_key'])
+  public async getAllRoleWithPermissions({ response }: HttpContext) {
+    try {
+      console.time('RolesQueryTime')
+
+      const roles = await Role.query()
+        .select(['id', 'role_name', 'role_key', 'role_description', 'created_at', 'updated_at'])
+        .preload('permissions', (permissionsQuery) => {
+          permissionsQuery.select(['id', 'permission_name', 'permission_key'])
+        })
+        .orderBy('role_name', 'asc')
+
+      console.timeEnd('RolesQueryTime')
+      console.log(`✅ Fetched ${roles.length} roles with permissions`)
+
+      return response.ok({
+        success: true,
+        data: roles,
+        count: roles.length
       })
-      .orderBy('role_name', 'asc')
-
-    console.timeEnd('RolesQueryTime')
-    console.log(`✅ Fetched ${roles.length} roles with permissions`)
-
-    return response.ok({ 
-      success: true, 
-      data: roles,
-      count: roles.length 
-    })
-  } catch (error) {
-    console.error('❌ Error fetching roles with permissions:', error)
-    return response.internalServerError({
-      success: false,
-      message: 'Error fetching roles',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-    })
+    } catch (error) {
+      console.error('❌ Error fetching roles with permissions:', error)
+      return response.internalServerError({
+        success: false,
+        message: 'Error fetching roles',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      })
+    }
   }
-}
 
   public async createRoleWithPermissions({ request, response }: HttpContext) {
     const { roleName, roleDescription, roleKey, permissionIds } = request.only([
@@ -91,9 +91,13 @@ export default class RolesService {
       ])
 
       const roleId = params.id
+
       const existingRole = await Role.query()
-        .where('role_name', roleName)
-        .orWhere('role_key', roleKey)
+        .where((query) => {
+          query.where('role_name', roleName)
+            .orWhere('role_key', roleKey)
+        })
+        .andWhere('id', '!=', roleId)
         .first()
 
       if (existingRole) {
@@ -102,6 +106,7 @@ export default class RolesService {
           message: 'A role with this name or key already exists',
         })
       }
+
       const role = await Role.find(roleId)
       if (!role) {
         return response.notFound({ success: false, message: 'Role not found' })
@@ -118,7 +123,7 @@ export default class RolesService {
       // Update role permissions efficiently
       if (permissionIds && Array.isArray(permissionIds)) {
         await role.related('permissions').sync(permissionIds)
-      } 
+      }
 
       return response.ok({ success: true, message: 'Role updated successfully', role })
     } catch (error) {
