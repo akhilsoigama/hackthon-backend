@@ -21,6 +21,16 @@ export default class Student extends BaseModel {
   @column({ columnName: 'student_name' })
   declare studentName: string
 
+  @column({ columnName: 'student_std' })
+  declare studentSTD: string
+
+  @column({ columnName: 'student_gr_no' })
+  declare studentGrNo: number
+
+  @column({ columnName: 'student_gender' })
+  declare studentGender: string
+
+
   @column({ columnName: 'student_email' })
   declare studentEmail: string
 
@@ -54,7 +64,6 @@ export default class Student extends BaseModel {
   @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt?: DateTime | null
 
-  // ✅ Relationships
   @belongsTo(() => Institute)
   declare institute: BelongsTo<typeof Institute>
 
@@ -64,11 +73,13 @@ export default class Student extends BaseModel {
   @belongsTo(() => Department)
   declare department: BelongsTo<typeof Department>
 
-  // ✅ Password Hash
   @beforeSave()
   public static async hashPassword(student: Student) {
     if (student.$dirty.studentPassword) {
       student.studentPassword = await hash.make(student.studentPassword)
     }
+  }
+   public async verifyPassword(password: string): Promise<boolean> {
+    return await hash.verify(this.studentPassword, password)
   }
 }
