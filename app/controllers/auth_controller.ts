@@ -6,8 +6,8 @@ import Institute from '#models/institute'
 import Faculty from '#models/faculty'
 import Role from '#models/role'
 import messages from '#database/constants/messages'
+import Student from '#models/student'
 
-// Define types for better TypeScript support
 type AdminUserType = InstanceType<typeof AdminUser>
 type AuthUserType = User | AdminUserType
 
@@ -20,7 +20,6 @@ export default class AuthController {
     return user instanceof AdminUser
   }
 
-  // Test database connection
   public async testDB({ response }: HttpContext) {
     try {
       const user = await AdminUser.findBy('email', 'super@admin.com')
@@ -37,15 +36,12 @@ export default class AuthController {
     }
   }
 
-  // Helper method to auto-assign roles to users
   private async assignRoleToUser(user: User, role: Role) {
     try {
-      // Check if user already has this role
       const existingRole = await user.related('userRoles').query().where('roles.id', role.id).first()
-      
+
       if (!existingRole) {
         await user.related('userRoles').attach([role.id])
-        console.log(`✅ Auto-assigned role ${role.roleName} to user ${user.email}`)
       }
     } catch (error) {
       console.error('❌ Error assigning role to user:', error)
@@ -62,6 +58,7 @@ export default class AuthController {
         authType: authType,
         instituteId: user.instituteId,
         facultyId: user.facultyId,
+        studentId: user.studentId,
         mobile: user.mobile,
         isActive: user.isActive,
         isEmailVerified: user.isEmailVerified,
@@ -72,7 +69,6 @@ export default class AuthController {
       let permissions: string[] = []
       let roleName: string = user.userType
 
-      // 🔥 FIX: Load user with roles first
       const userWithRoles = await User.query()
         .where('id', user.id)
         .preload('userRoles', (query) => {
@@ -81,15 +77,13 @@ export default class AuthController {
         .first()
 
       if (userWithRoles && userWithRoles.userRoles && userWithRoles.userRoles.length > 0) {
-        // User has direct role assignments
         roles = userWithRoles.userRoles.map(role => role.roleKey)
         permissions = userWithRoles.userRoles.flatMap(role =>
           role.permissions ? role.permissions.map(p => p.permissionKey) : []
         )
         roleName = userWithRoles.userRoles[0].roleName
-      } 
+      }
       else if (authType === 'institute' && user.instituteId) {
-        // Institute user - get role from institute
         const instituteWithRole = await Institute.query()
           .where('id', user.instituteId)
           .preload('role', (query) => {
@@ -101,13 +95,11 @@ export default class AuthController {
           roles = [instituteWithRole.role.roleKey]
           permissions = instituteWithRole.role.permissions.map(p => p.permissionKey)
           roleName = instituteWithRole.role.roleName
-          
-          // 🔥 AUTO-ASSIGN ROLE TO USER
+
           await this.assignRoleToUser(user, instituteWithRole.role)
         }
       }
       else if (authType === 'faculty' && user.facultyId) {
-        // Faculty user - get role from faculty
         const facultyWithRole = await Faculty.query()
           .where('id', user.facultyId)
           .preload('role', (query) => {
@@ -119,12 +111,22 @@ export default class AuthController {
           roles = [facultyWithRole.role.roleKey]
           permissions = facultyWithRole.role.permissions.map(p => p.permissionKey)
           roleName = facultyWithRole.role.roleName
-          
-          // 🔥 AUTO-ASSIGN ROLE TO USER
+
           await this.assignRoleToUser(user, facultyWithRole.role)
         }
-      }
+      } else if (authType === 'student' && user.studentId) {
+        const studentWithRole = await user.related('student').query().preload('role', (query) => {
+          query.preload('permissions')
+        })
+        .first()
+        if (studentWithRole && studentWithRole.role) {
+          roles = [studentWithRole.role.roleKey]
+          permissions = studentWithRole.role.permissions.map(p => p.permissionKey)
+          roleName = studentWithRole.role.roleName
 
+          await this.assignRoleToUser(user, studentWithRole.role)
+        }
+      }
       return {
         ...baseData,
         roles: roles,
@@ -223,6 +225,45 @@ export default class AuthController {
     }
   }
 
+  private async syncStudentToUser(student: Student, password: string) {
+    try {
+      let user = await User.query()
+        .where('email', student.studentEmail)
+        .where('userType', 'student')
+        .first()
+
+      if (user) {
+        user.fullName = student.studentName
+        user.mobile = student.studentMobile || '0000000000'
+        user.instituteId = student.instituteId
+        user.facultyId = student.id
+        user.studentId = student.id
+        user.isActive = student.isActive
+        user.password = password
+        await user.save()
+      } else {
+        user = await User.create({
+          fullName: student.studentName,
+          email: student.studentEmail,
+          password: password,
+          userType: 'student',
+          facultyId: student.id,
+          instituteId: student.instituteId,
+          studentId: student.id,
+          mobile: student.studentMobile || '0000000000',
+          isActive: student.isActive,
+          isEmailVerified: false,
+          isMobileVerified: false,
+        })
+      }
+
+      return user
+    } catch (error) {
+      console.error('❌ Error syncing faculty to user:', error)
+      throw error
+    }
+  }
+
   public async login({ request, response }: HttpContext) {
     try {
       const { email, password } = request.only(['email', 'password'])
@@ -230,8 +271,6 @@ export default class AuthController {
       let user: AuthUserType | null = null
       let token: any = null
       let authType: string = ''
-
-      // Try Admin authentication first
       try {
         const adminUser = await AdminUser.verifyCredentials(email, password)
         if (adminUser) {
@@ -239,9 +278,8 @@ export default class AuthController {
           token = await AdminUser.adminAccessTokens.create(user)
           authType = 'admin'
         }
-      } catch {}
+      } catch { }
 
-      // Try Institute authentication
       if (!user) {
         try {
           const institute = await Institute.query()
@@ -262,7 +300,6 @@ export default class AuthController {
         }
       }
 
-      // Try Faculty authentication
       if (!user) {
         try {
           const faculty = await Faculty.query()
@@ -282,8 +319,25 @@ export default class AuthController {
           console.log('Faculty authentication failed, trying other methods...')
         }
       }
+      if (!user) {
+        try {
+          const student = await Student.query()
+            .where('studentEmail', email)
+            .where('isActive', true)
+            .first()
 
-      // Try Regular User authentication
+          if (student) {
+            const isValid = await (student as any).verifyPassword?.(password)
+            if (isValid) {
+              user = await this.syncStudentToUser(student, password)
+              token = await User.accessTokens.create(user)
+              authType = 'student'
+            }
+          }
+        } catch (studentError) {
+          console.log('student authentication failed, trying other methods...')
+        }
+      }
       if (!user) {
         try {
           user = await User.verifyCredentials(email, password)
@@ -296,7 +350,6 @@ export default class AuthController {
         }
       }
 
-      // If no user found or token created
       if (!user || !token) {
         return response.unauthorized({
           success: false,
@@ -305,7 +358,6 @@ export default class AuthController {
         })
       }
 
-      // Load user relations if it's a User model
       if (this.isUserModel(user)) {
         const userWithRelations = await User.query()
           .where('id', user.id)
@@ -336,7 +388,6 @@ export default class AuthController {
         user: userData,
       })
     } catch (error: any) {
-      console.error('Login error:', error)
       return response.unauthorized({
         success: false,
         message: messages.user_authentication_failed,
@@ -388,6 +439,8 @@ export default class AuthController {
           authType = 'faculty'
         } else if (authenticatedUser.userType === 'super_admin') {
           authType = 'super_admin'
+        }else if(authenticatedUser.userType === 'student'){
+          authType = 'student'
         }
 
         const userWithRelations = await User.query()
@@ -405,7 +458,6 @@ export default class AuthController {
             data: userData
           })
         } else {
-          // Fallback to basic user data
           const userData = await this.getUserResponseData(authenticatedUser, authType)
           return response.ok({
             success: true,
@@ -656,7 +708,39 @@ export default class AuthController {
       })
     }
   }
+  public async syncAllStudent({ response }: HttpContext) {
+    try {
+      const students = await Student.query().where('isActive', true).exec()
+      let syncedCount = 0
+      let errors: string[] = []
 
+      for (const student of students) {
+        try {
+          const defaultPassword = 'defaultPassword123'
+          await this.syncStudentToUser(student, defaultPassword)
+          syncedCount++
+        } catch (error: any) {
+          const errorMsg = `Failed to sync student ${student.studentEmail}: ${error.message}`
+          errors.push(errorMsg)
+          console.error(errorMsg)
+        }
+      }
+
+      return response.ok({
+        success: true,
+        message: `Successfully synced ${syncedCount} students to users table`,
+        syncedCount,
+        totalstudents: students.length,
+        errors: errors.length > 0 ? errors : undefined
+      })
+    } catch (error: any) {
+      return response.internalServerError({
+        success: false,
+        message: 'Failed to sync faculties',
+        error: error.message
+      })
+    }
+  }
   public async syncInstitute({ request, response }: HttpContext) {
     try {
       const { instituteId, password } = request.only(['instituteId', 'password'])
@@ -728,71 +812,97 @@ export default class AuthController {
       })
     }
   }
+public async syncStudent({ request, response }: HttpContext) {
+    try {
+      const { studentId, password } = request.only(['studentId', 'password'])
 
-  // 🔥 NEW: Fix institute roles route
-  // In AuthController - fix the fixInstituteRoles method
-// AuthController mein yeh method replace karo
-public async fixInstituteRoles({ response }: HttpContext) {
-  try {
-    // Method 1: Simple query without whereDoesntHave
-    const allInstituteUsers = await User.query()
-      .where('userType', 'institute')
-      .preload('userRoles')
+      const student = await Student.query()
+        .where('id', studentId)
+        .first()
 
-    // Filter users who don't have any roles
-    const instituteUsersWithoutRoles = allInstituteUsers.filter(user => 
-      !user.userRoles || user.userRoles.length === 0
-    )
+      if (!student) {
+        return response.notFound({
+          success: false,
+          message: 'student not found'
+        })
+      }
 
-    let fixedCount = 0
-    let errors: string[] = []
+      const user = await this.syncStudentToUser(student, password)
 
-    console.log(`🔧 Found ${instituteUsersWithoutRoles.length} institute users without roles`)
+      return response.ok({
+        success: true,
+        message: 'student synced successfully',
+        user: {
+          id: user.id,
+          email: user.email,
+          userType: user.userType
+        }
+      })
+    } catch (error: any) {
+      console.error('Sync student error:', error)
+      return response.internalServerError({
+        success: false,
+        message: 'Failed to sync student',
+        error: error.message
+      })
+    }
+  }
+  public async fixInstituteRoles({ response }: HttpContext) {
+    try {
+      const allInstituteUsers = await User.query()
+        .where('userType', 'institute')
+        .preload('userRoles')
 
-    for (const user of instituteUsersWithoutRoles) {
-      try {
-        if (user.instituteId) {
-          const institute = await Institute.query()
-            .where('id', user.instituteId)
-            .preload('role')
-            .first()
+      const instituteUsersWithoutRoles = allInstituteUsers.filter(user =>
+        !user.userRoles || user.userRoles.length === 0
+      )
 
-          if (institute?.role) {
-            await user.related('userRoles').attach([institute.role.id])
-            fixedCount++
-            console.log(`✅ Assigned role ${institute.role.roleName} to ${user.email}`)
+      let fixedCount = 0
+      let errors: string[] = []
+
+      for (const user of instituteUsersWithoutRoles) {
+        try {
+          if (user.instituteId) {
+            const institute = await Institute.query()
+              .where('id', user.instituteId)
+              .preload('role')
+              .first()
+
+            if (institute?.role) {
+              await user.related('userRoles').attach([institute.role.id])
+              fixedCount++
+            } else {
+              const errorMsg = `Institute ${user.instituteId} has no role assigned for user ${user.email}`
+              errors.push(errorMsg)
+              console.log(`❌ ${errorMsg}`)
+            }
           } else {
-            const errorMsg = `Institute ${user.instituteId} has no role assigned for user ${user.email}`
+            const errorMsg = `User ${user.email} has no instituteId`
             errors.push(errorMsg)
             console.log(`❌ ${errorMsg}`)
           }
-        } else {
-          const errorMsg = `User ${user.email} has no instituteId`
+        } catch (error: any) {
+          const errorMsg = `Failed to assign role to ${user.email}: ${error.message}`
           errors.push(errorMsg)
           console.log(`❌ ${errorMsg}`)
         }
-      } catch (error: any) {
-        const errorMsg = `Failed to assign role to ${user.email}: ${error.message}`
-        errors.push(errorMsg)
-        console.log(`❌ ${errorMsg}`)
       }
-    }
 
-    return response.json({
-      success: true,
-      message: `Fixed roles for ${fixedCount} institute users`,
-      fixedCount,
-      totalInstituteUsers: allInstituteUsers.length,
-      usersWithoutRoles: instituteUsersWithoutRoles.length,
-      errors: errors.length > 0 ? errors : undefined
-    })
-  } catch (error: any) {
-    console.error('❌ Error in fixInstituteRoles:', error)
-    return response.status(500).json({
-      success: false,
-      error: error.message
-    })
+      return response.json({
+        success: true,
+        message: `Fixed roles for ${fixedCount} institute users`,
+        fixedCount,
+        totalInstituteUsers: allInstituteUsers.length,
+        usersWithoutRoles: instituteUsersWithoutRoles.length,
+        errors: errors.length > 0 ? errors : undefined
+      })
+    } catch (error: any) {
+      console.error('❌ Error in fixInstituteRoles:', error)
+      return response.status(500).json({
+        success: false,
+        error: error.message
+      })
+    }
   }
-}
 }
 

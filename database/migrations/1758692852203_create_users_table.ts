@@ -15,9 +15,9 @@ export default class extends BaseSchema {
       table.string('mobile', 20).notNullable().unique()
       table.string('password').notNullable()
       
-      // REMOVE FOREIGN KEY CONSTRAINTS - Just store IDs
       table.integer('institute_id').unsigned().nullable()
       table.integer('faculty_id').unsigned().nullable()
+      table.integer('student_id').unsigned().nullable()
       
       table.boolean('is_email_verified').notNullable().defaultTo(false)
       table.boolean('is_mobile_verified').notNullable().defaultTo(false)
@@ -26,11 +26,11 @@ export default class extends BaseSchema {
       table.timestamp('created_at', { useTz: true }).notNullable().defaultTo(this.now())
       table.timestamp('updated_at', { useTz: true }).notNullable().defaultTo(this.now())
 
-      // Indexes
       table.index(['email'])
       table.index(['mobile'])
       table.index(['institute_id'])
       table.index(['faculty_id'])
+      table.index(['student_id'])
       table.index(['user_type'])
       table.index(['is_active'])
     })
