@@ -12,13 +12,6 @@ export default class AuthMiddleware {
     } = {}
   ) {
     const guards = options.guards || ['api', 'adminapi'] as (keyof Authenticators)[]
-
-    console.log('🔐 Auth Middleware Started', {
-      path: ctx.request.url(),
-      method: ctx.request.method(),
-      guards: guards
-    })
-
     let authenticatedGuard: string | null = null
     let authenticatedUser: any = null
     let authError: string | null = null
@@ -27,33 +20,20 @@ export default class AuthMiddleware {
       try {
         const authInstance = ctx.auth.use(guard)
         
-        // Try to authenticate with the current guard
         await authInstance.authenticate()
         
-        // If we reach here, authentication was successful
         authenticatedGuard = guard
         authenticatedUser = authInstance.user
         
-        console.log(`✅ Successfully authenticated with guard: ${guard}`, {
-          userId: authInstance.user?.id,
-          userType: authInstance.user?.userType
-        })
         break
         
       } catch (error: any) {
         authError = error.message
-        console.log(`❌ Guard ${guard} failed:`, error.message)
-        // Continue to next guard
       }
     }
 
     if (!authenticatedGuard) {
-      console.log('🚫 All authentication guards failed', {
-        guardsAttempted: guards,
-        lastError: authError
-      })
       
-      // Check if it's a preflight request
       if (ctx.request.method() === 'OPTIONS') {
         return ctx.response.noContent()
       }
@@ -66,7 +46,6 @@ export default class AuthMiddleware {
       })
     }
 
-    // Set user in context with proper error handling
     try {
       const ctxWithUser = ctx as any
       ctxWithUser.user = authenticatedUser
@@ -74,16 +53,9 @@ export default class AuthMiddleware {
       
       const requestWithUser = ctx.request as any
       requestWithUser.user = authenticatedUser
-      
-      console.log(`🎯 Auth successful with guard: ${authenticatedGuard}`, {
-        userId: authenticatedUser?.id,
-        userEmail: authenticatedUser?.email,
-        userType: authenticatedUser?.userType
-      })
 
       return next()
     } catch (error: any) {
-      console.error('❌ Error setting user in context:', error)
       return ctx.response.unauthorized({
         success: false,
         message: 'Authentication context setup failed',

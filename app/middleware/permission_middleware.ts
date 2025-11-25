@@ -1,13 +1,10 @@
-// app/middleware/permission_middleware.ts
 import { PermissionKeys } from '#database/constants/permission'
 import PermissionsResolverService from '#services/permissions_resolver_service'
 import { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 
-// Extendable type (string or enum)
 type ExtendedPermissionKeys = PermissionKeys | string
 
-// ✅ Map string-based route keys → PermissionKeys enum
 const PermissionMapping: Record<string, PermissionKeys> = {
   // Lecture
   lecture_create: PermissionKeys.LECTURE_CREATE,
