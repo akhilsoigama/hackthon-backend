@@ -10,17 +10,11 @@ export default class PermissionsResolverService {
 
   async permissionResolver(requiredPermissions?: PermissionKeys[]) {
     try {
-      console.log('🔍 PermissionsResolver started:', {
-        requiredPermissions,
-        userType: this.authenticatedUser?.userType,
-        userId: this.authenticatedUser?.id
-      })
 
       // Use the provided authenticated user or fall back to ctx.auth.user
       const user = this.authenticatedUser || this.ctx.auth.user
       
       if (!user) {
-        console.log('❌ No user provided to permissions resolver')
         return { 
           user: null, 
           userPermissions: [], 
@@ -31,7 +25,6 @@ export default class PermissionsResolverService {
 
       // If no permissions required, allow access
       if (!requiredPermissions || requiredPermissions.length === 0) {
-        console.log('✅ No permissions required - allowing access')
         return { 
           user, 
           userPermissions: [], 
@@ -43,7 +36,6 @@ export default class PermissionsResolverService {
       // Check if system admin
       const isSystemAdmin = await this.checkIfSystemAdmin(user)
       if (isSystemAdmin) {
-        console.log('✅ System admin detected - granting all permissions')
         return { 
           user, 
           userPermissions: Object.values(PermissionKeys), 
@@ -55,23 +47,12 @@ export default class PermissionsResolverService {
       // For regular users, check their actual permissions
       const userPermissions = await this.getUserPermissions(user)
       
-      console.log('📋 User permissions check:', {
-        userId: user.id,
-        userType: user.userType,
-        requiredPermissions,
-        userPermissions,
-        isSystemAdmin
-      })
+     
 
       // Check if the user has the required permissions
       const hasPermission = requiredPermissions.every((perm) => 
         userPermissions.includes(perm)
       )
-
-      console.log('🎯 Permission check result:', {
-        hasPermission,
-        missingPermissions: requiredPermissions.filter(perm => !userPermissions.includes(perm))
-      })
 
       return { 
         user, 
@@ -81,7 +62,6 @@ export default class PermissionsResolverService {
       }
 
     } catch (error) {
-      console.error('❌ PERMISSIONS RESOLVER ERROR:', error)
       return { 
         user: null, 
         userPermissions: [], 
@@ -98,7 +78,6 @@ export default class PermissionsResolverService {
         return true
       }
 
-      // Check database roles for User model
       try {
         const UserModel = (await import('#models/user')).default
         if (user instanceof UserModel) {
@@ -128,12 +107,10 @@ export default class PermissionsResolverService {
 
   private async getUserPermissions(user: any): Promise<PermissionKeys[]> {
     try {
-      // For admin users, return all permissions
       if (user.userType === 'super_admin' || user.userType === 'system_admin' || user.userType === 'admin') {
         return Object.values(PermissionKeys) as PermissionKeys[]
       }
 
-      // Load user with roles and permissions from database
       const UserModel = (await import('#models/user')).default
       const userWithRoles = await UserModel.query()
         .where('id', user.id)
@@ -150,7 +127,6 @@ export default class PermissionsResolverService {
       
       userWithRoles.userRoles?.forEach((role) => {
         role.permissions?.forEach((permission) => {
-          // Use permissionKey directly if it matches PermissionKeys
           if (permission.permissionKey && Object.values(PermissionKeys).includes(permission.permissionKey as PermissionKeys)) {
             const permissionKey = permission.permissionKey as PermissionKeys
             if (!permissions.includes(permissionKey)) {
