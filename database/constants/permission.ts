@@ -1,7 +1,7 @@
 // Define and export all the permission keys with global and user-specific access
 export enum PermissionKeys {
   // ========== CORE MODULES ==========
-  
+  CORE_MANAGEMENT_ACCESS = 'core_management_access',
   // Role & Permission Management
   ROLES_VIEW = 'roles_view',
   ROLES_CREATE = 'roles_create',
@@ -31,7 +31,7 @@ export enum PermissionKeys {
 
   // ========== NABHA MANAGEMENT MODULE ==========
   NABHA_MANAGEMENT_ACCESS = 'nabha_management_access',
-  
+
   // Institute
   INSTITUTE_VIEW = 'institute_view',
   INSTITUTE_CREATE = 'institute_create',
@@ -49,7 +49,7 @@ export enum PermissionKeys {
 
   // ========== INSTITUTE MANAGEMENT MODULE ==========
   INSTITUTE_MANAGEMENT_ACCESS = 'institute_management_access',
-  
+
   // Faculty
   FACULTY_VIEW = 'faculty_view',
   FACULTY_CREATE = 'faculty_create',
@@ -79,7 +79,7 @@ export enum PermissionKeys {
   INSTITUTE_SURVEY_LIST = 'institute_survey_list',
 
   // ========== STUDENT MANAGEMENT MODULE ==========
-  
+
   // Assignment
   ASSIGNMENT_VIEW = 'assignment_view',
   ASSIGNMENT_CREATE = 'assignment_create',
@@ -119,18 +119,16 @@ export enum PermissionKeys {
 
   // ========== LEAVE MANAGEMENT MODULE ==========
   LEAVE_MANAGEMENT_ACCESS = 'leave_management_access',
-  
   LEAVE_VIEW = 'leave_view',
   LEAVE_CREATE = 'leave_create',
   LEAVE_UPDATE = 'leave_update',
   LEAVE_DELETE = 'leave_delete',
   LEAVE_LIST = 'leave_list',
-  LEAVE_APPROVE_VIEW = 'leave_approve_view',
-  LEAVE_REJECT_VIEW = 'leave_reject_view',
-
+  LEAVE_APPROVE_VIEW = 'leave_approve',
+  LEAVE_REJECT_VIEW = 'leave_reject',
   // ========== STUDENT UPLOAD MODULE ==========
   STUDENT_UPLOAD_ACCESS = 'student_upload_access',
-  
+
   // Assignment Upload
   ASSIGNMENT_UPLOAD_VIEW = 'assignment_upload_view',
   ASSIGNMENT_UPLOAD_CREATE = 'assignment_upload_create',
@@ -147,15 +145,13 @@ export enum PermissionKeys {
 
   // ========== DASHBOARD MODULE ==========
   DASHBOARD_ACCESS = 'dashboard_access',
-  
   DASHBOARD_OVERVIEW_VIEW = 'dashboard_overview_view',
   DASHBOARD_PROGRESS_VIEW = 'dashboard_progress_view',
   DASHBOARD_EVENTS_VIEW = 'dashboard_events_view',
   DASHBOARD_QUIZ_VIEW = 'dashboard_quiz_view',
-
   // ========== COMMUNICATION MODULE ==========
   COMMUNICATION_ACCESS = 'communication_access',
-  
+
   CHATBOT_ACCESS = 'chatbot_access',
   MESSAGING_SEND = 'messaging_send',
   MESSAGING_RECEIVE = 'messaging_receive',
@@ -163,7 +159,7 @@ export enum PermissionKeys {
 
   // ========== SETTINGS MODULE ==========
   SETTINGS_ACCESS = 'settings_access',
-  
+
   SETTINGS_VIEW = 'settings_view',
   SETTINGS_UPDATE = 'settings_update',
   SYSTEM_CONFIG = 'system_config',
@@ -191,13 +187,13 @@ export enum PermissionKeys {
 
   // ========== GAMIFICATION MODULE ==========
   GAMIFICATION_ACCESS = 'gamification_access',
-  
+
   ACHIEVEMENTS_VIEW = 'achievements_view',
   BADGES_VIEW = 'badges_view',
 
   // ========== OFFLINE LIBRARY MODULE ==========
   OFFLINE_LIBRARY_ACCESS = 'offline_library_access',
-  
+
   LIBRARY_ACCESS = 'library_access',
   LIBRARY_DOWNLOAD = 'library_download',
 
@@ -210,11 +206,11 @@ export enum PermissionKeys {
   MATERIAL_LIST = 'material_list',
   MATERIAL_UPDATE = 'material_update',
   MATERIAL_DELETE = 'material_delete',
-  
+
   QNA_VIEW = 'qna_view',
   QNA_CREATE = 'qna_create',
   QNA_LIST = 'qna_list',
-  
+
   QUESTION_VIEW = 'question_view',
   QUESTION_CREATE = 'question_create',
   QUESTION_LIST = 'question_list'

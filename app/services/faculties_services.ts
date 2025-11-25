@@ -31,7 +31,6 @@ export default class FacultyController {
           data: faculties,
         };
       } else {
-
         return {
           status: false,
           message: messages.faculty_not_found,
@@ -70,7 +69,7 @@ export default class FacultyController {
       if (existingFaculty) {
         return this.ctx.response.status(422).send({
           status: false,
-          message: 'Faculty with this email already exists',
+          message: messages.faculty_already_exists,
         });
       }
 
@@ -84,13 +83,13 @@ export default class FacultyController {
 
       return {
         status: true,
-        message: 'Faculty created successfully',
+        message: messages.faculty_created_successfully,
         data: faculty,
       };
     } catch (error) {
       return {
         status: false,
-        message: 'Failed to create faculty',
+        message: messages.common_messages_error,
         error: error.message,
       };
     }

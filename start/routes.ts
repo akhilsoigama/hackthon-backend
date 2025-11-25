@@ -21,6 +21,7 @@ import ChatBotController from '#controllers/chatBotController'
 import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
 import PingController from '#controllers/ping_controller'
+import StudentController from '#controllers/student_controller'
 
 // Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
@@ -147,8 +148,15 @@ router
       .use('index', middleware.permission([PermissionKeys.FACULTY_VIEW]))
       .use('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
 
-    console.log('✅ All protected routes registered')
-
+      router
+      .resource('student', StudentController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.STUDENT_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.STUDENT_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.STUDENT_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
+      .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
   })
   // Main auth middleware for entire group
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))

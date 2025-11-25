@@ -49,7 +49,14 @@ const messages = {
   faculty_update_failed: 'Failed to update faculty',
   faculty_already_exists: 'Faculty already exists',
 
-
+  student_fetched_successfully: 'Students fetched successfully',
+  student_not_found: 'Student not found',
+  student_created_successfully: 'Student created successfully',
+  student_creation_failed: 'Failed to create student',
+  student_updated_successfully: 'Student Updated successfully',
+  student_update_failed: 'Failed to update student',
+  student_already_exists: 'Student already exists',
+  
 }
 
 export default messages
