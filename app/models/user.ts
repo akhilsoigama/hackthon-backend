@@ -10,6 +10,7 @@ import { AUTH_ACCESS_TOKENS, USER_ROLES, USERS } from '#database/constants/table
 import Role from '#models/role'
 import Institute from '#models/institute'
 import Faculty from '#models/faculty'
+import Student from './student.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -44,6 +45,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare facultyId: number | null
 
   @column()
+  declare studentId: number | null
+
+  @column()
   declare isEmailVerified: boolean
 
   @column()
@@ -52,7 +56,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare isActive: boolean
 
-  // Relations
   @belongsTo(() => Institute)
   declare institute: BelongsTo<typeof Institute>
 
@@ -60,7 +63,11 @@ export default class User extends compose(BaseModel, AuthFinder) {
     foreignKey: 'facultyId',
   })
   declare faculty: BelongsTo<typeof Faculty>
-
+  
+  @belongsTo(() => Student, {
+    foreignKey: 'studentId',
+  })
+  declare student: BelongsTo<typeof Student>
   @manyToMany(() => Role, {
     pivotTable: USER_ROLES,
     pivotForeignKey: 'user_id',
@@ -78,7 +85,6 @@ export default class User extends compose(BaseModel, AuthFinder) {
     table: AUTH_ACCESS_TOKENS,
   })
 
-  // Helper methods
   isSuperAdmin(): boolean {
     return this.userType === 'super_admin'
   }
@@ -106,12 +112,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
     if (!user) return false
 
-    // Super admin has all permissions
     if (user.userType === 'super_admin') {
       return true
     }
 
-    // Check permissions from roles
     return user.userRoles.some(role => 
       role.permissions.some(permission => permission.permissionKey === permissionKey)
     )
