@@ -21,7 +21,6 @@ export default class extends BaseSeeder {
       const exists = await AdminUser.query().where('email', user.email).first()
       if (!exists) {
         await AdminUser.create(user) 
-        console.log(`Created new admin user: ${user.email}`)
       } else {
         console.log(`User ${user.email} already exists, skipping seeder.`)
       }
