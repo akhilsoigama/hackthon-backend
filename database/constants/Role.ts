@@ -1,6 +1,5 @@
 export enum RoleKeys {
   super_admin = "super_admin",
-  nabha_admin = "nabha_admin",
 }
 
 export const RoleKeysList: {
@@ -13,12 +12,6 @@ export const RoleKeysList: {
     roleName: "Super Admin",
     roleKey: RoleKeys.super_admin,
     roleDescription: "Full access to the system",
-    isDefault: false,
-  },
-  {
-    roleName: "Nabha Admin",
-    roleKey: RoleKeys.nabha_admin,
-    roleDescription: "Admin access for Nabha-specific features",
     isDefault: false,
   },
 ];

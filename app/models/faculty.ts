@@ -57,11 +57,11 @@ export default class Faculty extends BaseModel {
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime()
   declare updatedAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare deletedAt?: DateTime
+  @column.dateTime()
+  declare deletedAt?: DateTime | null
 
   @beforeSave()
   public static async hashPassword(faculty: Faculty) {

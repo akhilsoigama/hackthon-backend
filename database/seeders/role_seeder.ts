@@ -13,7 +13,6 @@ export default class extends BaseSeeder {
 
     const rolePermissions: Record<string, string[]> = {
       super_admin: Object.values(PermissionKeys),
-      nabha_admin: Object.values(PermissionKeys),
     }
 
     for (const role of roles) {
