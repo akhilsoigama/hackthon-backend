@@ -93,7 +93,7 @@ export default class Institute extends BaseModel {
     @column.dateTime({ autoCreate: true })
     declare createdAt: DateTime
 
-    @column.dateTime({ autoCreate: true, autoUpdate: true })
+    @column.dateTime()
     declare updatedAt: DateTime
 
     @column.dateTime()

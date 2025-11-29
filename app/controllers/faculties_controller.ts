@@ -26,4 +26,8 @@ export default class FacultiesController {
   async destroy() {
     return this.FacultyServices.deleteOne()
   }
+   async getFacultiesForInstitute() {
+    return await this.FacultyServices.getFacultiesForInstitute()
+  }
+
 }

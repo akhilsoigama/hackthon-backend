@@ -148,7 +148,12 @@ router
       .use('index', middleware.permission([PermissionKeys.FACULTY_VIEW]))
       .use('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
 
-      router
+    router
+      .get('/institute/faculties', [FacultyController, 'getFacultiesForInstitute'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use(middleware.permission([PermissionKeys.FACULTY_VIEW]))
+
+    router
       .resource('student', StudentController)
       .apiOnly()
       .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))

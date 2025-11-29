@@ -7,38 +7,41 @@ import { errorHandler } from '../helper/error_handler.js';
 
 @inject()
 export default class FacultyController {
-  constructor(protected ctx: HttpContext) {}
+  constructor(protected ctx: HttpContext) { }
 
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
+      const { withDeleted, instituteId } = this.ctx.request.qs();
 
       let query = Faculty.query()
         .preload('department')
         .preload('institute')
-        .preload('role')
-        .apply((scopes) => scopes.softDeletes());
+        .preload('role');
+
+      if (!withDeleted) {
+        query = query.apply((scopes) => scopes.softDeletes());
+      }
 
       if (searchFor === 'create') {
-        query = query.where('isActive', true);
+        query = query.where('is_active', true);
+      }
+
+      if (instituteId) {
+        query = query.where('institute_id', Number(instituteId));
       }
 
       const faculties = await query;
 
-      if (faculties && faculties.length > 0) {
-        return {
-          status: true,
-          message: messages.faculty_fetched_successfully,
-          data: faculties,
-        };
-      } else {
-        return {
-          status: false,
-          message: messages.faculty_not_found,
-          data: [],
-        };
-      }
+      return {
+        status: faculties.length > 0,
+        message:
+          faculties.length > 0
+            ? messages.faculty_fetched_successfully
+            : messages.faculty_not_found,
+        data: faculties,
+      };
     } catch (error) {
-      console.error('Error in findAll:', error);
+      console.error('FindAll Error:', error);
       return {
         status: false,
         message: messages.common_messages_error,
@@ -47,11 +50,13 @@ export default class FacultyController {
     }
   }
 
+  // ========================= CREATE =========================
   async create() {
     try {
       const requestData = this.ctx.request.all();
 
       const requiredFields = ['facultyName', 'facultyEmail', 'facultyPassword', 'designation'];
+
       for (const field of requiredFields) {
         if (!requestData[field]) {
           return this.ctx.response.status(400).send({
@@ -63,7 +68,7 @@ export default class FacultyController {
 
       const existingFaculty = await Faculty.query()
         .where('facultyEmail', requestData.facultyEmail)
-        .apply((scope) => scope.softDeletes())
+        .apply((scopes) => scopes.softDeletes())
         .first();
 
       if (existingFaculty) {
@@ -74,12 +79,12 @@ export default class FacultyController {
       }
 
       const validatedData = await createFacultyValidator.validate(requestData);
+
       const faculty = await Faculty.create({
         ...validatedData,
         facultyId: validatedData.facultyId || `FAC${Date.now()}`,
-        isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+        isActive: validatedData.isActive ?? true,
       });
-
 
       return {
         status: true,
@@ -87,20 +92,22 @@ export default class FacultyController {
         data: faculty,
       };
     } catch (error) {
+      console.error('Create Error:', error);
       return {
         status: false,
         message: messages.common_messages_error,
-        error: error.message,
+        error: errorHandler(error),
       };
     }
   }
 
+  // ========================= FIND ONE =========================
   async findOne() {
     try {
       const id = this.ctx.request.param('id');
 
       if (!id || isNaN(Number(id))) {
-        return this.ctx.response.status(400).send({
+        return this.ctx.response.badRequest({
           status: false,
           message: 'Invalid faculty ID',
         });
@@ -114,21 +121,15 @@ export default class FacultyController {
         .preload('role')
         .first();
 
-
-      if (faculty) {
-        return {
-          status: true,
-          message: messages.faculty_fetched_successfully,
-          data: faculty,
-        };
-      } else {
-        return {
-          status: false,
-          message: messages.faculty_not_found,
-          data: null,
-        };
-      }
+      return {
+        status: !!faculty,
+        message: faculty
+          ? messages.faculty_fetched_successfully
+          : messages.faculty_not_found,
+        data: faculty,
+      };
     } catch (error) {
+      console.error('FindOne Error:', error);
       return {
         status: false,
         message: messages.common_messages_error,
@@ -137,18 +138,22 @@ export default class FacultyController {
     }
   }
 
+  // ========================= UPDATE =========================
   async updateOne() {
     try {
       const id = this.ctx.request.param('id');
       const requestData = this.ctx.request.all();
 
       if (requestData.facultyMobile) {
-        requestData.facultyMobile = requestData.facultyMobile.toString().replace(/\D/g, '');
+        requestData.facultyMobile = requestData.facultyMobile
+          .toString()
+          .replace(/\D/g, '');
       }
 
       const validatedData = await updateFacultyValidator.validate(requestData);
 
       const existingFaculty = await Faculty.find(id);
+
       if (!existingFaculty || existingFaculty.deletedAt) {
         return {
           status: false,
@@ -164,13 +169,13 @@ export default class FacultyController {
       await existingFaculty.load('institute');
       await existingFaculty.load('role');
 
-
       return {
         status: true,
         message: messages.faculty_updated_successfully,
         data: existingFaculty,
       };
     } catch (error) {
+      console.error('Update Error:', error);
       return {
         status: false,
         message: messages.common_messages_error,
@@ -184,6 +189,7 @@ export default class FacultyController {
       const id = this.ctx.request.param('id');
 
       const faculty = await Faculty.find(id);
+
       if (!faculty || faculty.deletedAt) {
         return {
           status: false,
@@ -195,13 +201,13 @@ export default class FacultyController {
       faculty.deletedAt = new Date() as any;
       await faculty.save();
 
-
       return {
         status: true,
         message: messages.common_messages_record_deleted,
         data: null,
       };
     } catch (error) {
+      console.error('Delete Error:', error);
       return {
         status: false,
         message: messages.common_messages_error,
@@ -209,4 +215,69 @@ export default class FacultyController {
       };
     }
   }
+
+
+async getFacultiesForInstitute() {
+  try {
+    
+    const authUser = await this.ctx.auth.authenticate()
+    
+    if (authUser.userType !== 'institute') {
+      return this.ctx.response.status(403).json({
+        status: false,
+        message: 'Access denied. Only institute users can access this resource.',
+        data: null,
+      })
+    }
+
+    if (!authUser.instituteId) {
+      return this.ctx.response.status(400).json({
+        status: false,
+        message: 'Institute not associated with this user.',
+        data: null,
+      })
+    }
+
+    const { searchFor, withDeleted } = this.ctx.request.qs();
+
+    let query = Faculty.query()
+      .where('institute_id', authUser.instituteId)
+      .preload('department')
+      .preload('institute')
+      .preload('role')
+
+    if (!withDeleted || withDeleted === 'false') {
+      query = query.apply((scopes) => scopes.softDeletes())
+    }
+
+    if (searchFor === 'create') {
+      query = query.where('is_active', true)
+    }
+
+    const faculties = await query
+
+    return {
+      status: true,
+      message: faculties.length > 0
+        ? messages.faculty_fetched_successfully
+        : 'No faculties found for your institute',
+      data: faculties,
+    }
+  } catch (error) {
+    
+    if (error.code === 'E_UNAUTHORIZED_ACCESS') {
+      return this.ctx.response.status(401).json({
+        status: false,
+        message: 'Authentication required. Please login again.',
+        data: null,
+      })
+    }
+    
+    return this.ctx.response.status(500).json({
+      status: false,
+      message: messages.common_messages_error,
+      error: errorHandler(error),
+    })
+  }
+}
 }
