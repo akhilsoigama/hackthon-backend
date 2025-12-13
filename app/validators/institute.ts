@@ -1,17 +1,19 @@
 import vine from "@vinejs/vine";
 
-
 export const createInstituteValidator = vine.compile(
   vine.object({
     instituteName: vine.string().trim().minLength(3),
     instituteEmail: vine.string().email(),
-    institutePassword: vine.string().minLength(6).optional(),
+    institutePassword: vine.string().minLength(6),
     instituteAddress: vine.string().trim().minLength(5),
     institutePhone: vine.string().trim().minLength(10),
-    instituteWebsite: vine.string().url().optional(),
+    instituteWebsite: vine
+      .string()
+      .regex(/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})(\/[\w.-]*)*\/?$|^http:\/\/localhost(:\d+)?(\/[\w.-]*)*\/?$/)
+      .optional(),
     instituteCode: vine.string().trim().minLength(2),
     affiliation: vine.string().trim().optional(),
-    establishedYear: vine.number().min(1900).max(new Date().getFullYear()),
+    establishedYear: vine.string().trim(),
     principalName: vine.string().trim().minLength(2),
     principalEmail: vine.string().email().optional(),
     principalPhone: vine.string().trim().minLength(10).optional(),
@@ -20,12 +22,13 @@ export const createInstituteValidator = vine.compile(
     instituteCountry: vine.string().trim().minLength(2),
     institutePinCode: vine.string().trim().minLength(4),
     principalQualification: vine.string().trim().optional(),
-    principalExperience: vine.number().min(0).optional(),
-    roleId: vine.number().positive().optional(),
+    principalExperience: vine.string().trim().optional(),
+    roleId: vine.number().positive(),
+    campusArea: vine.string().optional(),
+    instituteType: vine.string().trim(),
     isActive: vine.boolean().optional(),
-    createdBy: vine.number().optional(),
   })
-)
+);
 
 export const updateInstituteValidator = vine.compile(
   vine.object({
@@ -34,10 +37,13 @@ export const updateInstituteValidator = vine.compile(
     instituteAddress: vine.string().trim().minLength(5).optional(),
     institutePhone: vine.string().trim().minLength(10).optional(),
     instituteEmail: vine.string().email().optional(),
-    instituteWebsite: vine.string().url().optional(),
+    instituteWebsite: vine
+      .string()
+      .regex(/^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})(\/[\w.-]*)*\/?$|^http:\/\/localhost(:\d+)?(\/[\w.-]*)*\/?$/)
+      .optional(),
     instituteCode: vine.string().trim().minLength(2).optional(),
     affiliation: vine.string().trim().optional(),
-    establishedYear: vine.number().min(1900).max(new Date().getFullYear()).optional(),
+    establishedYear: vine.string().trim().optional(),
     principalName: vine.string().trim().minLength(2).optional(),
     principalEmail: vine.string().email().optional(),
     principalPhone: vine.string().trim().minLength(10).optional(),
@@ -46,15 +52,16 @@ export const updateInstituteValidator = vine.compile(
     instituteCountry: vine.string().trim().minLength(2).optional(),
     institutePinCode: vine.string().trim().minLength(4).optional(),
     principalQualification: vine.string().trim().optional(),
-    principalExperience: vine.number().min(0).optional(),
+    principalExperience: vine.string().trim().optional(),
     roleId: vine.number().positive().optional(),
+    campusArea: vine.string().optional(),
+    instituteType: vine.string().trim().optional(),
     isActive: vine.boolean().optional(),
   })
-)
+);
 
 export const instituteIdParamValidator = vine.compile(
   vine.object({
     id: vine.number(),
   })
-)
-
+);
