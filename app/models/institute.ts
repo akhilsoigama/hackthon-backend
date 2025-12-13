@@ -29,6 +29,9 @@ export default class Institute extends BaseModel {
     declare institutePhone: string
 
     @column()
+    declare instituteType: string
+    
+    @column()
     declare instituteEmail: string
 
     @column()
@@ -41,7 +44,7 @@ export default class Institute extends BaseModel {
     declare affiliation: string
 
     @column()
-    declare establishedYear: number
+    declare establishedYear: string
 
     @column()
     declare principalName: string
@@ -68,13 +71,13 @@ export default class Institute extends BaseModel {
     declare principalQualification: string
 
     @column()
-    declare principalExperience: number
+    declare principalExperience: string
+
+    @column()
+    declare campusArea: string
 
     @column()
     declare isActive: boolean
-
-    @column()
-    declare createdBy: number
 
     @column()
     declare roleId: number
