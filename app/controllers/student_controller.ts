@@ -26,4 +26,8 @@ export default class StudentController {
   async destroy() {
     return this.studentServices.deleteOne()
   }
+
+  async getStudentsForInstitute() {
+    return await this.studentServices.getStudentsForInstitute()
+  }
 }

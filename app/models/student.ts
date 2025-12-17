@@ -8,9 +8,7 @@ import Institute from './institute.js'
 import Department from './department.js'
 
 export default class Student extends BaseModel {
-  /**
-   * Soft delete scope
-   */
+
   public static softDeletes = scope((query) => {
     query.whereNull('deleted_at')
   })
@@ -22,7 +20,7 @@ export default class Student extends BaseModel {
   declare studentName: string
 
   @column({ columnName: 'student_std' })
-  declare studentSTD: string
+  declare studentStd: string
 
   @column({ columnName: 'student_gr_no' })
   declare studentGrNo: number
@@ -30,6 +28,8 @@ export default class Student extends BaseModel {
   @column({ columnName: 'student_gender' })
   declare studentGender: string
 
+  @column.dateTime({ columnName: 'student_dob' })
+  declare studentDob: DateTime | null
 
   @column({ columnName: 'student_email' })
   declare studentEmail: string
@@ -51,6 +51,24 @@ export default class Student extends BaseModel {
 
   @column({ columnName: 'student_id' })
   declare studentId: string
+
+  @column({ columnName: 'student_address' })
+  declare studentAddress: string
+
+  @column({ columnName: 'student_city' })
+  declare studentCity: string
+
+  @column({ columnName: 'student_state' })
+  declare studentState: string
+
+  @column({ columnName: 'student_country' })
+  declare studentCountry: string
+
+  @column.dateTime({ columnName: 'student_addmission_date' })
+  declare studentAddmissionDate: DateTime | null
+
+  @column({ columnName: 'student_pin_code' })
+  declare studentPincode: string
 
   @column({ columnName: 'is_active' })
   declare isActive: boolean
@@ -79,7 +97,8 @@ export default class Student extends BaseModel {
       student.studentPassword = await hash.make(student.studentPassword)
     }
   }
-   public async verifyPassword(password: string): Promise<boolean> {
+
+  public async verifyPassword(password: string): Promise<boolean> {
     return await hash.verify(this.studentPassword, password)
   }
 }

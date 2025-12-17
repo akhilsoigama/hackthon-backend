@@ -30,7 +30,7 @@ export default class Institute extends BaseModel {
 
     @column()
     declare instituteType: string
-    
+
     @column()
     declare instituteEmail: string
 
@@ -96,11 +96,14 @@ export default class Institute extends BaseModel {
     @column.dateTime({ autoCreate: true })
     declare createdAt: DateTime
 
-    @column.dateTime()
+    @column.dateTime({ autoCreate: true, autoUpdate: true })
     declare updatedAt: DateTime
 
-    @column.dateTime()
+    @column.dateTime({ columnName: 'deleted_at' })
     declare deletedAt: DateTime | null
+
+
+
 
     @beforeSave()
     public static async hashPassword(institute: Institute) {
