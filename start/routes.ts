@@ -137,7 +137,6 @@ router
       .use('index', middleware.permission([PermissionKeys.LECTURE_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.LECTURE_DELETE]))
 
-    // Faculty routes
     router
       .resource('faculty', FacultyController)
       .apiOnly()
@@ -162,11 +161,15 @@ router
       .use('show', middleware.permission([PermissionKeys.STUDENT_VIEW]))
       .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
+
+      router
+      .get('/institute/students', [StudentController, 'getStudentsForInstitute'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use(middleware.permission([PermissionKeys.STUDENT_VIEW]))
+
   })
-  // Main auth middleware for entire group
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
-// 404 Handler
 router.any('*', ({ response }) => {
   return response.status(404).json({
     success: false,

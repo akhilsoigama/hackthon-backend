@@ -5,10 +5,12 @@ import { errorHandler } from '../helper/error_handler.js'
 import Student from '#models/student'
 import { studentCreateValidator, studentUpdateValidator } from '#validators/student'
 import { DateTime } from 'luxon'
+import { AccessToken } from '@adonisjs/auth/access_tokens'
+import User from '#models/user'
 
 @inject()
 export default class StudentServices {
-  constructor(protected ctx: HttpContext) {}
+  constructor(protected ctx: HttpContext) { }
 
   async create() {
     try {
@@ -159,12 +161,9 @@ export default class StudentServices {
 
   async deleteOne() {
     try {
-      const id = this.ctx.request.param('id')
-
-      const student = await Student.query()
-        .where('id', id)
-        .whereNull('deleted_at')
-        .first()
+      const id = this.ctx.request.param('id');
+      const student = await Student.findOrFail(id)
+      await student.delete()
 
       if (!student) {
         return {
@@ -190,4 +189,65 @@ export default class StudentServices {
       }
     }
   }
+  async getStudentsForInstitute() {
+    try {
+      const authUser = await this.ctx.auth.authenticate()
+
+      const searchFor = this.ctx.request.input('searchFor')
+
+      const isInstituteUser = (
+        user: typeof authUser
+      ): user is User & { currentAccessToken: AccessToken; } => {
+        return user.userType === 'institute' || user.userType === 'super_admin'
+      }
+
+      if (isInstituteUser(authUser)) {
+        const userWithAny = authUser as any
+        const instituteId = userWithAny.instituteId
+
+        if (!instituteId) {
+          return {
+            status: false,
+            message: 'Institute ID not found for user',
+            data: null,
+          }
+        }
+
+        let query = Student.query()
+          .where('institute_id', instituteId)
+          .whereNull('deleted_at')
+          .preload('department')
+          .preload('role')
+          .preload('institute')
+
+        if (searchFor === 'create') {
+          query = query.where('is_active', true)
+        }
+
+        const students = await query
+
+        return {
+          status: true,
+          message: messages.student_fetched_successfully,
+          data: students,
+        }
+      } else {
+        return {
+          status: false,
+          message: messages.user_not_authenticated,
+          data: null,
+        }
+      }
+
+    } catch (error) {
+      console.error('Get Students Error:', error);
+      return {
+        status: false,
+        message: messages.common_messages_error,
+        error: errorHandler(error),
+      };
+    }
+  }
+
 }
+
