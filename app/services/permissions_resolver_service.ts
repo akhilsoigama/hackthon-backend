@@ -1,4 +1,3 @@
-// app/services/permissions_resolver_service.ts
 import { PermissionKeys } from '#database/constants/permission'
 import { HttpContext } from '@adonisjs/core/http'
 
@@ -11,7 +10,6 @@ export default class PermissionsResolverService {
   async permissionResolver(requiredPermissions?: PermissionKeys[]) {
     try {
 
-      // Use the provided authenticated user or fall back to ctx.auth.user
       const user = this.authenticatedUser || this.ctx.auth.user
       
       if (!user) {
@@ -23,7 +21,6 @@ export default class PermissionsResolverService {
         }
       }
 
-      // If no permissions required, allow access
       if (!requiredPermissions || requiredPermissions.length === 0) {
         return { 
           user, 
@@ -33,7 +30,6 @@ export default class PermissionsResolverService {
         }
       }
 
-      // Check if system admin
       const isSystemAdmin = await this.checkIfSystemAdmin(user)
       if (isSystemAdmin) {
         return { 
@@ -44,12 +40,10 @@ export default class PermissionsResolverService {
         }
       }
 
-      // For regular users, check their actual permissions
       const userPermissions = await this.getUserPermissions(user)
       
      
 
-      // Check if the user has the required permissions
       const hasPermission = requiredPermissions.every((perm) => 
         userPermissions.includes(perm)
       )
@@ -73,7 +67,6 @@ export default class PermissionsResolverService {
 
   private async checkIfSystemAdmin(user: any): Promise<boolean> {
     try {
-      // Check userType field directly
       if (user.userType === 'super_admin' || user.userType === 'system_admin' || user.userType === 'admin') {
         return true
       }
