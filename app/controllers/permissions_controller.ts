@@ -3,9 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Permission from '#models/permission'
 
 export default class PermissionsController {
-  /**
-   * GET /permissions - Get all permissions (for resource route)
-   */
+
   async index({ response }: HttpContext) {
     try {
       const permissions = await Permission.query().orderBy('created_at', 'asc') 
@@ -23,9 +21,6 @@ export default class PermissionsController {
     }
   }
 
-  /**
-   * GET /permissions/:id - Get single permission
-   */
   async show({ params, response }: HttpContext) {
     try {
       const permission = await Permission.findOrFail(params.id)
@@ -41,11 +36,7 @@ export default class PermissionsController {
     }
   }
 
-  /**
-   * Keep your existing method if needed for other routes
-   */
   async getAllPermissions({ response }: HttpContext) {
-    // Same as index method, or you can remove this if index is used
     return this.index({ response } as HttpContext)
   }
 }

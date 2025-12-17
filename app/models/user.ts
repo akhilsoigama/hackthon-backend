@@ -39,7 +39,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare password: string
 
   @column()
-  declare instituteId: number | null
+  declare instituteId: number 
 
   @column()
   declare facultyId: number | null

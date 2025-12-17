@@ -4,6 +4,7 @@ import { HttpContext } from '@adonisjs/core/http';
 import { errorHandler } from '../helper/error_handler.js';
 import Institute from '#models/institute';
 import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
+import { DateTime } from 'luxon';
 
 @inject()
 export default class instituteController {
@@ -172,33 +173,34 @@ export default class instituteController {
       }
     }
   }
+
   async deleteOne() {
     try {
-      const id = this.ctx.request.param('id');
+      const id = this.ctx.request.param('id')
 
-      const institute = await Institute.find(id);
+      const institute = await Institute.find(id)
+
       if (!institute || institute.deletedAt) {
         return {
           status: false,
           message: messages.institute_not_found,
           data: null,
-        };
+        }
       }
 
-      institute.deletedAt = new Date() as any;
-      await institute.save();
-
+      institute.deletedAt = DateTime.now()
+      await institute.save()
 
       return {
         status: true,
         Message: messages.common_messages_record_deleted,
-        Data: null
+        Data: null,
       }
     } catch (error) {
       return {
         status: false,
         Message: messages.common_messages_error,
-        error: errorHandler(error)
+        error: errorHandler(error),
       }
     }
   }
