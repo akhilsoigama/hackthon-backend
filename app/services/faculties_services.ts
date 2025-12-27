@@ -18,16 +18,33 @@ export default class FacultyController {
         .preload('institute')
         .preload('role');
 
-      if (!withDeleted) {
+      let authUser = null;
+      try {
+        authUser = await this.ctx.auth.authenticate();
+      } catch (authError) {
+        authUser = null;
+      }
+
+      if (authUser?.userType === 'institute') {
+        if (!authUser.instituteId) {
+          return this.ctx.response.status(400).json({
+            status: false,
+            message: 'Institute not associated with this user.',
+            data: null,
+          });
+        }
+        query = query.where('institute_id', authUser.instituteId);
+      }
+      else if (instituteId) {
+        query = query.where('institute_id', Number(instituteId));
+      }
+
+      if (!withDeleted || withDeleted === 'false') {
         query = query.apply((scopes) => scopes.softDeletes());
       }
 
       if (searchFor === 'create') {
         query = query.where('is_active', true);
-      }
-
-      if (instituteId) {
-        query = query.where('institute_id', Number(instituteId));
       }
 
       const faculties = await query;
@@ -50,7 +67,6 @@ export default class FacultyController {
     }
   }
 
-  // ========================= CREATE =========================
   async create() {
     try {
       const requestData = this.ctx.request.all();
@@ -216,68 +232,4 @@ export default class FacultyController {
     }
   }
 
-
-  async getFacultiesForInstitute() {
-    try {
-
-      const authUser = await this.ctx.auth.authenticate()
-
-      if (authUser.userType !== 'institute') {
-        return this.ctx.response.status(403).json({
-          status: false,
-          message: 'Access denied. Only institute users can access this resource.',
-          data: null,
-        })
-      }
-
-      if (!authUser.instituteId) {
-        return this.ctx.response.status(400).json({
-          status: false,
-          message: 'Institute not associated with this user.',
-          data: null,
-        })
-      }
-
-      const { searchFor, withDeleted } = this.ctx.request.qs();
-
-      let query = Faculty.query()
-        .where('institute_id', authUser.instituteId)
-        .preload('department')
-        .preload('institute')
-        .preload('role')
-
-      if (!withDeleted || withDeleted === 'false') {
-        query = query.apply((scopes) => scopes.softDeletes())
-      }
-
-      if (searchFor === 'create') {
-        query = query.where('is_active', true)
-      }
-
-      const faculties = await query
-
-      return {
-        status: true,
-        message: faculties.length > 0
-          ? messages.faculty_fetched_successfully
-          : 'No faculties found for your institute',
-        data: faculties,
-      }
-    } catch (error) {
-
-      if (error.code === 'E_UNAUTHORIZED_ACCESS') {
-        return this.ctx.response.status(401).json({
-          status: false,
-          message: 'Authentication required. Please login again.',
-          data: null,
-        })
-      }
-
-      return this.ctx.response.status(500).json({
-        status: false,
-        message: messages.common_messages_error,
-        error: errorHandler(error),
-      })
-    }
-  }
 }

@@ -23,13 +23,11 @@ import LectureUploadsController from '#controllers/lacture_uploads_controller'
 import PingController from '#controllers/ping_controller'
 import StudentController from '#controllers/student_controller'
 
-// Public Routes (No authentication required)
 router.post('/login', [AuthController, 'login'])
-router.post('/chatbot', [ChatBotController, 'chat'])
-router.post('/translate', [TranslatesController, 'translateMessage'])
+router.post('/chatbot', [ChatBotController, 'chat']).use(middleware.permission([PermissionKeys.CHATBOT_ACCESS]))
+ router.post('/translate', [TranslatesController, 'translateMessage'])
 router.get('/test-db', [AuthController, 'testDB'])
 
-// Manual sync routes (temporary - no auth required for initial setup)
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
 router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
 router.post('/sync/institute', [AuthController, 'syncInstitute'])
@@ -38,10 +36,8 @@ router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 router.get('/ping', [PingController])
 
 
-// Protected Routes (Authentication required)
 router
   .group(() => {
-    console.log('🛡️ Protected routes group initialized')
 
     // Auth routes
     router.get('/profile', [AuthController, 'me'])
@@ -148,11 +144,6 @@ router
       .use('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
 
     router
-      .get('/institute/faculties', [FacultyController, 'getFacultiesForInstitute'])
-      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
-      .use(middleware.permission([PermissionKeys.FACULTY_VIEW]))
-
-    router
       .resource('student', StudentController)
       .apiOnly()
       .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
@@ -161,11 +152,6 @@ router
       .use('show', middleware.permission([PermissionKeys.STUDENT_VIEW]))
       .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
-
-      router
-      .get('/institute/students', [StudentController, 'getStudentsForInstitute'])
-      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
-      .use(middleware.permission([PermissionKeys.STUDENT_VIEW]))
 
   })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))

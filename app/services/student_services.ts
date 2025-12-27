@@ -5,8 +5,6 @@ import { errorHandler } from '../helper/error_handler.js'
 import Student from '#models/student'
 import { studentCreateValidator, studentUpdateValidator } from '#validators/student'
 import { DateTime } from 'luxon'
-import { AccessToken } from '@adonisjs/auth/access_tokens'
-import User from '#models/user'
 
 @inject()
 export default class StudentServices {
@@ -53,21 +51,54 @@ export default class StudentServices {
 
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      const query = Student.query()
-        .whereNull('deleted_at')
+      const { instituteId, withDeleted } = this.ctx.request.qs();
+      
+      let query = Student.query()
         .preload('role')
         .preload('department')
         .preload('institute')
 
+      // Check if user is authenticated
+      let authUser = null;
+      try {
+        authUser = await this.ctx.auth.authenticate();
+      } catch (authError) {
+        authUser = null;
+      }
+
+      if (!withDeleted || withDeleted === 'false') {
+        query = query.whereNull('deleted_at');
+      }
+
+      if (authUser?.userType === 'institute') {
+        const userWithAny = authUser as any;
+        const instituteId = userWithAny.instituteId;
+
+        if (!instituteId) {
+          return {
+            status: false,
+            message: 'Institute ID not found for user',
+            data: null,
+          }
+        }
+
+        query = query.where('institute_id', instituteId);
+      } 
+      else if (instituteId) {
+        query = query.where('institute_id', Number(instituteId));
+      }
+
       if (searchFor === 'create') {
-        query.where('is_active', true)
+        query = query.where('is_active', true)
       }
 
       const students = await query
 
       return {
         status: true,
-        message: messages.student_fetched_successfully,
+        message: students.length > 0 
+          ? messages.student_fetched_successfully 
+          : messages.student_not_found,
         data: students,
       }
     } catch (error) {
@@ -187,65 +218,6 @@ export default class StudentServices {
         message: messages.common_messages_error,
         error: errorHandler(error),
       }
-    }
-  }
-  async getStudentsForInstitute() {
-    try {
-      const authUser = await this.ctx.auth.authenticate()
-
-      const searchFor = this.ctx.request.input('searchFor')
-
-      const isInstituteUser = (
-        user: typeof authUser
-      ): user is User & { currentAccessToken: AccessToken; } => {
-        return user.userType === 'institute' || user.userType === 'super_admin'
-      }
-
-      if (isInstituteUser(authUser)) {
-        const userWithAny = authUser as any
-        const instituteId = userWithAny.instituteId
-
-        if (!instituteId) {
-          return {
-            status: false,
-            message: 'Institute ID not found for user',
-            data: null,
-          }
-        }
-
-        let query = Student.query()
-          .where('institute_id', instituteId)
-          .whereNull('deleted_at')
-          .preload('department')
-          .preload('role')
-          .preload('institute')
-
-        if (searchFor === 'create') {
-          query = query.where('is_active', true)
-        }
-
-        const students = await query
-
-        return {
-          status: true,
-          message: messages.student_fetched_successfully,
-          data: students,
-        }
-      } else {
-        return {
-          status: false,
-          message: messages.user_not_authenticated,
-          data: null,
-        }
-      }
-
-    } catch (error) {
-      console.error('Get Students Error:', error);
-      return {
-        status: false,
-        message: messages.common_messages_error,
-        error: errorHandler(error),
-      };
     }
   }
 
