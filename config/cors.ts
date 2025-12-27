@@ -5,7 +5,8 @@ export default defineConfig({
 
   origin: [
     'https://eduhub-learn.vercel.app', 
-    'http://localhost:5173',  
+    'http://localhost:5173',
+    'http://localhost:4173'  
   ],
 
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
