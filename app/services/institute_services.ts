@@ -5,11 +5,21 @@ import { errorHandler } from '../helper/error_handler.js';
 import Institute from '#models/institute';
 import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
 import { DateTime } from 'luxon';
+import EmailService from './email_services.js';
 
 @inject()
 export default class instituteController {
   constructor(protected ctx: HttpContext) { }
-
+  private async sendEmail(email: string, password: string, userType: string, name: string) {
+    try {
+      const emailService = new EmailService();
+      await emailService.sendCredentialsEmail(email, password, userType, name);
+      return true;
+    } catch (error) {
+      console.error('Email sending failed (but continuing):', error);
+      return false;
+    }
+  }
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
       let query = Institute.query()
@@ -72,6 +82,7 @@ export default class instituteController {
       }
 
       const validatedData = await createInstituteValidator.validate(requestData);
+      const plainPassword = validatedData.institutePassword;
 
       const instituteData = {
         ...validatedData,
@@ -81,7 +92,14 @@ export default class instituteController {
       };
 
       const institute = await Institute.create(instituteData);
-
+      this.sendEmail(
+        institute.instituteEmail,
+        plainPassword,
+        'institute',
+        institute.instituteName
+      ).catch(err => {
+        console.error('Email failed in background:', err);
+      });
       return {
         status: true,
         message: messages.institute_created_successfully,
