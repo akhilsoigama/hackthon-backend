@@ -6,6 +6,8 @@ import type { NextFn } from '@adonisjs/core/types/http'
 type ExtendedPermissionKeys = PermissionKeys | string
 
 const PermissionMapping: Record<string, PermissionKeys> = {
+
+  chatbot_access: PermissionKeys.CHATBOT_ACCESS,
   // Lecture
   lecture_create: PermissionKeys.LECTURE_CREATE,
   lecture_update: PermissionKeys.LECTURE_UPDATE,

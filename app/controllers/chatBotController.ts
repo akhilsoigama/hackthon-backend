@@ -13,14 +13,7 @@ export default class ChatBotController {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // ✅ Choose your model (uncomment only one)
-          // model: "deepseek/deepseek-chat-v3.1:free", // slow but can speak better Punjabi
-          // model: "deepseek/deepseek-r1-0528-qwen3-8b:free", // decent speed, can speak Punjabi
-          // model: 'meta-llama/llama-3.2-3b-instruct:free', // good speed
-          // model: 'anthropic/claude-3-haiku', // cannot speak Punjabi
-          // model: 'openai/gpt-3.5-turbo', // fast and can speak Punjabi
-          model: 'meta-llama/llama-3.1-8b-instruct', // default
-
+          model: 'meta-llama/llama-3.1-8b-instruct',
           messages,
         }),
       })
