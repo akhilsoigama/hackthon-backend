@@ -5,11 +5,21 @@ import { errorHandler } from '../helper/error_handler.js'
 import Student from '#models/student'
 import { studentCreateValidator, studentUpdateValidator } from '#validators/student'
 import { DateTime } from 'luxon'
+import EmailService from './email_services.js'
 
 @inject()
 export default class StudentServices {
   constructor(protected ctx: HttpContext) { }
-
+  private async sendEmail(email: string, password: string, userType: string, name: string) {
+    try {
+      const emailService = new EmailService();
+      await emailService.sendCredentialsEmail(email, password, userType, name);
+      return true;
+    } catch (error) {
+      console.error('Email sending failed (but continuing):', error);
+      return false;
+    }
+  }
   async create() {
     try {
       const requestData = this.ctx.request.all()
@@ -27,13 +37,20 @@ export default class StudentServices {
       }
 
       const validatedData = await studentCreateValidator.validate(requestData)
-
+      const plainPassword = validatedData.studentPassword;
       const student = await Student.create({
         ...validatedData,
         studentId: validatedData.studentId || `STU${Date.now()}`,
         isActive: validatedData.isActive ?? true,
       })
-
+      this.sendEmail(
+        student.studentEmail,
+        plainPassword,
+        'student',
+        student.studentName
+      ).catch(err => {
+        console.error('Email failed in background:', err);
+      });
       return this.ctx.response.status(201).send({
         status: true,
         message: messages.student_created_successfully,
@@ -52,7 +69,7 @@ export default class StudentServices {
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
       const { instituteId, withDeleted } = this.ctx.request.qs();
-      
+
       let query = Student.query()
         .preload('role')
         .preload('department')
@@ -83,7 +100,7 @@ export default class StudentServices {
         }
 
         query = query.where('institute_id', instituteId);
-      } 
+      }
       else if (instituteId) {
         query = query.where('institute_id', Number(instituteId));
       }
@@ -96,8 +113,8 @@ export default class StudentServices {
 
       return {
         status: true,
-        message: students.length > 0 
-          ? messages.student_fetched_successfully 
+        message: students.length > 0
+          ? messages.student_fetched_successfully
           : messages.student_not_found,
         data: students,
       }
