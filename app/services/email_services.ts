@@ -5,167 +5,164 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 interface EmailLogEntry {
-  timestamp: string
-  type: 'REAL_EMAIL' | 'MOCK_EMAIL'
-  email: string
-  password: string
-  name: string
-  userType: string
-  loginUrl: string
-  appUrl: string
+    timestamp: string
+    type: 'REAL_EMAIL' | 'MOCK_EMAIL'
+    email: string
+    password: string
+    name: string
+    userType: string
+    loginUrl: string
+    appUrl: string
 }
 
 export default class EmailService {
-  private transporter: any = null
-  private appUrl: string = ''
-  
-  constructor() {
-    this.appUrl = env.get('APP_URL') || 'https://eduhub-learn.vercel.app'
-    
-    const smtpHost = env.get('SMTP_HOST')
-    const smtpUsername = env.get('SMTP_USERNAME')
-    let smtpPassword = env.get('SMTP_PASSWORD')
+    private transporter: any = null
+    private appUrl: string = ''
 
-    if (!smtpUsername || !smtpPassword) {
-      this.transporter = null
-      console.log('SMTP credentials missing, using mock emails')
-      return
-    }
-    
-    // Remove spaces from password
-    smtpPassword = smtpPassword.replace(/\s+/g, '')
-    
-    try {
-      // Brevo SMTP configuration
-      this.transporter = nodemailer.createTransport({
-        host: smtpHost || 'smtp-relay.brevo.com', 
-        port: 587, 
-        secure: false, 
-        requireTLS: true,
-        auth: {
-          user: smtpUsername,
-          pass: smtpPassword,
-        },
-        tls: {
-          rejectUnauthorized: true
-        },
-        connectionTimeout: 10000, 
-        socketTimeout: 15000, 
-        pool: true,
-        maxConnections: 5,
-        maxMessages: 100
-      })
-      
-      // Verify connection configuration
-      this.transporter.verify((error: any) => {
-        if (error) {
-          console.error('SMTP Connection Error:', error.message)
-          this.transporter = null
-        } else {
-          console.log('SMTP Connection Verified: Ready to send emails')
+    constructor() {
+        this.appUrl = env.get('APP_URL') || 'https://eduhub-learn.vercel.app'
+
+        const smtpHost = env.get('SMTP_HOST')
+        const smtpUsername = env.get('SMTP_USERNAME')
+        let smtpPassword = env.get('SMTP_PASSWORD')
+
+        if (!smtpUsername || !smtpPassword) {
+            this.transporter = null
+            console.log('SMTP credentials missing, using mock emails')
+            return
         }
-      })
-      
-    } catch (error) {
-      console.error('Transporter creation error:', error)
-      this.transporter = null
-    }
-  }
 
-  async sendCredentialsEmail(email: string, password: string, userType: string, name: string): Promise<boolean> {
-    
-    if (this.transporter) {
-      try {
-        const fromEmail = env.get('SMTP_FROM_ADDRESS') || env.get('SMTP_USERNAME') || 'eduhub@example.com'
-        const fromName = env.get('SMTP_FROM_NAME') || 'EduHub'
-        
-        const mailOptions = {
-          from: `"${fromName}" <${fromEmail}>`,
-          to: email,
-          subject: `EduHub - Your ${userType} Account Credentials`,
-          html: this.getEmailHtml(name, userType, email, password),
-          text: this.getEmailText(name, userType, email, password),
-          headers: {
-            'X-SMTPAPI': JSON.stringify({
-              filters: {
-                clicktrack: { settings: { enable: 0 } },
-                opentrack: { settings: { enable: 0 } }
-              }
+        // Remove spaces from password
+        smtpPassword = smtpPassword.replace(/\s+/g, '')
+
+        try {
+            // Brevo SMTP configuration
+            this.transporter = nodemailer.createTransport({
+                host: smtpHost || 'smtp-relay.brevo.com',
+                port: 587,
+                secure: false,
+                requireTLS: true,
+                auth: {
+                    user: smtpUsername,
+                    pass: smtpPassword,
+                },
+                tls: {
+                    rejectUnauthorized: false  
+                },
+                connectionTimeout: 30000,  
+                socketTimeout: 45000      
             })
-          }
+
+            // Verify connection configuration
+            this.transporter.verify((error: any) => {
+                if (error) {
+                    console.error('SMTP Connection Error:', error.message)
+                    this.transporter = null
+                } else {
+                    console.log('SMTP Connection Verified: Ready to send emails')
+                }
+            })
+
+        } catch (error) {
+            console.error('Transporter creation error:', error)
+            this.transporter = null
         }
-        
-        console.log('Attempting to send email to:', email)
-        console.log('From email:', fromEmail)
-        
-        const info = await this.transporter.sendMail(mailOptions)
-        console.log('Email sent successfully:', info.messageId)
-        
-        await this.logEmailSent(email, password, name, userType, true)
-        
+    }
+
+    async sendCredentialsEmail(email: string, password: string, userType: string, name: string): Promise<boolean> {
+
+        if (this.transporter) {
+            try {
+                const fromEmail = env.get('SMTP_FROM_ADDRESS') || env.get('SMTP_USERNAME') || 'eduhub@example.com'
+                const fromName = env.get('SMTP_FROM_NAME') || 'EduHub'
+
+                const mailOptions = {
+                    from: `"${fromName}" <${fromEmail}>`,
+                    to: email,
+                    subject: `EduHub - Your ${userType} Account Credentials`,
+                    html: this.getEmailHtml(name, userType, email, password),
+                    text: this.getEmailText(name, userType, email, password),
+                    headers: {
+                        'X-SMTPAPI': JSON.stringify({
+                            filters: {
+                                clicktrack: { settings: { enable: 0 } },
+                                opentrack: { settings: { enable: 0 } }
+                            }
+                        })
+                    }
+                }
+
+                console.log('Attempting to send email to:', email)
+                console.log('From email:', fromEmail)
+
+                const info = await this.transporter.sendMail(mailOptions)
+                console.log('Email sent successfully:', info.messageId)
+
+                await this.logEmailSent(email, password, name, userType, true)
+
+                return true
+            } catch (error: any) {
+                // Better error logging
+                console.error('Email sending error:', {
+                    message: error.message,
+                    code: error.code,
+                    command: error.command,
+                    responseCode: error.responseCode
+                })
+
+                // Check for specific Brevo errors
+                if (error.responseCode === 550) {
+                    console.error('Brevo Error: Sender email not verified. Please verify in Brevo dashboard.')
+                }
+
+                // Silently fallback to mock email
+            }
+        } else {
+            console.log('No transporter available, using mock email')
+        }
+
+        // Fallback to mock email
+        await this.logEmailSent(email, password, name, userType, false)
         return true
-      } catch (error: any) {
-        // Better error logging
-        console.error('Email sending error:', {
-          message: error.message,
-          code: error.code,
-          command: error.command,
-          responseCode: error.responseCode
-        })
-        
-        // Check for specific Brevo errors
-        if (error.responseCode === 550) {
-          console.error('Brevo Error: Sender email not verified. Please verify in Brevo dashboard.')
-        }
-        
-        // Silently fallback to mock email
-      }
-    } else {
-      console.log('No transporter available, using mock email')
     }
-    
-    // Fallback to mock email
-    await this.logEmailSent(email, password, name, userType, false)
-    return true
-  }
 
-  private async logEmailSent(email: string, password: string, name: string, userType: string, realEmail: boolean): Promise<void> {
-    const logEntry: EmailLogEntry = {
-      timestamp: new Date().toISOString(),
-      type: realEmail ? 'REAL_EMAIL' : 'MOCK_EMAIL',
-      email: email,
-      password: password,
-      name: name,
-      userType: userType,
-      loginUrl: `${this.appUrl}/login`,
-      appUrl: this.appUrl
-    }
-    
-    const logFile = join(process.cwd(), 'email_logs.json')
-    
-    try {
-      let logs: EmailLogEntry[] = []
-      
-      if (existsSync(logFile)) {
-        const content = readFileSync(logFile, 'utf8')
-        if (content.trim()) {
-          const lines = content.trim().split('\n')
-          logs = lines.map((line: string) => JSON.parse(line))
+    private async logEmailSent(email: string, password: string, name: string, userType: string, realEmail: boolean): Promise<void> {
+        const logEntry: EmailLogEntry = {
+            timestamp: new Date().toISOString(),
+            type: realEmail ? 'REAL_EMAIL' : 'MOCK_EMAIL',
+            email: email,
+            password: password,
+            name: name,
+            userType: userType,
+            loginUrl: `${this.appUrl}/login`,
+            appUrl: this.appUrl
         }
-      }
-      
-      logs.push(logEntry)
-      writeFileSync(logFile, logs.map((log: EmailLogEntry) => JSON.stringify(log)).join('\n'))
-      
-    } catch (error) {
-      console.error('Failed to log email:', error)
-    }
-  }
 
-  private getEmailHtml(name: string, userType: string, email: string, password: string): string {
-    const loginUrl = `${this.appUrl}/login`
-    
-    return `
+        const logFile = join(process.cwd(), 'email_logs.json')
+
+        try {
+            let logs: EmailLogEntry[] = []
+
+            if (existsSync(logFile)) {
+                const content = readFileSync(logFile, 'utf8')
+                if (content.trim()) {
+                    const lines = content.trim().split('\n')
+                    logs = lines.map((line: string) => JSON.parse(line))
+                }
+            }
+
+            logs.push(logEntry)
+            writeFileSync(logFile, logs.map((log: EmailLogEntry) => JSON.stringify(log)).join('\n'))
+
+        } catch (error) {
+            console.error('Failed to log email:', error)
+        }
+    }
+
+    private getEmailHtml(name: string, userType: string, email: string, password: string): string {
+        const loginUrl = `${this.appUrl}/login`
+
+        return `
     <!DOCTYPE html>
     <html>
     <head>
@@ -220,12 +217,12 @@ export default class EmailService {
     </body>
     </html>
     `
-  }
+    }
 
-  private getEmailText(name: string, userType: string, email: string, password: string): string {
-    const loginUrl = `${this.appUrl}/login`
-    
-    return `
+    private getEmailText(name: string, userType: string, email: string, password: string): string {
+        const loginUrl = `${this.appUrl}/login`
+
+        return `
 🎓 Welcome to EduHub!
 
 Hello ${name},
@@ -257,5 +254,5 @@ The EduHub Team
 ────────────────────────────
 This is an automated message. Do not reply to this email.
     `
-  }
+    }
 }
