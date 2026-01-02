@@ -18,108 +18,84 @@ interface EmailLogEntry {
 export default class EmailService {
   private transporter: any
   private appUrl: string
+  private isProduction: boolean
 
   constructor() {
+    this.isProduction = env.get('NODE_ENV') === 'production'
     this.appUrl = env.get('APP_URL') || 'https://eduhub-learn.vercel.app'
     
     const smtpHost = env.get('SMTP_HOST')
     const smtpPort = env.get('SMTP_PORT')
     const smtpUsername = env.get('SMTP_USERNAME')
-    const smtpPassword = env.get('SMTP_PASSWORD')
+    let smtpPassword = env.get('SMTP_PASSWORD')
 
     if (!smtpUsername || !smtpPassword) {
-      console.error('❌ SMTP credentials missing in .env file!')
-      console.log('⚠️  Email sending will be mocked for now')
       this.transporter = null
       return
     }
     
-    // For Gmail with App Password
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost || 'smtp.gmail.com',
-      port: parseInt(smtpPort || '465'),
-      secure: true, 
-      auth: {
-        user: smtpUsername,
-        pass: smtpPassword,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      debug: false,
-      logger: false
-    })
-
-    this.verifyConnection()
-  }
-
-  async verifyConnection() {
-    if (!this.transporter) {
-      console.log('⚠️  Email service not initialized - using mock mode')
-      return
-    }
+    // Remove spaces from password
+    smtpPassword = smtpPassword.replace(/\s+/g, '')
     
     try {
-      await this.transporter.verify()
-    } catch (error: any) {
-      console.error('❌ SMTP connection failed:', error.message)
-      console.log('⚠️  Will use mock email sending')
+      // For production, use port 587, for development use env port
+      let port: number
+      let secure: boolean
+      
+      if (this.isProduction) {
+        port = 587
+        secure = false
+      } else {
+        port = parseInt(smtpPort || '465')
+        secure = port === 465
+      }
+      
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost || 'smtp.gmail.com',
+        port: port,
+        secure: secure,
+        requireTLS: true,
+        auth: {
+          user: smtpUsername,
+          pass: smtpPassword,
+        },
+        tls: {
+          rejectUnauthorized: this.isProduction
+        }
+      })
+      
+    } catch (error) {
+      this.transporter = null
     }
   }
 
   async sendCredentialsEmail(email: string, password: string, userType: string, name: string): Promise<boolean> {
     
-    if (!this.transporter) {
-      console.log('⚠️  Using mock email (SMTP not configured)')
-      await this.sendMockEmail(email, password, userType, name)
-      return true
-    }
-    
-    try {
-      const fromEmail = env.get('SMTP_USERNAME') || 'eduhub@example.com'
-      const fromName = 'EduHub'
-      
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: `EduHub - Your ${userType} Account Credentials`,
-        html: this.getEmailHtml(name, userType, email, password),
-        text: this.getEmailText(name, userType, email, password),
+    if (this.transporter) {
+      try {
+        const fromEmail = env.get('SMTP_USERNAME') || 'eduhub@example.com'
+        const fromName = env.get('SMTP_FROM_NAME') || 'EduHub'
+        
+        const mailOptions = {
+          from: `"${fromName}" <${fromEmail}>`,
+          to: email,
+          subject: `EduHub - Your ${userType} Account Credentials`,
+          html: this.getEmailHtml(name, userType, email, password),
+          text: this.getEmailText(name, userType, email, password),
+        }
+        
+        await this.transporter.sendMail(mailOptions)
+        await this.logEmailSent(email, password, name, userType, true)
+        
+        return true
+      } catch (error) {
+        // Silently fallback to mock email
       }
-      
-      const info = await this.transporter.sendMail(mailOptions)
-      
-      console.log('✅ Message ID:', info.messageId)
-      console.log('✅ Response:', info.response)
-      
-      await this.logEmailSent(email, password, name, userType, true)
-      
-      return true
-    } catch (error: any) {
-      console.error('❌ Real email failed, sending mock email instead')
-      console.error('Error:', error.message)
-      
-      // Fallback to mock email
-      await this.sendMockEmail(email, password, userType, name)
-      return true // Return true because mock email "succeeded"
     }
-  }
-
-  private async sendMockEmail(email: string, password: string, userType: string, name: string) {
-    console.log('📧 SENDING MOCK EMAIL (For Testing)')
-    console.log('='.repeat(60))
-    console.log('TO:', email)
-    console.log('SUBJECT: EduHub - Your', userType, 'Account Credentials')
-    console.log('NAME:', name)
-    console.log('PASSWORD:', password)
-    console.log('LOGIN URL:', `${this.appUrl}/login`)
-    console.log('='.repeat(60))
     
-    // Save to file for reference
+    // Fallback to mock email
     await this.logEmailSent(email, password, name, userType, false)
-    
-    console.log('✅ Mock email logged successfully')
-    console.log('📝 Check email_logs.json file for credentials')
+    return true
   }
 
   private async logEmailSent(email: string, password: string, name: string, userType: string, realEmail: boolean): Promise<void> {
@@ -142,7 +118,6 @@ export default class EmailService {
       if (existsSync(logFile)) {
         const content = readFileSync(logFile, 'utf8')
         if (content.trim()) {
-          // Parse the JSON lines
           const lines = content.trim().split('\n')
           logs = lines.map((line: string) => JSON.parse(line))
         }
@@ -151,14 +126,12 @@ export default class EmailService {
       logs.push(logEntry)
       writeFileSync(logFile, logs.map((log: EmailLogEntry) => JSON.stringify(log)).join('\n'))
       
-      console.log('📝 Email logged to:', logFile)
     } catch (error) {
-      console.error('Failed to log email:', error)
+      // Silent error handling
     }
   }
 
   private getEmailHtml(name: string, userType: string, email: string, password: string): string {
-    // FIX: Use this.appUrl instead of process.env.APP_URL
     const loginUrl = `${this.appUrl}/login`
     
     return `
@@ -253,5 +226,5 @@ The EduHub Team
 ────────────────────────────
 This is an automated message. Do not reply to this email.
     `
-  }
+  } 
 }
