@@ -16,21 +16,19 @@ interface EmailLogEntry {
 }
 
 export default class EmailService {
-  private transporter: any
-  private appUrl: string
-  private isProduction: boolean
-
+  private transporter: any = null
+  private appUrl: string = ''
+  
   constructor() {
-    this.isProduction = env.get('NODE_ENV') === 'production'
     this.appUrl = env.get('APP_URL') || 'https://eduhub-learn.vercel.app'
     
     const smtpHost = env.get('SMTP_HOST')
-    const smtpPort = env.get('SMTP_PORT')
     const smtpUsername = env.get('SMTP_USERNAME')
     let smtpPassword = env.get('SMTP_PASSWORD')
 
     if (!smtpUsername || !smtpPassword) {
       this.transporter = null
+      console.log('SMTP credentials missing, using mock emails')
       return
     }
     
@@ -38,33 +36,38 @@ export default class EmailService {
     smtpPassword = smtpPassword.replace(/\s+/g, '')
     
     try {
-      // For production, use port 587, for development use env port
-      let port: number
-      let secure: boolean
-      
-      if (this.isProduction) {
-        port = 587
-        secure = false
-      } else {
-        port = parseInt(smtpPort || '465')
-        secure = port === 465
-      }
-      
+      // Brevo SMTP configuration
       this.transporter = nodemailer.createTransport({
-        host: smtpHost || 'smtp.gmail.com',
-        port: port,
-        secure: secure,
+        host: smtpHost || 'smtp-relay.brevo.com', 
+        port: 587, 
+        secure: false, 
         requireTLS: true,
         auth: {
           user: smtpUsername,
           pass: smtpPassword,
         },
         tls: {
-          rejectUnauthorized: this.isProduction
+          rejectUnauthorized: true
+        },
+        connectionTimeout: 10000, 
+        socketTimeout: 15000, 
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100
+      })
+      
+      // Verify connection configuration
+      this.transporter.verify((error: any) => {
+        if (error) {
+          console.error('SMTP Connection Error:', error.message)
+          this.transporter = null
+        } else {
+          console.log('SMTP Connection Verified: Ready to send emails')
         }
       })
       
     } catch (error) {
+      console.error('Transporter creation error:', error)
       this.transporter = null
     }
   }
@@ -73,7 +76,7 @@ export default class EmailService {
     
     if (this.transporter) {
       try {
-        const fromEmail = env.get('SMTP_USERNAME') || 'eduhub@example.com'
+        const fromEmail = env.get('SMTP_FROM_ADDRESS') || env.get('SMTP_USERNAME') || 'eduhub@example.com'
         const fromName = env.get('SMTP_FROM_NAME') || 'EduHub'
         
         const mailOptions = {
@@ -82,15 +85,43 @@ export default class EmailService {
           subject: `EduHub - Your ${userType} Account Credentials`,
           html: this.getEmailHtml(name, userType, email, password),
           text: this.getEmailText(name, userType, email, password),
+          headers: {
+            'X-SMTPAPI': JSON.stringify({
+              filters: {
+                clicktrack: { settings: { enable: 0 } },
+                opentrack: { settings: { enable: 0 } }
+              }
+            })
+          }
         }
         
-        await this.transporter.sendMail(mailOptions)
+        console.log('Attempting to send email to:', email)
+        console.log('From email:', fromEmail)
+        
+        const info = await this.transporter.sendMail(mailOptions)
+        console.log('Email sent successfully:', info.messageId)
+        
         await this.logEmailSent(email, password, name, userType, true)
         
         return true
-      } catch (error) {
+      } catch (error: any) {
+        // Better error logging
+        console.error('Email sending error:', {
+          message: error.message,
+          code: error.code,
+          command: error.command,
+          responseCode: error.responseCode
+        })
+        
+        // Check for specific Brevo errors
+        if (error.responseCode === 550) {
+          console.error('Brevo Error: Sender email not verified. Please verify in Brevo dashboard.')
+        }
+        
         // Silently fallback to mock email
       }
+    } else {
+      console.log('No transporter available, using mock email')
     }
     
     // Fallback to mock email
@@ -127,7 +158,7 @@ export default class EmailService {
       writeFileSync(logFile, logs.map((log: EmailLogEntry) => JSON.stringify(log)).join('\n'))
       
     } catch (error) {
-      // Silent error handling
+      console.error('Failed to log email:', error)
     }
   }
 
@@ -226,5 +257,5 @@ The EduHub Team
 ────────────────────────────
 This is an automated message. Do not reply to this email.
     `
-  } 
+  }
 }
