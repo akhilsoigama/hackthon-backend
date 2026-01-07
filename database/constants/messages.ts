@@ -56,6 +56,23 @@ const messages = {
   student_updated_successfully: 'Student Updated successfully',
   student_update_failed: 'Failed to update student',
   student_already_exists: 'Student already exists',
+
+
+  govt_event_fetched_successfully: 'Govt events fetched successfully',
+  govt_event_not_found: 'Govt event not found',
+  govt_event_created_successfully: 'Govt event created successfully',
+  govt_event_creation_failed: 'Failed to create govt event',
+  govt_event_updated_successfully: 'Govt event Updated successfully',
+  govt_event_update_failed: 'Failed to update govt event',
+  govt_event_already_exists: 'Govt event already exists',
+
+  institute_event_fetched_successfully: 'Institute events fetched successfully',
+  institute_event_not_found: 'Institute event not found',
+  institute_event_created_successfully: 'Institute event created successfully',
+  institute_event_creation_failed: 'Failed to create institute event',
+  institute_event_updated_successfully: 'Institute event Updated successfully',
+  institute_event_update_failed: 'Failed to update institute event',
+  institute_event_already_exists: 'Institute event already exists',
   
 }
 
