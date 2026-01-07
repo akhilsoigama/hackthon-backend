@@ -22,10 +22,11 @@ import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
 import PingController from '#controllers/ping_controller'
 import StudentController from '#controllers/student_controller'
+import GovtEventsController from '#controllers/govt_events_controller'
 
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat']).use(middleware.permission([PermissionKeys.CHATBOT_ACCESS]))
- router.post('/translate', [TranslatesController, 'translateMessage'])
+router.post('/translate', [TranslatesController, 'translateMessage'])
 router.get('/test-db', [AuthController, 'testDB'])
 
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
@@ -153,6 +154,15 @@ router
       .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
 
+    router
+      .resource('govtEvent', GovtEventsController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.GOVT_SURVEY_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.GOVT_SURVEY_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.GOVT_SURVEY_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.GOVT_SURVEY_LIST]))
+      .use('destroy', middleware.permission([PermissionKeys.GOVT_SURVEY_DELETE]))
   })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 

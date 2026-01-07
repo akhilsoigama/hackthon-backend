@@ -68,6 +68,7 @@
     "@adonisjs/mail": "^9.2.2",
     "@vinejs/vine": "^3.0.1",
     "@vitalets/google-translate-api": "^9.2.1",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.7.0",
     "fluent-ffmpeg": "^2.1.3",

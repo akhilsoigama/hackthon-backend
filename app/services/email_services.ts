@@ -1,5 +1,3 @@
-// app/services/email_service.ts
-import nodemailer from 'nodemailer'
 import env from '#start/env'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -16,242 +14,264 @@ interface EmailLogEntry {
 }
 
 export default class EmailService {
-  private transporter: any
   private appUrl: string
+  private brevoApiKey: string | null
 
   constructor() {
     this.appUrl = env.get('APP_URL') || 'https://eduhub-learn.vercel.app'
-    
-    const smtpHost = env.get('SMTP_HOST')
-    const smtpPort = env.get('SMTP_PORT')
-    const smtpUsername = env.get('SMTP_USERNAME')
-    const smtpPassword = env.get('SMTP_PASSWORD')
+    this.brevoApiKey = env.get('BREVO_API_KEY') || null
 
-    if (!smtpUsername || !smtpPassword) {
-      console.error('❌ SMTP credentials missing in .env file!')
-      console.log('⚠️  Email sending will be mocked for now')
-      this.transporter = null
-      return
-    }
-    
-    // For Gmail with App Password
-    this.transporter = nodemailer.createTransport({
-      host: smtpHost || 'smtp.gmail.com',
-      port: parseInt(smtpPort || '465'),
-      secure: true, 
-      auth: {
-        user: smtpUsername,
-        pass: smtpPassword,
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      debug: false,
-      logger: false
-    })
-
-    this.verifyConnection()
-  }
-
-  async verifyConnection() {
-    if (!this.transporter) {
-      console.log('⚠️  Email service not initialized - using mock mode')
-      return
-    }
-    
-    try {
-      await this.transporter.verify()
-    } catch (error: any) {
-      console.error('❌ SMTP connection failed:', error.message)
-      console.log('⚠️  Will use mock email sending')
+    if (!this.brevoApiKey) {
+      console.log('BREVO_API_KEY missing → using MOCK email mode')
     }
   }
 
-  async sendCredentialsEmail(email: string, password: string, userType: string, name: string): Promise<boolean> {
-    
-    if (!this.transporter) {
-      console.log('⚠️  Using mock email (SMTP not configured)')
-      await this.sendMockEmail(email, password, userType, name)
-      return true
-    }
-    
-    try {
-      const fromEmail = env.get('SMTP_USERNAME') || 'eduhub@example.com'
-      const fromName = 'EduHub'
-      
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: email,
-        subject: `EduHub - Your ${userType} Account Credentials`,
-        html: this.getEmailHtml(name, userType, email, password),
-        text: this.getEmailText(name, userType, email, password),
+  // 🔥 MAIN METHOD
+  async sendCredentialsEmail(
+    email: string,
+    password: string,
+    userType: string,
+    name: string
+  ): Promise<boolean> {
+    if (this.brevoApiKey) {
+      try {
+        const response = await fetch(
+          'https://api.brevo.com/v3/smtp/email',
+          {
+            method: 'POST',
+            headers: {
+              'api-key': this.brevoApiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sender: {
+                email:
+                  env.get('SMTP_FROM_ADDRESS') ||
+                  'akhilsoigama@gmail.com',
+                name: env.get('SMTP_FROM_NAME') || 'EduHub',
+              },
+              to: [{ email }],
+              subject: `EduHub - Your ${userType} Account Credentials`,
+              htmlContent: this.getEmailHtml(
+                name,
+                userType,
+                email,
+                password
+              ),
+              textContent: this.getEmailText(
+                name,
+                userType,
+                email,
+                password
+              ),
+            }),
+          }
+        )
+
+        if (!response.ok) {
+          const errorBody = await response.text()
+          throw new Error(
+            `Brevo API failed: ${response.status} - ${errorBody}`
+          )
+        }
+
+        console.log('✅ Brevo email sent to:', email)
+
+        await this.logEmailSent(email, password, name, userType, true)
+        return true
+      } catch (error: any) {
+        console.error('❌ Brevo Email API Error:', error.message)
       }
-      
-      const info = await this.transporter.sendMail(mailOptions)
-      
-      console.log('✅ Message ID:', info.messageId)
-      console.log('✅ Response:', info.response)
-      
-      await this.logEmailSent(email, password, name, userType, true)
-      
-      return true
-    } catch (error: any) {
-      console.error('❌ Real email failed, sending mock email instead')
-      console.error('Error:', error.message)
-      
-      // Fallback to mock email
-      await this.sendMockEmail(email, password, userType, name)
-      return true // Return true because mock email "succeeded"
     }
-  }
 
-  private async sendMockEmail(email: string, password: string, userType: string, name: string) {
-    console.log('📧 SENDING MOCK EMAIL (For Testing)')
-    console.log('='.repeat(60))
-    console.log('TO:', email)
-    console.log('SUBJECT: EduHub - Your', userType, 'Account Credentials')
-    console.log('NAME:', name)
-    console.log('PASSWORD:', password)
-    console.log('LOGIN URL:', `${this.appUrl}/login`)
-    console.log('='.repeat(60))
-    
-    // Save to file for reference
+    // 🧪 MOCK FALLBACK
+    console.log('📦 Using MOCK email for:', email)
     await this.logEmailSent(email, password, name, userType, false)
-    
-    console.log('✅ Mock email logged successfully')
-    console.log('📝 Check email_logs.json file for credentials')
+    return true
   }
 
-  private async logEmailSent(email: string, password: string, name: string, userType: string, realEmail: boolean): Promise<void> {
+  // 🧾 LOGGING
+  private async logEmailSent(
+    email: string,
+    password: string,
+    name: string,
+    userType: string,
+    realEmail: boolean
+  ): Promise<void> {
     const logEntry: EmailLogEntry = {
       timestamp: new Date().toISOString(),
       type: realEmail ? 'REAL_EMAIL' : 'MOCK_EMAIL',
-      email: email,
-      password: password,
-      name: name,
-      userType: userType,
+      email,
+      password,
+      name,
+      userType,
       loginUrl: `${this.appUrl}/login`,
-      appUrl: this.appUrl
+      appUrl: this.appUrl,
     }
-    
+
     const logFile = join(process.cwd(), 'email_logs.json')
-    
+
     try {
       let logs: EmailLogEntry[] = []
-      
+
       if (existsSync(logFile)) {
         const content = readFileSync(logFile, 'utf8')
         if (content.trim()) {
-          // Parse the JSON lines
-          const lines = content.trim().split('\n')
-          logs = lines.map((line: string) => JSON.parse(line))
+          logs = content
+            .trim()
+            .split('\n')
+            .map((line) => JSON.parse(line))
         }
       }
-      
+
       logs.push(logEntry)
-      writeFileSync(logFile, logs.map((log: EmailLogEntry) => JSON.stringify(log)).join('\n'))
-      
-      console.log('📝 Email logged to:', logFile)
+
+      writeFileSync(
+        logFile,
+        logs.map((l) => JSON.stringify(l)).join('\n')
+      )
     } catch (error) {
       console.error('Failed to log email:', error)
     }
   }
 
-  private getEmailHtml(name: string, userType: string, email: string, password: string): string {
-    // FIX: Use this.appUrl instead of process.env.APP_URL
-    const loginUrl = `${this.appUrl}/login`
-    
-    return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>EduHub - Account Credentials</title>
-    </head>
-    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f7fa;">
-        <div style="background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px 20px; text-align: center;">
-                <h1 style="margin: 0;">🎓 Welcome to EduHub!</h1>
-                <p style="margin: 10px 0 0 0;">Your Education Management Platform</p>
-            </div>
-            
-            <div style="padding: 30px;">
-                <h2 style="margin-top: 0;">Hello ${name},</h2>
-                <p>Your <strong>${userType}</strong> account has been created successfully!</p>
-                
-                <div style="background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                    <h3 style="margin-top: 0;">🔐 Your Login Credentials</h3>
-                    <div style="margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
-                        <span style="font-weight: bold; color: #4b5563; display: inline-block; width: 100px;">Email:</span> ${email}
-                    </div>
-                    <div style="margin: 10px 0; padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
-                        <span style="font-weight: bold; color: #4b5563; display: inline-block; width: 100px;">Password:</span> 
-                        <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${password}</code>
-                    </div>
-                    <div style="margin: 10px 0; padding: 8px 0;">
-                        <span style="font-weight: bold; color: #4b5563; display: inline-block; width: 100px;">Login URL:</span> 
-                        <a href="${loginUrl}" style="color: #4f46e5; text-decoration: none;">${loginUrl}</a>
-                    </div>
-                    
-                    <a href="${loginUrl}" style="display: inline-block; background: #4f46e5; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 15px 0;">🚀 Login to EduHub</a>
-                </div>
-                
-                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
-                    <h4 style="margin: 0 0 10px 0;">⚠️ Security Notice</h4>
-                    <p style="margin: 0;"><strong>Important:</strong> For security, please change your password immediately after first login.</p>
-                </div>
-                
-                <p>Need help? Contact our support team.</p>
-                
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
-                    <p>Best regards,</p>
-                    <p><strong>The EduHub Team</strong></p>
-                    <p style="font-size: 12px; color: #9ca3af;">
-                        This is an automated message. Do not reply to this email.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </body>
-    </html>
-    `
-  }
+  // ✉️ HTML TEMPLATE
+private getEmailHtml(
+  name: string,
+  userType: string,
+  email: string,
+  password: string
+): string {
+  const loginUrl = `${this.appUrl}/login`
 
-  private getEmailText(name: string, userType: string, email: string, password: string): string {
-    const loginUrl = `${this.appUrl}/login`
-    
-    return `
-🎓 Welcome to EduHub!
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduHub Account Credentials</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center" style="padding:40px 15px;">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+          
+          <!-- HEADER -->
+          <tr>
+            <td style="background:#4f46e5; padding:24px; text-align:center; color:#ffffff;">
+              <h1 style="margin:0; font-size:24px;">🎓 EduHub</h1>
+              <p style="margin:8px 0 0; font-size:14px;">
+                Your ${userType} account is ready
+              </p>
+            </td>
+          </tr>
+
+          <!-- BODY -->
+          <tr>
+            <td style="padding:30px; color:#333333;">
+              <h2 style="margin-top:0;">Hello ${name},</h2>
+
+              <p style="font-size:15px; line-height:1.6;">
+                Welcome to <strong>EduHub</strong>! Your <b>${userType}</b> account has been successfully created.
+              </p>
+
+              <!-- CREDENTIAL BOX -->
+              <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:20px; margin:20px 0;">
+                <h3 style="margin-top:0;">🔐 Login Credentials</h3>
+
+                <p style="margin:8px 0;">
+                  <strong>Email:</strong><br />
+                  <span style="color:#374151;">${email}</span>
+                </p>
+
+                <p style="margin:8px 0;">
+                  <strong>Temporary Password:</strong><br />
+                  <span style="font-family:monospace; background:#eef2ff; padding:6px 10px; border-radius:4px; display:inline-block;">
+                    ${password}
+                  </span>
+                </p>
+
+                <p style="margin-top:16px;">
+                  <a href="${loginUrl}" 
+                     style="display:inline-block; background:#4f46e5; color:#ffffff; text-decoration:none; padding:12px 24px; border-radius:6px; font-weight:bold;">
+                    🚀 Login to EduHub
+                  </a>
+                </p>
+              </div>
+
+              <!-- WARNING -->
+              <div style="background:#fff7ed; border-left:4px solid #f97316; padding:14px; border-radius:4px;">
+                <strong>⚠️ Security Notice</strong>
+                <p style="margin:6px 0 0; font-size:14px;">
+                  Please change your password immediately after your first login to keep your account secure.
+                </p>
+              </div>
+
+              <p style="margin-top:24px; font-size:14px;">
+                If you need help, feel free to contact our support team.
+              </p>
+
+              <p style="margin-top:30px; font-size:14px;">
+                Regards,<br />
+                <strong>EduHub Team</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- FOOTER -->
+          <tr>
+            <td style="background:#f9fafb; text-align:center; padding:15px; font-size:12px; color:#6b7280;">
+              This is an automated email. Please do not reply.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`
+}
+
+  private getEmailText(
+  name: string,
+  userType: string,
+  email: string,
+  password: string
+): string {
+  const loginUrl = `${this.appUrl}/login`
+
+  return `
+🎓 EDUHUB – ACCOUNT DETAILS
 
 Hello ${name},
 
-Your ${userType} account has been created successfully!
+Welcome to EduHub!
+Your ${userType} account has been created successfully.
 
-🔐 YOUR LOGIN CREDENTIALS
-────────────────────────────
+────────────────────────
+🔐 LOGIN CREDENTIALS
+────────────────────────
 Email: ${email}
-Password: ${password}
-Login URL: ${loginUrl}
+Temporary Password: ${password}
 
-⚠️ SECURITY NOTICE
-────────────────────────────
-For your security, please CHANGE YOUR PASSWORD immediately 
-after first login.
+Login here:
+${loginUrl}
 
-🚀 QUICK START
-────────────────────────────
-1. Go to: ${loginUrl}
-2. Use the credentials above
-3. Change password in account settings
+⚠️ IMPORTANT SECURITY NOTICE
+Please change your password immediately after your first login.
 
-Need help? Contact our support team.
+If you need any help, contact our support team.
 
-Best regards,
-The EduHub Team
+Regards,
+EduHub Team
 
-────────────────────────────
-This is an automated message. Do not reply to this email.
-    `
-  }
+────────────────────────
+This is an automated email. Do not reply.
+`
+}
+
 }

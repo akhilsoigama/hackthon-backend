@@ -56,6 +56,15 @@ const messages = {
   student_updated_successfully: 'Student Updated successfully',
   student_update_failed: 'Failed to update student',
   student_already_exists: 'Student already exists',
+
+
+  govt_event_fetched_successfully: 'Govt events fetched successfully',
+  govt_event_not_found: 'Govt event not found',
+  govt_event_created_successfully: 'Govt event created successfully',
+  govt_event_creation_failed: 'Failed to create govt event',
+  govt_event_updated_successfully: 'Govt event Updated successfully',
+  govt_event_update_failed: 'Failed to update govt event',
+  govt_event_already_exists: 'Govt event already exists',
   
 }
 
