@@ -23,6 +23,7 @@ import LectureUploadsController from '#controllers/lacture_uploads_controller'
 import PingController from '#controllers/ping_controller'
 import StudentController from '#controllers/student_controller'
 import GovtEventsController from '#controllers/govt_events_controller'
+import InstituteEventsController from '#controllers/institute_events_controller'
 
 router.post('/login', [AuthController, 'login'])
 router.post('/chatbot', [ChatBotController, 'chat']).use(middleware.permission([PermissionKeys.CHATBOT_ACCESS]))
@@ -163,6 +164,16 @@ router
       .use('show', middleware.permission([PermissionKeys.GOVT_SURVEY_VIEW]))
       .use('index', middleware.permission([PermissionKeys.GOVT_SURVEY_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.GOVT_SURVEY_DELETE]))
+
+      router
+      .resource('instituteEvent', InstituteEventsController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_LIST]))
+      .use('destroy', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_DELETE]))
   })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
