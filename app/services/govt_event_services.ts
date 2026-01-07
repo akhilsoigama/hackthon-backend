@@ -1,6 +1,6 @@
 import messages from "#database/constants/messages";
 import GovtEvent from "#models/govt_event";
-import { createGovtEventValidator } from "#validators/govt_event";
+import { createGovtEventValidator, updateGovtEventValidator } from "#validators/govt_event";
 import { inject } from "@adonisjs/core";
 import { HttpContext } from '@adonisjs/core/http';
 import { errorHandler } from "../helper/error_handler.js";
@@ -51,7 +51,7 @@ export default class GovtEventServices {
         } catch (error) {
             return {
                 status: false,
-                message: 'Failed to create institute',
+                message: messages.govt_event_creation_failed,
                 error: errorHandler(error),
             };
         }
@@ -66,7 +66,7 @@ export default class GovtEventServices {
                 requestData.eventMobile = requestData.eventMobile.toString().replace(/\D/g, '');
             }
 
-            const validatedData = await createGovtEventValidator.validate(requestData);
+            const validatedData = await updateGovtEventValidator.validate(requestData);
 
             const existingGovtEvent = await GovtEvent.find(id);
             if (!existingGovtEvent || existingGovtEvent.deletedAt) {
