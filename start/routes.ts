@@ -26,7 +26,6 @@ import GovtEventsController from '#controllers/govt_events_controller'
 import InstituteEventsController from '#controllers/institute_events_controller'
 
 router.post('/login', [AuthController, 'login'])
-router.post('/chatbot', [ChatBotController, 'chat']).use(middleware.permission([PermissionKeys.CHATBOT_ACCESS]))
 router.post('/translate', [TranslatesController, 'translateMessage'])
 router.get('/test-db', [AuthController, 'testDB'])
 
@@ -35,11 +34,13 @@ router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
 router.post('/sync/institute', [AuthController, 'syncInstitute'])
 router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
-router.get('/ping', [PingController])
+router.get('/ping', [PingController, 'handle'])
 
 
 router
   .group(() => {
+    router.post('/chatbot', [ChatBotController, 'chat'])
+    .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
 
     // Auth routes
     router.get('/profile', [AuthController, 'me'])
