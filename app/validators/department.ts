@@ -6,6 +6,7 @@ export const createDepartmentValidator = vine.compile(
         departmentCode: vine.string().trim(),
         description: vine.string().trim().optional(),
         isActive: vine.boolean().optional(),
+        instituteId: vine.number().positive(),
     })
 )
 
@@ -15,6 +16,7 @@ export const updateDepartmentValidator = vine.compile(
         departmentCode: vine.string().trim().optional(),
         description: vine.string().trim().optional(),
         isActive: vine.boolean().optional(),
+        instituteId: vine.number().positive().optional(),
     })
 )
 

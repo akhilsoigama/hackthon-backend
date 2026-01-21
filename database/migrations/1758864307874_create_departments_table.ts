@@ -9,6 +9,12 @@ export default class extends BaseSchema {
       table.string('department_name').notNullable()
       table.string('department_code').notNullable()
       table.string('description').nullable() 
+      table
+        .integer('institute_id')
+        .unsigned()
+        .references('id')
+        .inTable('institutes')
+        .onDelete('CASCADE')
       table.boolean('is_active').defaultTo(true)
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })
