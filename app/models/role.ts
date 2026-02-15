@@ -1,13 +1,15 @@
 // app/models/role.ts
 import { DateTime } from 'luxon'
-import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, manyToMany, scope } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
-import { ROLES, USER_ROLES, ROLE_PERMISSIONS } from '#database/constants/table_names'
+import { USER_ROLES, ROLE_PERMISSIONS } from '#database/constants/table_names'
 import User from './user.js'
 import Permission from './permission.js'
 
 export default class Role extends BaseModel {
-  public static table = ROLES
+  public static softDeletes = scope((query) => {
+    query.whereNull('deleted_at')
+  })
 
   @column({ isPrimary: true })
   declare id: number
@@ -44,12 +46,14 @@ export default class Role extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  static async hasPermission(roleId: number, permissionKey: string): Promise<boolean> {
-    const role = await Role.query()
-      .where('id', roleId)
-      .preload('permissions')
-      .first()
+  @column.dateTime()
+  declare deletedAt?: DateTime | null
 
-    return role?.permissions.some(permission => permission.permissionKey === permissionKey) || false
+  static async hasPermission(roleId: number, permissionKey: string): Promise<boolean> {
+    const role = await Role.query().where('id', roleId).preload('permissions').first()
+
+    return (
+      role?.permissions.some((permission) => permission.permissionKey === permissionKey) || false
+    )
   }
 }

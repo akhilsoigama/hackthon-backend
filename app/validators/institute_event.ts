@@ -9,7 +9,7 @@ export const createInstituteEventValidator = vine.compile(
         eventStatus: vine.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
         eventVenue: vine.string().trim().minLength(3),
         eventLocation: vine.string().trim().minLength(3).optional(),
-        registrationLink: vine.string().url().optional().optional(),
+        registrationLink: vine.string().trim().minLength(2).maxLength(100).optional(),
         eventFee: vine.string().trim().minLength(1).optional(),
         eventDuration: vine.string().trim().minLength(1),
         eventDate: vine.date(),
@@ -30,8 +30,8 @@ export const createInstituteEventValidator = vine.compile(
         isFree: vine.boolean().optional(),
         isFeatured: vine.boolean().optional(),
         isPublished: vine.boolean().optional(),
-        createdBy: vine.number().positive(),
-        updatedBy: vine.number().positive(),
+        createdBy: vine.number().positive().optional(),
+        updatedBy: vine.number().positive().optional(),
         isActive: vine.boolean().optional(),
     })
 )
@@ -46,7 +46,7 @@ export const updateInstituteEventValidator = vine.compile(
         eventStatus: vine.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
         eventVenue: vine.string().trim().minLength(3).optional(),
         eventLocation: vine.string().trim().minLength(3).optional(),
-        registrationLink: vine.string().url().optional(),
+        registrationLink: vine.string().trim().minLength(2).maxLength(100).optional(),
         eventFee: vine.string().trim().minLength(1).optional(),
         eventDuration: vine.string().trim().minLength(1).optional(),
         eventDate: vine.date().optional(),

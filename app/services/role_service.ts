@@ -1,151 +1,205 @@
-import { HttpContext } from "@adonisjs/core/http"
-import Role from "#models/role"
+import { HttpContext } from '@adonisjs/core/http'
+import Role from '#models/role'
+import messages from '#database/constants/messages'
+import { DateTime } from 'luxon'
+import { createRoleValidator, updateRoleValidator } from '#validators/role'
+import { inject } from '@adonisjs/core'
+import { errorHandler } from '../helper/error_handler.js'
 
+@inject()
 export default class RolesService {
-  public async getAllRoleWithPermissions({ response }: HttpContext) {
-    try {
-      console.time('RolesQueryTime')
+  constructor(protected ctx: HttpContext) {}
 
+  async getAllRoleWithPermissions() {
+    try {
       const roles = await Role.query()
-        .select(['id', 'role_name', 'role_key', 'role_description', 'created_at', 'updated_at'])
+        .whereNull('deleted_at')
+        .select([
+          'id',
+          'role_name',
+          'role_key',
+          'role_description',
+          'created_at',
+          'updated_at',
+        ])
         .preload('permissions', (permissionsQuery) => {
           permissionsQuery.select(['id', 'permission_name', 'permission_key'])
         })
         .orderBy('role_name', 'asc')
 
-      console.timeEnd('RolesQueryTime')
-      console.log(`✅ Fetched ${roles.length} roles with permissions`)
-
-      return response.ok({
+      return {
         success: true,
         data: roles,
-        count: roles.length
-      })
+        count: roles.length,
+      }
     } catch (error) {
       console.error('❌ Error fetching roles with permissions:', error)
-      return response.internalServerError({
+      return {
         success: false,
         message: 'Error fetching roles',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      })
+      }
     }
   }
 
-  public async createRoleWithPermissions({ request, response }: HttpContext) {
-    const { roleName, roleDescription, roleKey, permissionIds } = request.only([
-      'roleName',
-      'roleDescription',
-      'roleKey',
-      'permissionIds',
-    ])
+ async createRoleWithPermissions() {
+  try {
+    const requestData = this.ctx.request.all()
 
-    try {
-      // ✅ Check for duplicate role (by roleName or roleKey)
-      const existingRole = await Role.query()
-        .where('role_name', roleName)
-        .orWhere('role_key', roleKey)
-        .first()
-
-      if (existingRole) {
-        return response.conflict({
-          success: false,
-          message: 'A role with this name or key already exists',
-        })
-      }
-
-      // ✅ Create Role
-      const role = await Role.create({
-        roleName,
-        roleDescription,
-        roleKey,
+    const existingRole = await Role.query()
+      .whereNull('deleted_at')
+      .where((query) => {
+        query
+          .where('role_name', requestData.roleName)
+          .orWhere('role_key', requestData.roleKey)
       })
+      .first()
 
-      // ✅ Assign permissions
-      if (permissionIds && Array.isArray(permissionIds) && permissionIds.length > 0) {
-        await role.related('permissions').sync(permissionIds)
-      }
-
-      return response.created({
-        success: true,
-        message: 'Role created successfully',
-        role,
-      })
-    } catch (error) {
-      console.error('Error creating role:', error)
-      return response.internalServerError({
+    if (existingRole) {
+      return {
         success: false,
-        message: 'Error creating role',
-        error,
+        message: 'A role with this name or key already exists',
+      }
+    }
+
+    const validatedData = await createRoleValidator.validate(requestData)
+
+    const role = await Role.create(validatedData)
+
+    if (requestData.permissionIds && Array.isArray(requestData.permissionIds) && requestData.permissionIds.length > 0) {
+      await role.related('permissions').attach(requestData.permissionIds)
+    }
+
+    await role.load('permissions')
+
+    return {
+      success: true,
+      message: 'Role created successfully',
+      role,
+    }
+  } catch (error) {
+    console.error('Error creating role:', error)
+    return {
+      success: false,
+      message: 'Error creating role',
+      error: errorHandler(error),
+    }
+  }
+}
+
+  async updateRole() {
+  try {
+    const id = this.ctx.request.param('id')
+    const requestData = this.ctx.request.all()
+    const validatedData = await updateRoleValidator.validate(requestData)
+
+    const duplicateRole = await Role.query()
+      .whereNull('deleted_at')
+      .whereNot('id', id)
+      .where((query) => {
+        if (validatedData.roleName) {
+          query.where('role_name', validatedData.roleName)
+        }
+        if (validatedData.roleKey) {
+          query.orWhere('role_key', validatedData.roleKey)
+        }
       })
+      .first()
+
+    if (duplicateRole) {
+      return {
+        success: false,
+        message: 'A role with this name or key already exists',
+      }
+    }
+
+    const role = await Role.query()
+      .where('id', id)
+      .whereNull('deleted_at')
+      .firstOrFail()
+
+    role.merge(validatedData)
+    await role.save()
+
+    if (requestData.permissionIds) {
+      if (Array.isArray(requestData.permissionIds) && requestData.permissionIds.length > 0) {
+        await role.related('permissions').sync(requestData.permissionIds)
+      } else {
+        await role.related('permissions').detach()
+      }
+    }
+
+    await role.load('permissions')
+
+    return {
+      success: true,
+      message: 'Role updated successfully',
+      role,
+    }
+  } catch (error) {
+    console.error('Error updating role:', error)
+    return {
+      success: false,
+      message: 'Error updating role',
+      error: errorHandler(error),
+    }
+  }
+}
+
+  async getRoleWithPermissions() {
+    try {
+      const id = this.ctx.request.param('id')
+
+      const role = await Role.query()
+        .where('id', id)
+        .whereNull('deleted_at') 
+        .preload('permissions')
+        .first()
+
+      if (!role) {
+        return {
+          success: false,
+          message: 'Role not found',
+        }
+      }
+
+      return {
+        success: true,
+        data: role,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Error fetching role',
+        error: errorHandler(error),
+      }
     }
   }
 
-
-  public async updateRole({ params, request, response }: HttpContext) {
+  // ✅ SOFT DELETE ROLE
+  async deleteRole() {
     try {
-      const { roleName, roleDescription, roleKey, permissionIds } = request.only([
-        'roleName',
-        'roleDescription',
-        'roleKey',
-        'permissionIds',
-      ])
+      const id = this.ctx.request.param('id')
 
-      const roleId = params.id
+      const role = await Role.query()
+        .where('id', id)
+        .whereNull('deleted_at')
+        .firstOrFail()
 
-      const existingRole = await Role.query()
-        .where((query) => {
-          query.where('role_name', roleName)
-            .orWhere('role_key', roleKey)
-        })
-        .andWhere('id', '!=', roleId)
-        .first()
-
-      if (existingRole) {
-        return response.conflict({
-          success: false,
-          message: 'A role with this name or key already exists',
-        })
-      }
-
-      const role = await Role.find(roleId)
-      if (!role) {
-        return response.notFound({ success: false, message: 'Role not found' })
-      }
-
-      // Update role details if provided
-      role.merge({
-        roleName: roleName || role.roleName,
-        roleDescription: roleDescription || role.roleDescription,
-        roleKey: roleKey || role.roleKey,
-      })
+      role.deletedAt = DateTime.now()
       await role.save()
 
-      // Update role permissions efficiently
-      if (permissionIds && Array.isArray(permissionIds)) {
-        await role.related('permissions').sync(permissionIds)
+      return {
+        status: true,
+        message: messages.common_messages_record_deleted,
+        data: null,
       }
-
-      return response.ok({ success: true, message: 'Role updated successfully', role })
     } catch (error) {
-      console.error('Error updating role:', error)
-      return response.internalServerError({ success: false, message: 'Error updating role', error })
+      return {
+        status: false,
+        message: messages.common_messages_error,
+        error: errorHandler(error),
+      }
     }
   }
-
-  public async getRoleWithPermissions({ params, response }: HttpContext) {
-    const role = await Role.query().where('id', params.id).preload('permissions').first()
-
-    if (!role) {
-      return response.notFound({ message: 'Role not found' })
-    }
-
-    return response.ok(role)
-  }
-
-  public async deleteRole({ params, response }: HttpContext) {
-    const role = await Role.findOrFail(params.id)
-    await role.delete()
-    return response.ok({ message: 'Role deleted successfully' })
-  }
-
 }
