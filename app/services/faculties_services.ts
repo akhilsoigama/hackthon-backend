@@ -174,7 +174,6 @@ export default class FacultyController {
     }
   }
 
-  // ========================= UPDATE =========================
   async updateOne() {
     try {
       const id = this.ctx.request.param('id');
