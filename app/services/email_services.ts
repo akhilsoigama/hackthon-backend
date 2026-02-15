@@ -84,7 +84,6 @@ export default class EmailService {
       }
     }
 
-    // 🧪 MOCK FALLBACK
     console.log('📦 Using MOCK email for:', email)
     await this.logEmailSent(email, password, name, userType, false)
     return true

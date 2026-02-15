@@ -11,14 +11,13 @@ export default class extends BaseSchema {
       table.integer('role_id').unsigned().references('id').inTable('roles').onDelete('CASCADE')
       table.integer('permission_id').unsigned().references('id').inTable('permissions').onDelete('CASCADE')
       
-      // Ensure a role can't have duplicate permissions
       table.unique(['role_id', 'permission_id'])
 
-      // Indexing for better performance
       table.index(['role_id', 'permission_id'])
 
-      table.timestamp('created_at').defaultTo(this.now())
-      table.timestamp('updated_at').defaultTo(this.now())
+      table.timestamp('created_at', { useTz: true })
+      table.timestamp('updated_at', { useTz: true })
+      table.timestamp('deleted_at', { useTz: true }).nullable()
     })
   }
 

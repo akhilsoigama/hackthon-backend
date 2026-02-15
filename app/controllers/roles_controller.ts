@@ -9,23 +9,23 @@ export default class RolesController {
   ) { }
 
   async getAllRoleWithPermissions() {
-    return this.rolesService.getAllRoleWithPermissions(this.ctx)
+    return this.rolesService.getAllRoleWithPermissions()
   }
 
   async createRoleWithPermissions() {
-    return this.rolesService.createRoleWithPermissions(this.ctx)
+    return this.rolesService.createRoleWithPermissions()
   }
 
   async updateRole() {
-    return this.rolesService.updateRole(this.ctx)
+    return this.rolesService.updateRole()
   }
 
   async getRoleWithPermissions() {
-    return this.rolesService.getRoleWithPermissions(this.ctx)
+    return this.rolesService.getRoleWithPermissions()
   }
 
   async deleteRole() {
-    return this.rolesService.deleteRole(this.ctx)
+    return this.rolesService.deleteRole()
   }
 
 }

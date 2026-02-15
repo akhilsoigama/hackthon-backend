@@ -75,7 +75,6 @@ export default class StudentServices {
         .preload('department')
         .preload('institute')
 
-      // Check if user is authenticated
       let authUser = null;
       try {
         authUser = await this.ctx.auth.authenticate();
@@ -210,7 +209,7 @@ export default class StudentServices {
   async deleteOne() {
     try {
       const id = this.ctx.request.param('id');
-      const student = await Student.findOrFail(id)
+      const student = await Student.findOrFail(id);
       await student.delete()
 
       if (!student) {
