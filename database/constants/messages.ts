@@ -1,6 +1,4 @@
 const messages = {
-
-
   common_messages_error: 'Something went wrong, please try again later.',
   common_messages_record_available: 'Records are available.',
   common_messages_record_already_exists: 'Record already exists.',
@@ -14,16 +12,15 @@ const messages = {
 
   user_failed_data: 'Failed to process user data',
   user_login_failed: 'user login failed',
-  user_login_success:'Login successful',
-  user_authentication_failed:'Authentication failed',
-  user_not_authenticated:'User not authenticated',
-  failed_to_fetch_user_data:'Failed to fetch user data',
-  user_logout_success:'Logged out successfully',
-  user_logout_failed:'Logout failed',
-  user_auth_type_failed:'Failed to get auth type',
+  user_login_success: 'Login successful',
+  user_authentication_failed: 'Authentication failed',
+  user_not_authenticated: 'User not authenticated',
+  failed_to_fetch_user_data: 'Failed to fetch user data',
+  user_logout_success: 'Logged out successfully',
+  user_logout_failed: 'Logout failed',
+  user_auth_type_failed: 'Failed to get auth type',
   institute_login_failed: 'institute login failed',
   faculty_login_failed: 'faculty login failed',
-
 
   indtitute_fetched_successfully: 'Institutes fetched successfully',
   institute_not_found: 'Institute not found',
@@ -57,7 +54,6 @@ const messages = {
   student_update_failed: 'Failed to update student',
   student_already_exists: 'Student already exists',
 
-
   govt_event_fetched_successfully: 'Govt events fetched successfully',
   govt_event_not_found: 'Govt event not found',
   govt_event_created_successfully: 'Govt event created successfully',
@@ -73,7 +69,14 @@ const messages = {
   institute_event_updated_successfully: 'Institute event Updated successfully',
   institute_event_update_failed: 'Failed to update institute event',
   institute_event_already_exists: 'Institute event already exists',
-  
+
+  assignment_fetched_successfully: 'Assignment fetched successfully',
+  assignment_not_found: 'Assignment not found',
+  assignemnt_created_successfully: 'Assignment created successfully',
+  assignment_creation_failed: 'Assignment creation failed',
+  assignment_event_updated_successfully: 'Assignment  Updated successfully',
+  assignment_event_update_failed: 'Failed to update Assignment',
+  assignment_event_already_exists: 'Assignment already exists',
 }
 
 export default messages
