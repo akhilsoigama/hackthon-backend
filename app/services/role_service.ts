@@ -1,7 +1,6 @@
 import { HttpContext } from '@adonisjs/core/http'
 import Role from '#models/role'
 import messages from '#database/constants/messages'
-import { DateTime } from 'luxon'
 import { createRoleValidator, updateRoleValidator } from '#validators/role'
 import { inject } from '@adonisjs/core'
 import { errorHandler } from '../helper/error_handler.js'
@@ -176,18 +175,16 @@ export default class RolesService {
     }
   }
 
-  // ✅ SOFT DELETE ROLE
   async deleteRole() {
     try {
       const id = this.ctx.request.param('id')
-
+      
       const role = await Role.query()
         .where('id', id)
         .whereNull('deleted_at')
         .firstOrFail()
 
-      role.deletedAt = DateTime.now()
-      await role.save()
+      await role.delete()
 
       return {
         status: true,

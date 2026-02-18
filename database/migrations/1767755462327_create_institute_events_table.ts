@@ -1,7 +1,8 @@
+import { INSTITUTE_EVENT } from '#database/constants/table_names'
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'institute_events'
+  protected tableName = INSTITUTE_EVENT
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {

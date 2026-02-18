@@ -24,6 +24,7 @@ import PingController from '#controllers/ping_controller'
 import StudentController from '#controllers/student_controller'
 import GovtEventsController from '#controllers/govt_events_controller'
 import InstituteEventsController from '#controllers/institute_events_controller'
+import AssignmentsController from '#controllers/assignments_controller'
 
 router.post('/login', [AuthController, 'login'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
@@ -36,11 +37,11 @@ router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
 router.get('/ping', [PingController, 'handle'])
 
-
 router
   .group(() => {
-    router.post('/chatbot', [ChatBotController, 'chat'])
-    .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
+    router
+      .post('/chatbot', [ChatBotController, 'chat'])
+      .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
 
     // Auth routes
     router.get('/profile', [AuthController, 'me'])
@@ -166,7 +167,7 @@ router
       .use('index', middleware.permission([PermissionKeys.GOVT_SURVEY_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.GOVT_SURVEY_DELETE]))
 
-      router
+    router
       .resource('instituteEvent', InstituteEventsController)
       .apiOnly()
       .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
@@ -175,6 +176,16 @@ router
       .use('show', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_VIEW]))
       .use('index', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_DELETE]))
+
+    router
+      .resource('assignments', AssignmentsController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.ASSIGNMENT_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.ASSIGNMENT_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.ASSIGNMENT_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_LIST]))
+      .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_DELETE]))
   })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
