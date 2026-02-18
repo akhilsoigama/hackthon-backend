@@ -1,6 +1,4 @@
 import env from '#start/env'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
 
 interface EmailLogEntry {
   timestamp: string
@@ -75,8 +73,6 @@ export default class EmailService {
           )
         }
 
-        console.log('✅ Brevo email sent to:', email)
-
         await this.logEmailSent(email, password, name, userType, true)
         return true
       } catch (error: any) {
@@ -84,7 +80,6 @@ export default class EmailService {
       }
     }
 
-    console.log('📦 Using MOCK email for:', email)
     await this.logEmailSent(email, password, name, userType, false)
     return true
   }
@@ -108,33 +103,9 @@ export default class EmailService {
       appUrl: this.appUrl,
     }
 
-    const logFile = join(process.cwd(), 'email_logs.json')
-
-    try {
-      let logs: EmailLogEntry[] = []
-
-      if (existsSync(logFile)) {
-        const content = readFileSync(logFile, 'utf8')
-        if (content.trim()) {
-          logs = content
-            .trim()
-            .split('\n')
-            .map((line) => JSON.parse(line))
-        }
-      }
-
-      logs.push(logEntry)
-
-      writeFileSync(
-        logFile,
-        logs.map((l) => JSON.stringify(l)).join('\n')
-      )
-    } catch (error) {
-      console.error('Failed to log email:', error)
-    }
+    console.log('Email log:', logEntry)
   }
 
-  // ✉️ HTML TEMPLATE
 private getEmailHtml(
   name: string,
   userType: string,
