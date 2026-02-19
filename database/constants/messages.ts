@@ -77,6 +77,14 @@ const messages = {
   assignment_event_updated_successfully: 'Assignment  Updated successfully',
   assignment_event_update_failed: 'Failed to update Assignment',
   assignment_event_already_exists: 'Assignment already exists',
+
+  quiz_fetched_successfully: 'Quiz fetched successfully',
+  quiz_not_found: 'Quiz not found',
+  quiz_created_successfully: 'Quiz created successfully',
+  quiz_creation_failed: 'Quiz creation failed',
+  quiz_updated_successfully: 'Quiz Updated successfully',
+  quiz_update_failed: 'Failed to update Quiz',
+  quiz_already_exists: 'Quiz already exists',
 }
 
 export default messages
