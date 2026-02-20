@@ -25,6 +25,7 @@ import StudentController from '#controllers/student_controller'
 import GovtEventsController from '#controllers/govt_events_controller'
 import InstituteEventsController from '#controllers/institute_events_controller'
 import AssignmentsController from '#controllers/assignments_controller'
+import QuizzesControllersController from '#controllers/quizzes_controllers_controller'
 
 router.post('/login', [AuthController, 'login'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
@@ -186,6 +187,16 @@ router
       .use('show', middleware.permission([PermissionKeys.ASSIGNMENT_VIEW]))
       .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_DELETE]))
+
+    router
+      .resource('quizzes', QuizzesControllersController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.QUIZ_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.QUIZ_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.QUIZ_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.QUIZ_LIST]))
+      .use('destroy', middleware.permission([PermissionKeys.QUIZ_DELETE]))
   })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
