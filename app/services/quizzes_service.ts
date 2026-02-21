@@ -65,14 +65,20 @@ export default class QuizzesService {
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
       let query = Quizzes.query()
-        .preload('department')
+        .preload('department', (departmentQuery) => {
+          departmentQuery.select(['id', 'departmentName'])
+        })
         .preload('questions', (questionQuery) => {
           questionQuery.preload('options', (optionQuery) => {
             optionQuery.select(['id', 'optionText'])
           })
         })
-        .preload('faculty')
-        .preload('institute')
+        .preload('faculty', (facultyQuery) => {
+          facultyQuery.select(['id', 'facultyName', 'facultyEmail'])
+        })
+        .preload('institute', (instituteQuery) => {
+          instituteQuery.select(['id', 'instituteName'])
+        })
         .apply((scopes) => scopes.softDeletes())
       if (searchFor === 'create') {
         query = query.where('is_active', true)
@@ -105,7 +111,20 @@ export default class QuizzesService {
       const quiz = await Quizzes.query()
         .where('id', id)
         .whereNull('deleted_at')
-        .preload('department')
+        .preload('department', (departmentQuery) => {
+          departmentQuery.select(['id', 'departmentName'])
+        })
+        .preload('questions', (questionQuery) => {
+          questionQuery.preload('options', (optionQuery) => {
+            optionQuery.select(['id', 'optionText'])
+          })
+        })
+        .preload('faculty', (facultyQuery) => {
+          facultyQuery.select(['id', 'facultyName', 'facultyEmail'])
+        })
+        .preload('institute', (instituteQuery) => {
+          instituteQuery.select(['id', 'instituteName'])
+        })
         .first()
       if (quiz) {
         return {
@@ -148,10 +167,8 @@ export default class QuizzesService {
 
       const validatedData = await updateQuizzezValidator.validate(requestData)
 
-      // Attach transaction
       existingQuiz.useTransaction(trx)
 
-      // Update quiz fields
       existingQuiz.merge({
         ...validatedData,
         dueDate: validatedData.dueDate ? DateTime.fromISO(validatedData.dueDate) : undefined,
@@ -171,7 +188,6 @@ export default class QuizzesService {
       const incomingQuestionIds: number[] = []
 
       for (const q of validatedData.questions || []) {
-        // CASE 1: Update existing question
         if (q.id && existingQuestionsMap.has(q.id)) {
           const existingQuestion = existingQuestionsMap.get(q.id)!
           incomingQuestionIds.push(existingQuestion.id)
@@ -202,7 +218,6 @@ export default class QuizzesService {
               })
               await existingOption.save()
             } else {
-              // Create new option
               const newOption = await existingQuestion.related('options').create(
                 {
                   optionText: opt.optionText,
@@ -222,10 +237,7 @@ export default class QuizzesService {
               await existingOpt.delete()
             }
           }
-        }
-
-        // CASE 2: Create new question
-        else {
+        } else {
           const newQuestion = await existingQuiz.related('questions').create(
             {
               questionText: q.questionText,
@@ -236,7 +248,6 @@ export default class QuizzesService {
 
           incomingQuestionIds.push(newQuestion.id)
 
-          // Create options for new question
           if (q.options?.length) {
             await newQuestion.related('options').createMany(
               q.options.map((opt) => ({

@@ -26,6 +26,7 @@ import GovtEventsController from '#controllers/govt_events_controller'
 import InstituteEventsController from '#controllers/institute_events_controller'
 import AssignmentsController from '#controllers/assignments_controller'
 import QuizzesControllersController from '#controllers/quizzes_controllers_controller'
+import QuizAttemptControllersController from '#controllers/quiz_attempt_controllers_controller'
 
 router.post('/login', [AuthController, 'login'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
@@ -197,7 +198,15 @@ router
       .use('show', middleware.permission([PermissionKeys.QUIZ_VIEW]))
       .use('index', middleware.permission([PermissionKeys.QUIZ_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.QUIZ_DELETE]))
-  })
+
+    router
+    .resource('quiz-attempts', QuizAttemptControllersController)
+    .apiOnly()
+    .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use('store', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_CREATE]))
+    .use('show', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_VIEW]))
+    .use('index', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_LIST]))
+ })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
 router.any('*', ({ response }) => {

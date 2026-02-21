@@ -85,6 +85,22 @@ const messages = {
   quiz_updated_successfully: 'Quiz Updated successfully',
   quiz_update_failed: 'Failed to update Quiz',
   quiz_already_exists: 'Quiz already exists',
+  quiz_already_attempted: 'Quiz already attempted by the student',
+  
+  quiz_attempt_failed: 'Failed to attempt quiz',
+  quiz_attempt_success: 'Quiz attempted successfully',
+  attempt_fetched_successfully: 'Quiz attempts fetched successfully',
+  attempt_not_found: 'Attempt not found',
+  attempt_fetch_failed: 'Failed to fetch attempts',
+  
+  question_fetched_successfully: 'Question fetched successfully',
+  question_not_found: 'Question not found',
+  question_created_successfully: 'Question created successfully',
+  question_creation_failed: 'Question creation failed',
+  question_updated_successfully: 'Question Updated successfully',
+  question_update_failed: 'Failed to update Question',
+  question_already_exists: 'Question already exists',
+
 }
 
 export default messages
