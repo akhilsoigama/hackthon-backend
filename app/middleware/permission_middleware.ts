@@ -84,7 +84,9 @@ const PermissionMapping: Record<string, PermissionKeys> = {
   quiz_update: PermissionKeys.QUIZ_UPDATE,
   quiz_view: PermissionKeys.QUIZ_VIEW,
   quiz_delete: PermissionKeys.QUIZ_DELETE,
-
+  quiz_create_attempt: PermissionKeys.QUIZ_ATTEMPT_CREATE,
+  quiz_view_attempt: PermissionKeys.QUIZ_ATTEMPT_VIEW,
+  quiz_list_attempt: PermissionKeys.QUIZ_ATTEMPT_LIST,
   // Material
   material_create: PermissionKeys.MATERIAL_CREATE,
   material_update: PermissionKeys.MATERIAL_UPDATE,

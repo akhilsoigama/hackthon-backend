@@ -64,7 +64,9 @@ export default class Quizzes extends BaseModel {
   @belongsTo(() => Faculty)
   declare faculty: BelongsTo<typeof Faculty>
 
-  @hasMany(() => QuizAttempt)
+  @hasMany(() => QuizAttempt, {
+    foreignKey: 'quizId',
+  })
   declare attempts: HasMany<typeof QuizAttempt>
 
   @column.dateTime({ autoCreate: true, columnName: 'created_at' })
