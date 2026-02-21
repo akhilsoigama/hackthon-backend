@@ -30,7 +30,9 @@ export default class QuizAttempt extends BaseModel {
   @column({ columnName: 'status' })
   declare status: 'in_progress' | 'submitted' | 'completed'
 
-  @belongsTo(() => Quizzes)
+  @belongsTo(() => Quizzes, {
+    foreignKey: 'quizId',
+  })
   declare quiz: BelongsTo<typeof Quizzes>
 
   @belongsTo(() => Student)

@@ -15,7 +15,7 @@ export default class extends BaseSchema {
       table.enum('status', ['in_progress', 'submitted', 'completed']).defaultTo('in_progress')
       table.timestamp('created_at')
       table.timestamp('updated_at')
-      
+      table.timestamp('deleted_at').nullable()
     })
   }
 
