@@ -105,7 +105,7 @@ export default class QuizzesAttemptServices {
       const query = QuizAttempt.query()
         .whereNull('deleted_at')
         .preload('quiz', (quizQuery) => {
-          quizQuery.select('id', 'quiz_title')
+          quizQuery.select('id', 'quiz_title','quiz_description')
         })
         .preload('student', (studentQuery) => {
           studentQuery.select('id', 'student_name')
@@ -150,7 +150,7 @@ export default class QuizzesAttemptServices {
         .where('id', attemptId)
         .whereNull('deleted_at')
         .preload('quiz', (quizQuery) => {
-          quizQuery.select('id', 'quiz_title')
+          quizQuery.select('id', 'quiz_title','quiz_description')
         })
         .preload('student', (studentQuery) => {
           studentQuery.select('id', 'student_name')

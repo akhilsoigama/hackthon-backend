@@ -18,7 +18,7 @@ export default class Question extends BaseModel {
   @column({ columnName: 'quiz_id' })
   declare quizId: number
 
-  @column()
+  @column({ columnName: 'question_type' })
   declare questionType: 'mcq' | 'true/false'
 
   @column()

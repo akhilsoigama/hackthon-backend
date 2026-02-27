@@ -7,42 +7,131 @@ import Quizzes from '#models/quizzes'
 import { DateTime } from 'luxon'
 import messages from '#database/constants/messages'
 
+type QuestionType = 'mcq' | 'true/false'
+
+type QuizOptionPayload = {
+  id?: number
+  optionText: string
+  isCorrect?: boolean
+}
+
+type QuizQuestionPayload = {
+  id?: number
+  questionText: string
+  questionType: QuestionType
+  marks: number
+  options?: QuizOptionPayload[]
+}
+
+type CreateQuizPayload = {
+  quizTitle: string
+  quizDescription?: string
+  quizBanner: string
+  subject?: string
+  std?: string
+  dueDate?: string
+  marks?: number
+  attemptLimit?: number
+  isActive?: boolean
+  instituteId: number
+  facultyId: number
+  departmentId: number
+  questions?: QuizQuestionPayload[]
+}
+
+type UpdateQuizPayload = {
+  quizTitle?: string
+  quizDescription?: string
+  quizBanner?: string
+  subject?: string
+  std?: string
+  dueDate?: string
+  marks?: number
+  attemptLimit?: number
+  isActive?: boolean
+  instituteId?: number
+  facultyId?: number
+  departmentId?: number
+  questions?: QuizQuestionPayload[]
+}
+
 @inject()
 export default class QuizzesService {
   constructor(protected ctx: HttpContext) {}
+
+  private parseDueDate(dueDate?: string) {
+    if (!dueDate) {
+      return undefined
+    }
+
+    const parsedDueDate = DateTime.fromISO(dueDate)
+    if (!parsedDueDate.isValid) {
+      throw new Error('Invalid dueDate. Expected ISO format.')
+    }
+
+    return parsedDueDate
+  }
+
   async create() {
     const trx = await db.transaction()
+
     try {
       const requestData = this.ctx.request.all()
+      const validatedData = (await createQuizzezValidator.validate(
+        requestData
+      )) as CreateQuizPayload
+
       const existingQuiz = await Quizzes.query()
-        .where('quiz_title', requestData.quizTitle)
+        .where('quiz_title', validatedData.quizTitle)
         .whereNull('deleted_at')
         .first()
+
       if (existingQuiz) {
-        return this.ctx.response.status(422).send({
+        await trx.rollback()
+        return {
           status: false,
           message: messages.quiz_already_exists,
-        })
+          data: null,
+        }
       }
-      const validatedData = await createQuizzezValidator.validate(requestData)
-      const quizData = {
-        ...validatedData,
-        dueDate: validatedData.dueDate ? DateTime.fromISO(validatedData.dueDate) : undefined,
-      }
-      const quiz = await Quizzes.create({ ...quizData }, { client: trx })
+
+      const quiz = await Quizzes.create(
+        {
+          quizTitle: validatedData.quizTitle,
+          quizDescription: validatedData.quizDescription,
+          quizBanner: validatedData.quizBanner,
+          subject: validatedData.subject,
+          std: validatedData.std,
+          dueDate: this.parseDueDate(validatedData.dueDate),
+          marks: validatedData.marks,
+          attemptLimit: validatedData.attemptLimit,
+          isActive: validatedData.isActive,
+          instituteId: validatedData.instituteId,
+          facultyId: validatedData.facultyId,
+          departmentId: validatedData.departmentId,
+        },
+        { client: trx }
+      )
 
       if (validatedData.questions && validatedData.questions.length > 0) {
         for (const q of validatedData.questions) {
-          const { options, ...questionData } = q
+          const createdQuestion = await quiz.related('questions').create(
+            {
+              questionText: q.questionText,
+              questionType: q.questionType,
+              marks: q.marks,
+            },
+            { client: trx }
+          )
 
-          const createdQuestion = await quiz
-            .related('questions')
-            .create(questionData, { client: trx })
-
-          if (options?.length) {
-            await createdQuestion.related('options').createMany(options, {
-              client: trx,
-            })
+          if (q.options?.length) {
+            await createdQuestion.related('options').createMany(
+              q.options.map((option) => ({
+                optionText: option.optionText,
+                isCorrect: option.isCorrect ?? false,
+              })),
+              { client: trx }
+            )
           }
         }
       }
@@ -58,7 +147,7 @@ export default class QuizzesService {
       return {
         status: false,
         message: messages.quiz_creation_failed,
-        error: errorHandler(error),
+        data: errorHandler(error),
       }
     }
   }
@@ -116,7 +205,7 @@ export default class QuizzesService {
         })
         .preload('questions', (questionQuery) => {
           questionQuery.preload('options', (optionQuery) => {
-            optionQuery.select(['id', 'optionText'])
+            optionQuery.select(['id', 'optionText', 'isCorrect'])
           })
         })
         .preload('faculty', (facultyQuery) => {
@@ -153,10 +242,13 @@ export default class QuizzesService {
     try {
       const id = this.ctx.request.param('id')
       const requestData = this.ctx.request.all()
+      const validatedData = (await updateQuizzezValidator.validate(
+        requestData
+      )) as UpdateQuizPayload
 
-      const existingQuiz = await Quizzes.find(id)
+      const existingQuiz = await Quizzes.query().where('id', id).whereNull('deleted_at').first()
 
-      if (!existingQuiz || existingQuiz.deletedAt) {
+      if (!existingQuiz) {
         await trx.rollback()
         return {
           status: false,
@@ -165,13 +257,21 @@ export default class QuizzesService {
         }
       }
 
-      const validatedData = await updateQuizzezValidator.validate(requestData)
-
       existingQuiz.useTransaction(trx)
 
       existingQuiz.merge({
-        ...validatedData,
-        dueDate: validatedData.dueDate ? DateTime.fromISO(validatedData.dueDate) : undefined,
+        quizTitle: validatedData.quizTitle,
+        quizDescription: validatedData.quizDescription,
+        quizBanner: validatedData.quizBanner,
+        subject: validatedData.subject,
+        std: validatedData.std,
+        dueDate: this.parseDueDate(validatedData.dueDate),
+        marks: validatedData.marks,
+        attemptLimit: validatedData.attemptLimit,
+        isActive: validatedData.isActive,
+        instituteId: validatedData.instituteId,
+        facultyId: validatedData.facultyId,
+        departmentId: validatedData.departmentId,
       })
 
       await existingQuiz.save()
@@ -195,6 +295,7 @@ export default class QuizzesService {
           existingQuestion.useTransaction(trx)
           existingQuestion.merge({
             questionText: q.questionText,
+            questionType: q.questionType,
             marks: q.marks,
           })
           await existingQuestion.save()
@@ -221,7 +322,7 @@ export default class QuizzesService {
               const newOption = await existingQuestion.related('options').create(
                 {
                   optionText: opt.optionText,
-                  isCorrect: opt.isCorrect,
+                  isCorrect: opt.isCorrect ?? false,
                 },
                 { client: trx }
               )
@@ -230,7 +331,6 @@ export default class QuizzesService {
             }
           }
 
-          // Delete removed options
           for (const [optId, existingOpt] of existingOptionsMap) {
             if (!incomingOptionIds.includes(optId)) {
               existingOpt.useTransaction(trx)
@@ -241,6 +341,7 @@ export default class QuizzesService {
           const newQuestion = await existingQuiz.related('questions').create(
             {
               questionText: q.questionText,
+              questionType: q.questionType,
               marks: q.marks,
             },
             { client: trx }
@@ -252,7 +353,7 @@ export default class QuizzesService {
             await newQuestion.related('options').createMany(
               q.options.map((opt) => ({
                 optionText: opt.optionText,
-                isCorrect: opt.isCorrect,
+                isCorrect: opt.isCorrect ?? false,
               })),
               { client: trx }
             )
@@ -280,7 +381,7 @@ export default class QuizzesService {
       return {
         status: false,
         message: messages.quiz_update_failed,
-        error: errorHandler(error),
+        data: errorHandler(error),
       }
     }
   }

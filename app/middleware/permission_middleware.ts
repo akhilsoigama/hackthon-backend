@@ -151,11 +151,7 @@ export default class PermissionMiddleware {
     try {
       if (!permissions || permissions.length === 0) return next()
 
-      const user =
-        (ctx as any).user ||
-        (ctx as any).authUser ||
-        (ctx.request as any).user ||
-        ctx.auth?.user
+      const user = (ctx as any).user || (ctx as any).authUser || (ctx.request as any).user || ctx.auth?.user
 
       if (!user) {
         return ctx.response.unauthorized({
