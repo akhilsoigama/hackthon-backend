@@ -12,7 +12,7 @@ export default class QuizAttemptControllersController {
   async store() {
     return this.quizAttemptServices.attemptQuiz()
   }
-   async show() {
+  async show() {
     return this.quizAttemptServices.findOne()
   }
 }
