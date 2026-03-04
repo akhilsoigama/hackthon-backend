@@ -34,8 +34,8 @@ export default class Assignment extends BaseModel {
   @column()
   declare facultyId: number
 
-  @column()
-  declare dueDate: Date | null
+@column.date()
+declare dueDate: DateTime | null
 
   @column()
   declare marks: number | null
