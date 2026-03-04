@@ -10,7 +10,7 @@ export const createAssignmentValidator = vine.compile(
         instituteId: vine.number(),
         facultyId: vine.number(),
         departmentId: vine.number(),
-        dueDate: vine.date().optional(),
+dueDate: vine.date().optional(),
         marks: vine.number().optional(),
         isActive: vine.boolean().optional(),
     })
