@@ -10,14 +10,12 @@ import { DateTime } from "luxon";
 export default class GovtEventServices {
     constructor(protected ctx: HttpContext) { }
 
-    // Helper method to set security headers
     private setSecurityHeaders() {
         this.ctx.response.header('Access-Control-Allow-Origin', '*');
         this.ctx.response.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         this.ctx.response.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
         
-        // Fix for COEP/CORP issues
-        this.ctx.response.header('Cross-Origin-Embedder-Policy', 'credentialless'); // or 'require-corp'
+        this.ctx.response.header('Cross-Origin-Embedder-Policy', 'credentialless'); 
         this.ctx.response.header('Cross-Origin-Resource-Policy', 'cross-origin');
         this.ctx.response.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
     }
