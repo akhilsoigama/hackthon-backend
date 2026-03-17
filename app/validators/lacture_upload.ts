@@ -25,7 +25,7 @@ export const updateLectureValidator = vine.compile(
     content_url: vine.string().url().optional(),
     thumbnail_url: vine.string().url().optional(),
     text_content: vine.string().optional(),
-    textContent: vine.string().optional(), // ✅ Add this line
+    textContent: vine.string().optional(),
     duration_in_seconds: vine.number().positive().optional(),
     duration: vine.string().optional(),
     std: vine.string().trim().optional(),

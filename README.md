@@ -1,78 +1,207 @@
-# Backend Documentation of E-learning Platform for Nabha 
+# LMS API Backend
 
-## API Routes
+Backend API for the ruralSpark learning platform, built with AdonisJS and TypeScript.
 
----
+This service provides:
 
-## 🔑 Authentication
-| Method | Route        | Handler                    | Middleware |
-|--------|-------------|----------------------------|------------|
-| POST   | `/login`    | `AuthController.login`     | -          |
-| GET    | `/profile`  | `AuthController.getProfile`| -          |
+- Authentication and profile endpoints
+- Role and permission based access control
+- Institute, department, faculty, and student management
+- Learning content management: lectures, assignments, quizzes, and quiz attempts
+- AI chatbot support for education workflows
 
----
+## Tech Stack
 
-## 🤖 Chatbot
-| Method | Route       | Handler                    | Middleware |
-|--------|-------------|----------------------------|------------|
-| POST   | `/chatbot`  | `ChatBotController.chat`   | -          |
+- AdonisJS 6
+- TypeScript
+- PostgreSQL with Lucid ORM
+- Groq SDK for chatbot model calls
+- Tavily for optional web search context
+- Cloudinary for lecture media uploads
 
----
+## Quick Start
 
-## 🛡 Roles & Permissions
-| Method | Route                  | Handler                                     | Middleware         |
-|--------|------------------------|---------------------------------------------|--------------------|
-| GET    | `/roles/:id`           | `RolesController.getRoleWithPermissions`    | `auth, permission` |
-| POST   | `/roles`               | `RolesController.createRoleWithPermissions` | `auth, permission` |
-| PUT    | `/roles/:id`           | `RolesController.updateRole`                | `auth, permission` |
-| GET    | `/roles`               | `RolesController.getAllRoleWithPermissions` | `auth, permission` |
-| Delete | `/roles/:id`           | `RolesController.deleteRole`                | `auth, permission` |
-| GET    | `/permissions`         | `PermissionsController.getAllPermissions`   | `auth, permission` |
+1. Install dependencies.
+   - npm install
+2. Configure environment variables in .env.
+3. Run migrations.
+   - npm run migrate
+4. Optional: seed data.
+   - npm run seed
+5. Start the development server.
+   - npm run dev
 
----
+## Main Scripts
 
-## 👤 User Management
-| Method | Route                        | Handler                          | Middleware         |
-|--------|------------------------------|----------------------------------|--------------------|
-| GET    | `/users` (users.index)       | `UsersController.index`          | `auth, permission` |
-| POST   | `/users` (users.store)       | `UsersController.store`          | `auth, permission` |
-| GET    | `/users/:id` (users.show)    | `UsersController.show`           | `auth, permission` |
-| PUT    | `/users/:id` (users.update)  | `UsersController.update`         | `auth, permission` |
-| PATCH  | `/users/:id` (users.update)  | `UsersController.update`         | `auth, permission` |
-| DELETE | `/users/:id` (users.destroy) | `UsersController.destroy`        | `auth, permission` |
-| POST   | `/users/:id/roles`           | `UsersController.assignRoles`    | `auth, permission` |
-| DELETE | `/users/:id/roles/:roleId`   | `UsersController.removeRole`     | `auth, permission` |
-| GET    | `/users/:id/roles`           | `UsersController.getUserRoles`   | `auth, permission` |
+- npm run dev
+- npm run build
+- npm run start
+- npm run test
+- npm run lint
+- npm run typecheck
+- npm run migrate
+- npm run seed
 
----
+## Required Environment Variables
 
-## 🏫 Institutes
-| Method | Route              | Handler                        | Middleware         |
-|--------|--------------------|--------------------------------|--------------------|
-| GET    | `/institutes`      | `InstitutesController.index`   | `auth, permission` |
-| POST   | `/institutes`      | `InstitutesController.store`   | `auth, permission` |
-| GET    | `/institutes/:id`  | `InstitutesController.show`    | `auth, permission` |
-| PUT    | `/institutes/:id`  | `InstitutesController.update`  | `auth, permission` |
-| DELETE | `/institutes/:id`  | `InstitutesController.destroy` | `auth, permission` |
+Minimum variables to run core APIs:
 
----
+- APP_KEY
+- NODE_ENV
+- PORT
+- HOST
+- DB_HOST
+- DB_PORT
+- DB_USER
+- DB_PASSWORD
+- DB_DATABASE
 
-## 🏢 Departments
-| Method | Route                 | Handler                          | Middleware         |
-|--------|-----------------------|----------------------------------|--------------------|
-| GET    | `/departments`        | `DepartmentsController.index`    | `auth, permission` |
-| POST   | `/departments`        | `DepartmentsController.store`    | `auth, permission` |
-| GET    | `/departments/:id`    | `DepartmentsController.show`     | `auth, permission` |
-| PUT    | `/departments/:id`    | `DepartmentsController.update`   | `auth, permission` |
-| DELETE | `/departments/:id`    | `DepartmentsController.destroy`  | `auth, permission` |
+For chatbot:
 
----
+- CHATBOT_API_KEY
+- CHATBOT_MODEL (optional, default: llama-3.3-70b-versatile)
+- TAVILY_API_KEY (optional, used only when useWebSearch is true)
 
-## 🎓 Faculty Management
-| Method | Route             | Handler                        | Middleware         |
-|--------|-------------------|--------------------------------|--------------------|
-| GET    | `/faculty`        | `FacultiesController.index`    | `auth, permission` |
-| POST   | `/faculty`        | `FacultiesController.store`    | `auth, permission` |
-| GET    | `/faculty/:id`    | `FacultiesController.show`     | `auth, permission` |
-| PUT    | `/faculty/:id`    | `FacultiesController.update`   | `auth, permission` |
-| DELETE | `/faculty/:id`    | `FacultiesController.destroy`  | `auth, permission` |
+For lecture media uploads:
+
+- Cloudinary credentials configured in config/cloudinary.ts and .env
+
+## Authentication
+
+Public endpoints:
+
+- POST /login
+- POST /translate
+- GET /ping
+- GET /test-db
+
+Protected APIs are grouped under auth middleware and permission checks where applicable.
+
+## Route Groups (High Level)
+
+All below endpoints are available in start/routes.ts and most require auth and permission middleware.
+
+### Profile and auth session
+
+- GET /profile
+- POST /logout
+- GET /auth-type
+- GET /my-permissions
+- POST /check-permission
+
+### Roles and permissions
+
+- GET /roles
+- POST /roles
+- GET /roles/:id
+- PUT /roles/:id
+- DELETE /roles/:id
+- GET /permissions
+- GET /permissions/:id
+
+### User management
+
+- Resource: /users
+- POST /users/:id/roles
+- DELETE /users/:id/roles/:roleId
+- GET /users/:id/roles
+
+### Institute, department, faculty, student
+
+- Resource: /institutes
+- Resource: /departments
+- Resource: /faculty
+- Resource: /student
+
+### Events and surveys
+
+- Resource: /govtEvent
+- Resource: /instituteEvent
+
+### Learning content and evaluation
+
+- Resource: /lectures
+- Resource: /assignments
+- Resource: /quizzes
+- Resource: /quiz-attempts
+
+## Chatbot API
+
+Endpoint:
+
+- POST /chatbot
+
+Current behavior:
+
+- Injects a built in education system prompt on every request
+- Supports optional role-aware context via userContext
+- Supports optional real-time web context when useWebSearch is true
+
+Request body fields:
+
+- messages: array of objects with role and content
+- query: string fallback when messages is not provided
+- useWebSearch: boolean
+- userContext: optional object with userType, permissions, instituteId, facultyId, departmentId
+
+Minimum request requirements:
+
+- Send either non-empty messages or query
+
+Chatbot response:
+
+- message: model text output
+- completion: raw model completion object
+
+## Education System Prompt (Chatbot)
+
+The chatbot prompt is maintained in app/constants/chatbot_system_prompt.ts.
+
+It is designed for real education workflows and focuses on:
+
+- Teacher help for quiz creation
+- Teacher help for assignment creation
+- Teacher help for lecture and material creation
+- Role-safe and permission-aware guidance
+- Backend-compatible payload structures
+
+## Quiz Payload Reference
+
+Expected create fields include:
+
+- quizTitle, quizDescription, quizBanner
+- subject, std, dueDate, marks, attemptLimit, isActive
+- instituteId, facultyId, departmentId
+- questions[] with questionText, questionType, marks, options[]
+
+## Assignment Payload Reference
+
+Expected create fields include:
+
+- assignmentTitle, assignmentDescription
+- assignmentFile, subject, std
+- instituteId, facultyId, departmentId
+- dueDate, marks, isActive
+
+## Lecture Payload Reference
+
+Expected create fields include:
+
+- title, description, subject, std
+- content_type: video | audio | pdf | text | image
+- content_url or uploaded file based on content type
+- thumbnail_url
+- duration_in_seconds
+- text_content for text lectures
+
+## Notes
+
+- Most resources are permission-gated using PermissionKeys.
+- Some modules apply soft-deletes and hide deleted records by default.
+- Unknown routes return JSON 404 response.
+
+## Source References
+
+- Routes: start/routes.ts
+- Chatbot controller: app/controllers/chatBotController.ts
+- Chatbot system prompt: app/constants/chatbot_system_prompt.ts
