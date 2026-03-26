@@ -16,7 +16,7 @@ export default class EmailService {
   private brevoApiKey: string | null
 
   constructor() {
-    this.appUrl = env.get('APP_URL') || 'https://eduhub-learn.vercel.app'
+    this.appUrl = env.get('APP_URL') || 'https://www.ruralspark.me'
     this.brevoApiKey = env.get('BREVO_API_KEY') || null
 
     if (!this.brevoApiKey) {
