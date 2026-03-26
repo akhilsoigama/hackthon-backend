@@ -4,7 +4,7 @@ export default defineConfig({
   enabled: true,
 
   origin: [
-    'https://eduhub-learn.vercel.app', 
+    'https://www.ruralspark.me', 
     'http://localhost:5173',
     'http://localhost:4173'  
   ],
