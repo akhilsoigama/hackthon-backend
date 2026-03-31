@@ -207,7 +207,7 @@ export default class AssignmentService {
       await existingAssignment.load('faculty')
       return {
         status: true,
-        messages: messages.assignment_event_updated_successfully,
+        messages: messages.assignment_updated_successfully,
         data: existingAssignment,
       }
     } catch (error) {

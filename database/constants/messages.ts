@@ -74,9 +74,9 @@ const messages = {
   assignment_not_found: 'Assignment not found',
   assignemnt_created_successfully: 'Assignment created successfully',
   assignment_creation_failed: 'Assignment creation failed',
-  assignment_event_updated_successfully: 'Assignment  Updated successfully',
-  assignment_event_update_failed: 'Failed to update Assignment',
-  assignment_event_already_exists: 'Assignment already exists',
+  assignment_updated_successfully: 'Assignment  Updated successfully',
+  assignment_update_failed: 'Failed to update Assignment',
+  assignment_already_exists: 'Assignment already exists',
 
   quiz_fetched_successfully: 'Quiz fetched successfully',
   quiz_not_found: 'Quiz not found',
@@ -100,6 +100,16 @@ const messages = {
   question_updated_successfully: 'Question Updated successfully',
   question_update_failed: 'Failed to update Question',
   question_already_exists: 'Question already exists',
+
+  assignment_uploads_fetched_successfully: 'Assignment uploads fetched successfully',
+  assignment_uploads_not_found: 'Assignment uploads not found',
+  assignment_uploads_created_successfully: 'Assignment uploads created successfully',
+  assignment_uploads_creation_failed: 'Assignment uploads creation failed',
+  assignment_uploads_updated_successfully: 'Assignment uploads Updated successfully',
+  assignment_uploads_deleted_successfully: 'Assignment uploads deleted successfully',
+  assignment_uploads_update_failed: 'Failed to update Assignment uploads',
+  assignment_uploads_deleted_failed: 'Failed to delete Assignment uploads',
+  assignment_uploads_already_exists: 'Assignment uploads already exists',
 
 }
 

@@ -27,6 +27,7 @@ import InstituteEventsController from '#controllers/institute_events_controller'
 import AssignmentsController from '#controllers/assignments_controller'
 import QuizzesControllersController from '#controllers/quizzes_controllers_controller'
 import QuizAttemptController from '#controllers/quiz_attempt_controller'
+import AssignmentUploadsController from '#controllers/assignment_uploads_controller'
 
 router.post('/login', [AuthController, 'login'])
 router.post('/translate', [TranslatesController, 'translateMessage'])
@@ -129,7 +130,6 @@ router
       .use('destroy', middleware.permission([PermissionKeys.DEPARTMENT_DELETE]))
 
     // Lecture upload routes - SIMPLIFIED VERSION
-
     router
       .resource('lectures', LectureUploadsController)
       .apiOnly()
@@ -139,6 +139,7 @@ router
       .use('index', middleware.permission([PermissionKeys.LECTURE_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.LECTURE_DELETE]))
 
+    // Faculty Routes
     router
       .resource('faculty', FacultyController)
       .apiOnly()
@@ -149,6 +150,7 @@ router
       .use('index', middleware.permission([PermissionKeys.FACULTY_VIEW]))
       .use('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
 
+    // Student Routes
     router
       .resource('student', StudentController)
       .apiOnly()
@@ -159,6 +161,7 @@ router
       .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
 
+    // Govt Routes
     router
       .resource('govtEvent', GovtEventsController)
       .apiOnly()
@@ -169,6 +172,7 @@ router
       .use('index', middleware.permission([PermissionKeys.GOVT_SURVEY_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.GOVT_SURVEY_DELETE]))
 
+    // Institute Routes
     router
       .resource('instituteEvent', InstituteEventsController)
       .apiOnly()
@@ -179,6 +183,7 @@ router
       .use('index', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.INSTITUTE_SURVEY_DELETE]))
 
+    // Assignment Routes
     router
       .resource('assignments', AssignmentsController)
       .apiOnly()
@@ -189,6 +194,7 @@ router
       .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_DELETE]))
 
+    // Quiz Routes
     router
       .resource('quizzes', QuizzesControllersController)
       .apiOnly()
@@ -199,14 +205,25 @@ router
       .use('index', middleware.permission([PermissionKeys.QUIZ_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.QUIZ_DELETE]))
 
+    // Quiz Attempt Routes
     router
-    .resource('quiz-attempts', QuizAttemptController)
-    .apiOnly()
-    .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
-    .use('store', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_CREATE]))
-    .use('show', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_VIEW]))
-    .use('index', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_LIST]))
- })
+      .resource('quiz-attempts', QuizAttemptController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('store', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_CREATE]))
+      .use('show', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.QUIZ_ATTEMPT_LIST]))
+
+    // Assignment Upload Routes
+    router
+      .resource('assignment-uploads', AssignmentUploadsController)
+      .apiOnly()
+      .use('store', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_CREATE]))
+      .use('update', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE]))
+      .use('show', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_LIST]))
+      .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_DELETE]))
+  })
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
 router.any('*', ({ response }) => {
