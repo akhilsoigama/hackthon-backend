@@ -28,8 +28,9 @@ import AssignmentsController from '#controllers/assignments_controller'
 import QuizzesControllersController from '#controllers/quizzes_controllers_controller'
 import QuizAttemptController from '#controllers/quiz_attempt_controller'
 import AssignmentUploadsController from '#controllers/assignment_uploads_controller'
+import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
 
-router.post('/login', [AuthController, 'login'])
+router.post('/login', [AuthController, 'login']).use(middleware.rateLimit({ config: RateLimitConfigs.auth }))
 router.post('/translate', [TranslatesController, 'translateMessage'])
 router.get('/test-db', [AuthController, 'testDB'])
 
@@ -44,6 +45,7 @@ router
   .group(() => {
     router
       .post('/chatbot', [ChatBotController, 'chat'])
+      .use(middleware.rateLimit({ config: RateLimitConfigs.chatbot }))
       .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
 
     // Auth routes
@@ -218,12 +220,15 @@ router
     router
       .resource('assignment-uploads', AssignmentUploadsController)
       .apiOnly()
+      .use('store', middleware.rateLimit({ config: RateLimitConfigs.uploadStore }))
       .use('store', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_CREATE]))
+      .use('update', middleware.rateLimit({ config: RateLimitConfigs.uploadUpdate }))
       .use('update', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE]))
       .use('show', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_VIEW]))
       .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_DELETE]))
   })
+  .use(middleware.rateLimit({ config: RateLimitConfigs.api }))
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
 router.any('*', ({ response }) => {
