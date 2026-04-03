@@ -20,7 +20,7 @@ export default class AuthController {
     const isProduction = env.get('NODE_ENV') === 'production'
     const secure = env.get('AUTH_COOKIE_SECURE') ?? isProduction
     const maxAge = env.get('AUTH_COOKIE_MAX_AGE') || 60 * 60 * 24 * 7
-    const sameSite: 'strict' | 'lax' = isProduction ? 'strict' : 'lax'
+    const sameSite: 'none' | 'lax' = isProduction ? 'none' : 'lax'
 
     return {
       httpOnly: true,
