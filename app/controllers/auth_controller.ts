@@ -17,18 +17,14 @@ const AUTH_COOKIE_NAME = env.get('AUTH_COOKIE_NAME') || 'token'
 
 export default class AuthController {
   private getAuthCookieOptions() {
-    const isProduction = env.get('NODE_ENV') === 'production'
-    const secure = env.get('AUTH_COOKIE_SECURE') ?? isProduction
     const maxAge = env.get('AUTH_COOKIE_MAX_AGE') || 60 * 60 * 24 * 7
-    const sameSite: 'none' | 'lax' = isProduction ? 'none' : 'lax'
 
     return {
       httpOnly: true,
-      secure,
-      sameSite,
+      secure: true,
+      sameSite: 'none' as const,
       path: '/',
       maxAge,
-      domain: env.get('AUTH_COOKIE_DOMAIN'),
     }
   }
 
@@ -564,7 +560,8 @@ export default class AuthController {
 
       response.clearCookie(AUTH_COOKIE_NAME, {
         path: '/',
-        domain: env.get('AUTH_COOKIE_DOMAIN'),
+        secure: true,
+        sameSite: 'none',
       })
 
       return response.ok({
