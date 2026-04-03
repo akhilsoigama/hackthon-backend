@@ -29,7 +29,7 @@ export default class AssignmentUploadService {
 
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      const { studentId } = this.ctx.request.qs()
+      const { studentId, facultyId } = this.ctx.request.qs()
       let query = AssignmentUpload.query()
         .preload('Assignment')
         .preload('Student', (studentQuery) => {
@@ -46,16 +46,16 @@ export default class AssignmentUploadService {
         })
       const authUser = await this.getAuthenticatedUser()
       if (authUser?.userType === 'faculty') {
-        if (!authUser.studentId) {
+        if (!authUser.facultyId) {
           return this.ctx.response.status(400).json({
             status: false,
             message: 'faculty not associated with this user.',
             data: null,
           })
         }
-        query = query.where('faculty_id', authUser.studentId)
-      } else if (studentId) {
-        query = query.where('faculty_id', Number(studentId))
+        query = query.where('faculty_id', authUser.facultyId)
+      } else if (facultyId) {
+        query = query.where('faculty_id', Number(facultyId))
       }
 
       if (authUser?.userType === 'student') {

@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import { rateLimiter, RateLimitConfigs } from '../helper/rate_limiter.js'
+import env from '#start/env'
 
 type RateLimitConfig = (typeof RateLimitConfigs)[keyof typeof RateLimitConfigs]
 
@@ -15,6 +16,11 @@ export default class RateLimitMiddleware {
     options: { config?: RateLimitConfig; message?: string } = {}
   ) {
     try {
+      const rateLimitEnabled = env.get('RATE_LIMIT_ENABLED', true)
+      if (!rateLimitEnabled) {
+        return next()
+      }
+
       // Get client identifier
       const ip = request.ip()
       let userId: string | number | undefined

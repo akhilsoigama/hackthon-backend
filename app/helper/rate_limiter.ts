@@ -125,7 +125,7 @@ export const rateLimiter = new RateLimiter()
 export const RateLimitConfigs = {
   // Strict limits for authentication endpoints
   auth: {
-    maxRequests: 5,
+    maxRequests: 60,
     windowMs: 15 * 60 * 1000, // 5 requests per 15 minutes
   },
 

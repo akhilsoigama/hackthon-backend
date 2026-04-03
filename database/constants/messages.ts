@@ -46,6 +46,23 @@ const messages = {
   faculty_update_failed: 'Failed to update faculty',
   faculty_already_exists: 'Faculty already exists',
 
+  faculty_leave_fetched_successfully: 'Faculty leave requests fetched successfully',
+  faculty_leave_not_found: 'Faculty leave request not found',
+  faculty_leave_created_successfully: 'Faculty leave request created successfully',
+  faculty_leave_creation_failed: 'Failed to create faculty leave request',
+  faculty_leave_approved_successfully: 'Faculty leave request approved successfully',
+  faculty_leave_rejected_successfully: 'Faculty leave request rejected successfully',
+  faculty_leave_review_failed: 'Failed to review faculty leave request',
+  faculty_leave_only_faculty_can_create: 'Only faculty can create leave request',
+  faculty_leave_invalid_date_range: 'endDate must be greater than or equal to startDate',
+  faculty_leave_faculty_profile_missing: 'Faculty profile not linked with user',
+  faculty_leave_institute_profile_missing: 'Institute profile not linked with user',
+  faculty_leave_only_faculty_or_institute_can_list:
+    'Only faculty or institute can list leave requests',
+  faculty_leave_only_institute_can_review: 'Only institute can approve or reject leave request',
+  faculty_leave_invalid_id: 'Invalid leave request id',
+  faculty_leave_access_denied_other_institute: 'You can only review leave requests of your institute',
+
   student_fetched_successfully: 'Students fetched successfully',
   student_not_found: 'Student not found',
   student_created_successfully: 'Student created successfully',
@@ -53,6 +70,12 @@ const messages = {
   student_updated_successfully: 'Student Updated successfully',
   student_update_failed: 'Failed to update student',
   student_already_exists: 'Student already exists',
+
+  student_query_fetched_successfully: 'Student queries fetched successfully',
+  student_query_not_found: 'Student query not found',
+  student_query_created_successfully: 'Student query created successfully',
+  student_query_updated_successfully: 'Student query updated successfully',
+  student_query_deleted_successfully: 'Student query deleted successfully',
 
   govt_event_fetched_successfully: 'Govt events fetched successfully',
   govt_event_not_found: 'Govt event not found',

@@ -3,6 +3,7 @@ import { BaseModel, column, beforeSave } from '@adonisjs/lucid/orm' // ✅ befor
 import hash from '@adonisjs/core/services/hash'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import { ADMIN_AUTH_ACCESS_TOKENS, ADMIN_USERS } from '#database/constants/table_names'
+import env from '#start/env'
 
 export type UserType = 'super_admin' | 'admin' | 'editor'
 
@@ -48,6 +49,7 @@ export default class AdminUser extends BaseModel {
   // Access token provider
   static adminAccessTokens = DbAccessTokensProvider.forModel(AdminUser, {
     table: ADMIN_AUTH_ACCESS_TOKENS,
+    expiresIn: env.get('ADMIN_ACCESS_TOKEN_EXPIRES_IN', '12 hours'),
   })
 
   /**

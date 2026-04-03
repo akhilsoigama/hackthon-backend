@@ -7,6 +7,7 @@ import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import type { ManyToMany, BelongsTo } from '@adonisjs/lucid/types/relations'
 import { AUTH_ACCESS_TOKENS, USER_ROLES, USERS } from '#database/constants/table_names'
+import env from '#start/env'
 import Role from '#models/role'
 import Institute from '#models/institute'
 import Faculty from '#models/faculty'
@@ -83,6 +84,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   static accessTokens = DbAccessTokensProvider.forModel(User, {
     table: AUTH_ACCESS_TOKENS,
+    expiresIn: env.get('ACCESS_TOKEN_EXPIRES_IN', '12 hours'),
   })
 
   isSuperAdmin(): boolean {
