@@ -9,6 +9,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   RATE_LIMIT_ENABLED: Env.schema.boolean.optional(),
   ACCESS_TOKEN_EXPIRES_IN: Env.schema.string.optional(),
   ADMIN_ACCESS_TOKEN_EXPIRES_IN: Env.schema.string.optional(),
+  AUTH_COOKIE_NAME: Env.schema.string.optional(),
+  AUTH_COOKIE_DOMAIN: Env.schema.string.optional(),
+  AUTH_COOKIE_SECURE: Env.schema.boolean.optional(),
+  AUTH_COOKIE_MAX_AGE: Env.schema.number.optional(),
+  CORS_ORIGINS: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------

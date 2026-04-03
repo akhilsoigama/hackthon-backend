@@ -9,11 +9,29 @@ import messages from '#database/constants/messages'
 import Student from '#models/student'
 import db from '@adonisjs/lucid/services/db'
 import { ADMIN_AUTH_ACCESS_TOKENS, AUTH_ACCESS_TOKENS } from '#database/constants/table_names'
+import env from '#start/env'
 
 type AdminUserType = InstanceType<typeof AdminUser>
 type AuthUserType = User | AdminUserType
+const AUTH_COOKIE_NAME = env.get('AUTH_COOKIE_NAME') || 'token'
 
 export default class AuthController {
+  private getAuthCookieOptions() {
+    const isProduction = env.get('NODE_ENV') === 'production'
+    const secure = env.get('AUTH_COOKIE_SECURE') ?? isProduction
+    const maxAge = env.get('AUTH_COOKIE_MAX_AGE') || 60 * 60 * 24 * 7
+    const sameSite: 'strict' | 'lax' = isProduction ? 'strict' : 'lax'
+
+    return {
+      httpOnly: true,
+      secure,
+      sameSite,
+      path: '/',
+      maxAge,
+      domain: env.get('AUTH_COOKIE_DOMAIN'),
+    }
+  }
+
   private async cleanupExpiredTokens() {
     const now = new Date()
 
@@ -397,11 +415,12 @@ export default class AuthController {
         })
       }
 
+      response.cookie(AUTH_COOKIE_NAME, token.value!.release(), this.getAuthCookieOptions())
+
       return response.ok({
         success: true,
         message: messages.user_login_success,
         authType: authType,
-        token: token.value!.release(),
         user: userData,
       })
     } catch (error: any) {
@@ -543,16 +562,14 @@ export default class AuthController {
         }
       }
 
-      if (!loggedOut) {
-        return response.status(401).json({
-          success: false,
-          message: messages.user_not_authenticated,
-        })
-      }
+      response.clearCookie(AUTH_COOKIE_NAME, {
+        path: '/',
+        domain: env.get('AUTH_COOKIE_DOMAIN'),
+      })
 
       return response.ok({
         success: true,
-        message: messages.user_logout_success
+        message: loggedOut ? messages.user_logout_success : 'Session cleared',
       })
     } catch (error: any) {
       console.error('Logout error:', error)

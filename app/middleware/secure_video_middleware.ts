@@ -6,13 +6,9 @@ export default class SecureVideoMiddleware {
     await next()
 
     const url = request.url()
-    
-    // For video files and API endpoints
-    response.header('Access-Control-Allow-Origin', '*')
-    response.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    response.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range')
-    response.header('Access-Control-Expose-Headers', 'Content-Range, Content-Length, Accept-Ranges')
-    
+
+    // Keep media specific security headers here and let the CORS middleware
+    // own Access-Control-* headers for credentialed requests.
     // Specific headers for video content
     if (url.includes('.mp4') || url.includes('/api/') || url.includes('video')) {
       response.header('Cross-Origin-Resource-Policy', 'cross-origin')
