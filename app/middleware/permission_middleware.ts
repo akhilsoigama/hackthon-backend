@@ -135,10 +135,10 @@ function hasEquivalentViewPermission(
   userPermissions: PermissionKeys[]
 ): boolean {
   for (const perm of required) {
-    if (perm.toString().endsWith('_LIST')) {
-      const equivalentView = perm.toString().replace('_LIST', '_VIEW') as keyof typeof PermissionKeys
-      const viewKey = PermissionKeys[equivalentView]
-      if (viewKey && userPermissions.includes(viewKey)) {
+    const permissionKey = perm.toString().toLowerCase()
+    if (permissionKey.endsWith('_list')) {
+      const equivalentView = permissionKey.replace(/_list$/, '_view') as PermissionKeys
+      if (userPermissions.includes(equivalentView)) {
         return true
       }
     }

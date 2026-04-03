@@ -29,6 +29,8 @@ import QuizzesControllersController from '#controllers/quizzes_controllers_contr
 import QuizAttemptController from '#controllers/quiz_attempt_controller'
 import AssignmentUploadsController from '#controllers/assignment_uploads_controller'
 import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
+import FacultyLeaveController from '#controllers/faculty_leave_controller'
+import StudentQueriesController from '#controllers/student_queries_controller'
 
 router.post('/login', [AuthController, 'login']).use(middleware.rateLimit({ config: RateLimitConfigs.auth }))
 router.post('/translate', [TranslatesController, 'translateMessage'])
@@ -163,6 +165,13 @@ router
       .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
 
+    // Student Query Routes
+    router
+      .resource('student-queries', StudentQueriesController)
+      .apiOnly()
+      .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use('*', middleware.permission([PermissionKeys.STUDENT_QUERY_ACCESS]))
+
     // Govt Routes
     router
       .resource('govtEvent', GovtEventsController)
@@ -227,6 +236,31 @@ router
       .use('show', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_VIEW]))
       .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_UPLOAD_DELETE]))
+
+    // Faculty Leave Routes
+    router
+      .post('/faculty-leaves', [FacultyLeaveController, 'store'])
+      .use(middleware.permission([PermissionKeys.LEAVE_CREATE]))
+
+    router
+      .get('/faculty-leaves', [FacultyLeaveController, 'index'])
+      .use(middleware.permission([PermissionKeys.LEAVE_LIST]))
+
+    router
+      .patch('/faculty-leaves/:id', [FacultyLeaveController, 'update'])
+      .use(middleware.permission([PermissionKeys.LEAVE_UPDATE]))
+
+    router
+      .delete('/faculty-leaves/:id', [FacultyLeaveController, 'destroy'])
+      .use(middleware.permission([PermissionKeys.LEAVE_DELETE]))
+
+    router
+      .patch('/faculty-leaves/:id/approve', [FacultyLeaveController, 'approve'])
+      .use(middleware.permission([PermissionKeys.LEAVE_APPROVE_VIEW]))
+
+    router
+      .patch('/faculty-leaves/:id/reject', [FacultyLeaveController, 'reject'])
+      .use(middleware.permission([PermissionKeys.LEAVE_REJECT_VIEW]))
   })
   .use(middleware.rateLimit({ config: RateLimitConfigs.api }))
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))

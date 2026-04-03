@@ -7,11 +7,26 @@ import Faculty from '#models/faculty'
 import Role from '#models/role'
 import messages from '#database/constants/messages'
 import Student from '#models/student'
+import db from '@adonisjs/lucid/services/db'
+import { ADMIN_AUTH_ACCESS_TOKENS, AUTH_ACCESS_TOKENS } from '#database/constants/table_names'
 
 type AdminUserType = InstanceType<typeof AdminUser>
 type AuthUserType = User | AdminUserType
 
 export default class AuthController {
+  private async cleanupExpiredTokens() {
+    const now = new Date()
+
+    await Promise.all([
+      db.from(AUTH_ACCESS_TOKENS).whereNotNull('expires_at').andWhere('expires_at', '<=', now).delete(),
+      db
+        .from(ADMIN_AUTH_ACCESS_TOKENS)
+        .whereNotNull('expires_at')
+        .andWhere('expires_at', '<=', now)
+        .delete(),
+    ])
+  }
+
   private isUserModel(user: any): user is User {
     return user instanceof User
   }
@@ -266,6 +281,8 @@ export default class AuthController {
 
   public async login({ request, response }: HttpContext) {
     try {
+      await this.cleanupExpiredTokens()
+
       const { email, password } = request.only(['email', 'password'])
 
       let user: AuthUserType | null = null
@@ -490,20 +507,47 @@ export default class AuthController {
 
   public async logout({ auth, response }: HttpContext) {
     try {
-      const user = auth.user
-      const token = auth.user?.currentAccessToken
+      await this.cleanupExpiredTokens()
 
-      if (!user || !token) {
-        return response.status(401).json({
-          success: false,
-          message: messages.user_not_authenticated
-        })
+      let loggedOut = false
+
+      try {
+        const apiAuth = auth.use('api')
+        await apiAuth.authenticate()
+
+        const user = apiAuth.user
+        const token = user?.currentAccessToken
+
+        if (user && token) {
+          await User.accessTokens.delete(user, token.identifier)
+          loggedOut = true
+        }
+      } catch {
+        // Try admin guard next
       }
 
-      if (this.isUserModel(user)) {
-        await User.accessTokens.delete(user, token.identifier)
-      } else if (this.isAdminUserModel(user)) {
-        await AdminUser.adminAccessTokens.delete(user, token.identifier)
+      if (!loggedOut) {
+        try {
+          const adminAuth = auth.use('adminapi')
+          await adminAuth.authenticate()
+
+          const adminUser = adminAuth.user
+          const adminToken = adminUser?.currentAccessToken
+
+          if (adminUser && adminToken) {
+            await AdminUser.adminAccessTokens.delete(adminUser, adminToken.identifier)
+            loggedOut = true
+          }
+        } catch {
+          // Ignore and return unauthorized below
+        }
+      }
+
+      if (!loggedOut) {
+        return response.status(401).json({
+          success: false,
+          message: messages.user_not_authenticated,
+        })
       }
 
       return response.ok({
