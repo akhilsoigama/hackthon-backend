@@ -12,10 +12,6 @@ import { DateTime } from 'luxon'
 export default class InstituteEventService {
   constructor(protected ctx: HttpContext) {}
   private setSecurityHeaders() {
-    this.ctx.response.header('Access-Control-Allow-Origin', '*')
-    this.ctx.response.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    this.ctx.response.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-
     this.ctx.response.header('Cross-Origin-Embedder-Policy', 'credentialless') 
     this.ctx.response.header('Cross-Origin-Resource-Policy', 'cross-origin')
     this.ctx.response.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')

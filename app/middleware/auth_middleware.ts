@@ -2,6 +2,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
+import env from '#start/env'
+
+const AUTH_COOKIE_NAME = env.get('AUTH_COOKIE_NAME') || 'token'
 
 export default class AuthMiddleware {
   async handle(
@@ -11,6 +14,12 @@ export default class AuthMiddleware {
       guards?: (keyof Authenticators)[]
     } = {}
   ) {
+    const tokenFromCookie = ctx.request.cookie(AUTH_COOKIE_NAME)
+
+    if (tokenFromCookie && !ctx.request.header('authorization')) {
+      ctx.request.request.headers.authorization = `Bearer ${tokenFromCookie}`
+    }
+
     const guards = options.guards || ['api', 'adminapi'] as (keyof Authenticators)[]
     let authenticatedGuard: string | null = null
     let authenticatedUser: any = null

@@ -26,6 +26,7 @@ server.use([
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
   () => import('#middleware/secure_video_middleware'), // Add secure video middleware here
+  () => import('#middleware/cookie_auth_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
 ])
 

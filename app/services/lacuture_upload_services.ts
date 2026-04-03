@@ -96,7 +96,6 @@ export default class LectureUploadServices {
             type: 'upload',
             access_mode: 'public',
             headers: {
-              'Access-Control-Allow-Origin': '*',
               'Cross-Origin-Resource-Policy': 'cross-origin'
             }
           };
@@ -144,10 +143,7 @@ export default class LectureUploadServices {
             public_id: `lecture_${payload.content_type}_${Date.now()}`,
             overwrite: true,
             type: 'upload',
-            access_mode: 'public',
-            headers: {
-              'Access-Control-Allow-Origin': '*'
-            }
+            access_mode: 'public'
           });
           contentUrl = this.ensureSecureUrl(uploadedFile.secure_url);
         } else if (payload.content_url) {
@@ -202,7 +198,6 @@ export default class LectureUploadServices {
 
       const lecture = await Lecture.create(lectureData);
 
-      response.header('Access-Control-Allow-Origin', '*');
       response.header('Cross-Origin-Resource-Policy', 'cross-origin');
 
       return response.created({
@@ -408,7 +403,6 @@ export default class LectureUploadServices {
 
       const lectures = await query.paginate(page, limit);
 
-      response.header('Access-Control-Allow-Origin', '*');
       response.header('Cross-Origin-Resource-Policy', 'cross-origin');
 
       return response.ok({
@@ -469,7 +463,6 @@ export default class LectureUploadServices {
         }
       }
 
-      response.header('Access-Control-Allow-Origin', '*');
       response.header('Cross-Origin-Resource-Policy', 'cross-origin');
 
       return response.ok({
@@ -523,8 +516,6 @@ export default class LectureUploadServices {
       }
 
       await lecture.delete();
-
-      response.header('Access-Control-Allow-Origin', '*');
 
       return response.ok({
         success: true,
