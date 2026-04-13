@@ -43,6 +43,24 @@ router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
 router.get('/ping', [PingController, 'handle'])
 
+// DEBUG ENDPOINT - TEMPORARY
+router.get('/debug/auth-headers', ({ request, response }) => {
+  const authHeader = request.header('authorization')
+  const cookieHeader = request.header('cookie')
+  const allHeaders = request.headers()
+  
+  return response.json({
+    success: true,
+    debug: {
+      authorizationHeader: authHeader || 'NOT PRESENT',
+      cookieHeader: cookieHeader || 'NOT PRESENT',
+      allHeaders: allHeaders,
+      method: request.method(),
+      url: request.url(),
+    }
+  })
+})
+
 router
   .group(() => {
     router
