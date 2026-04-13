@@ -49,7 +49,7 @@ export default class AdminUser extends BaseModel {
   // Access token provider
   static adminAccessTokens = DbAccessTokensProvider.forModel(AdminUser, {
     table: ADMIN_AUTH_ACCESS_TOKENS,
-    expiresIn: env.get('ADMIN_ACCESS_TOKEN_EXPIRES_IN', '12 hours'),
+    expiresIn: env.get('ADMIN_ACCESS_TOKEN_EXPIRES_IN'),
   })
 
   /**

@@ -119,7 +119,7 @@ router
       .use('store', middleware.permission([PermissionKeys.INSTITUTE_CREATE]))
       .use('update', middleware.permission([PermissionKeys.INSTITUTE_UPDATE]))
       .use('show', middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
-      .use('index', middleware.permission([PermissionKeys.INSTITUTE_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.INSTITUTE_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.INSTITUTE_DELETE]))
 
     // Department Routes
@@ -151,7 +151,7 @@ router
       .use('store', middleware.permission([PermissionKeys.FACULTY_CREATE]))
       .use('update', middleware.permission([PermissionKeys.FACULTY_UPDATE]))
       .use('show', middleware.permission([PermissionKeys.FACULTY_VIEW]))
-      .use('index', middleware.permission([PermissionKeys.FACULTY_VIEW]))
+      .use('index', middleware.permission([PermissionKeys.FACULTY_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.FACULTY_DELETE]))
 
     // Student Routes

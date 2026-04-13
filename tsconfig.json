@@ -3,11 +3,11 @@
   "compilerOptions": {
     "rootDir": "./",
     "outDir": "./build",
-    "baseUrl": ".",
+    "ignoreDeprecations": "5.0",
     "paths": {
-      "#models/": ["app/models/"],
-      "#database/": ["app/database/"],
-      "@ioc/*": ["node_modules/@ioc/*"]
+      "#models/": ["./app/models/"],
+      "#database/": ["./app/database/"],
+      "@ioc/*": ["./node_modules/@ioc/*"]
     },
     "types": ["node"]
   }

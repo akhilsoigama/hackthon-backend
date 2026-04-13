@@ -73,6 +73,12 @@ export default class Student extends BaseModel {
   @column({ columnName: 'is_active' })
   declare isActive: boolean
 
+  @column({ columnName: 'created_by' })
+  declare createdBy: number | null
+
+  @column({ columnName: 'updated_by' })
+  declare updatedBy: number | null
+
   @column.dateTime({ autoCreate: true, columnName: 'created_at' })
   declare createdAt: DateTime
 

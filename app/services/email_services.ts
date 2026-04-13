@@ -131,7 +131,7 @@ private getEmailHtml(
           <!-- HEADER -->
           <tr>
             <td style="background:#4f46e5; padding:24px; text-align:center; color:#ffffff;">
-              <h1 style="margin:0; font-size:24px;">🎓 EduHub</h1>
+              <h1 style="margin:0; font-size:24px;">🎓 Rural Spark</h1>
               <p style="margin:8px 0 0; font-size:14px;">
                 Your ${userType} account is ready
               </p>
@@ -144,7 +144,7 @@ private getEmailHtml(
               <h2 style="margin-top:0;">Hello ${name},</h2>
 
               <p style="font-size:15px; line-height:1.6;">
-                Welcome to <strong>EduHub</strong>! Your <b>${userType}</b> account has been successfully created.
+                Welcome to <strong>Rural Spark</strong>! Your <b>${userType}</b> account has been successfully created.
               </p>
 
               <!-- CREDENTIAL BOX -->
@@ -166,7 +166,7 @@ private getEmailHtml(
                 <p style="margin-top:16px;">
                   <a href="${loginUrl}" 
                      style="display:inline-block; background:#4f46e5; color:#ffffff; text-decoration:none; padding:12px 24px; border-radius:6px; font-weight:bold;">
-                    🚀 Login to EduHub
+                    🚀 Login to Rural Spark
                   </a>
                 </p>
               </div>
@@ -185,7 +185,7 @@ private getEmailHtml(
 
               <p style="margin-top:30px; font-size:14px;">
                 Regards,<br />
-                <strong>EduHub Team</strong>
+                <strong>Rural Spark Team</strong>
               </p>
             </td>
           </tr>

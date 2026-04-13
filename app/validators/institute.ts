@@ -23,7 +23,7 @@ export const createInstituteValidator = vine.compile(
     institutePinCode: vine.string().trim().minLength(4),
     principalQualification: vine.string().trim().optional(),
     principalExperience: vine.string().trim().optional(),
-    roleId: vine.number().positive(),
+    roleId: vine.number().positive().optional(),
     campusArea: vine.string().optional(),
     instituteType: vine.string().trim(),
     isActive: vine.boolean().optional(),

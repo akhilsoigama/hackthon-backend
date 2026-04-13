@@ -10,6 +10,30 @@ This service provides:
 - Learning content management: lectures, assignments, quizzes, and quiz attempts
 - AI chatbot support for education workflows
 
+## Recent Performance Improvements
+
+The API now uses a step-by-step optimization approach that keeps the existing flow intact:
+
+- Multi-tenant isolation on list/detail endpoints where the authenticated user scope applies.
+- Pagination support on list APIs using `page` and `limit` query params.
+- Search and filter support on indexed fields for faster lookups.
+- Thin controllers with service/repository-based query handling.
+- In-memory caching for frequently requested GET routes with mutation-based invalidation.
+- Response-time logging and contextual error logging for slower endpoints.
+- Audit fields on key entities such as `createdBy` and `updatedBy`.
+
+## API Query Conventions
+
+Common list endpoints now support these query params:
+
+- `page` - page number, default `1`
+- `limit` - page size, default `20`
+- `search` - free-text search on supported indexed fields
+- `searchFor` - existing flow-specific filter flag
+- `withDeleted` - include soft-deleted records when explicitly requested
+
+For tenant-aware routes, the backend uses the authenticated JWT user context to scope results by the current user's institute, faculty, or student identity.
+
 ## Tech Stack
 
 - AdonisJS 6
@@ -124,6 +148,13 @@ All below endpoints are available in start/routes.ts and most require auth and p
 - Resource: /assignments
 - Resource: /quizzes
 - Resource: /quiz-attempts
+
+## Performance Notes
+
+- GET endpoints are cached in memory for short TTL windows where it is safe to do so.
+- Mutations invalidate related caches to keep list/detail views consistent.
+- Queries use selective columns and preloads to reduce payload size and avoid N+1 patterns.
+- DB indexes should be applied from the performance migration before relying on larger datasets.
 
 ## Chatbot API
 

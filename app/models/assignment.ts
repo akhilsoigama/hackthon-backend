@@ -46,6 +46,12 @@ declare dueDate: DateTime | null
   @column()
   declare isActive: boolean
 
+  @column({ columnName: 'created_by' })
+  declare createdBy: number | null
+
+  @column({ columnName: 'updated_by' })
+  declare updatedBy: number | null
+
   @belongsTo(() => Institute)
   declare institute: BelongsTo<typeof Institute>
 
