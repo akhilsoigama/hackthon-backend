@@ -20,7 +20,8 @@ export default class AuthController {
     const secure = env.get('AUTH_COOKIE_SECURE', env.get('NODE_ENV') === 'production')
     const domain = env.get('AUTH_COOKIE_DOMAIN')
     const maxAge = env.get('AUTH_COOKIE_MAX_AGE') ?? 60 * 60 * 24 * 365
-    const sameSite: 'none' | 'lax' = secure ? 'none' : 'lax'
+    const configuredSameSite = env.get('AUTH_COOKIE_SAME_SITE')
+    const sameSite: 'none' | 'lax' | 'strict' = configuredSameSite ?? (secure ? 'none' : 'lax')
 
     return {
       httpOnly: true,
@@ -430,13 +431,16 @@ export default class AuthController {
         })
       }
 
-      response.cookie(AUTH_COOKIE_NAME, token.value!.release(), this.getAuthCookieOptions())
+      const releasedToken = token.value!.release()
+      response.cookie(AUTH_COOKIE_NAME, releasedToken, this.getAuthCookieOptions())
+      response.header('authorization', `Bearer ${releasedToken}`)
+      response.header('x-access-token', releasedToken)
 
       return response.ok({
         success: true,
         message: messages.user_login_success,
         authType: authType,
-        token: token.value!.release(),
+        token: releasedToken,
         user: userData,
       })
     } catch (error: any) {

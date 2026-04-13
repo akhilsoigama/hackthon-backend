@@ -12,6 +12,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   AUTH_COOKIE_NAME: Env.schema.string.optional(),
   AUTH_COOKIE_DOMAIN: Env.schema.string.optional(),
   AUTH_COOKIE_SECURE: Env.schema.boolean.optional(),
+  AUTH_COOKIE_SAME_SITE: Env.schema.enum.optional(['lax', 'none', 'strict'] as const),
   AUTH_COOKIE_MAX_AGE: Env.schema.number.optional(),
   CORS_ORIGINS: Env.schema.string.optional(),
 

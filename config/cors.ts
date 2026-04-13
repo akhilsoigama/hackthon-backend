@@ -16,7 +16,7 @@ export default defineConfig({
 
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   headers: true,
-  exposeHeaders: [],
+  exposeHeaders: ['authorization', 'x-access-token'],
   credentials: true,
   maxAge: 90,
 })
