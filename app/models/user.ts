@@ -84,7 +84,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   static accessTokens = DbAccessTokensProvider.forModel(User, {
     table: AUTH_ACCESS_TOKENS,
-    expiresIn: env.get('ACCESS_TOKEN_EXPIRES_IN', '12 hours'),
+    expiresIn: env.get('ACCESS_TOKEN_EXPIRES_IN'),
   })
 
   isSuperAdmin(): boolean {

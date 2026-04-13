@@ -30,6 +30,12 @@ export default class QuizAttempt extends BaseModel {
   @column({ columnName: 'status' })
   declare status: 'in_progress' | 'submitted' | 'completed'
 
+  @column({ columnName: 'created_by' })
+  declare createdBy: number | null
+
+  @column({ columnName: 'updated_by' })
+  declare updatedBy: number | null
+
   @belongsTo(() => Quizzes, {
     foreignKey: 'quizId',
   })

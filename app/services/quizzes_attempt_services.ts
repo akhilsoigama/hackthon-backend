@@ -6,13 +6,32 @@ import messages from '#database/constants/messages'
 import Quizzes from '#models/quizzes'
 import Student from '#models/student'
 import { DateTime } from 'luxon'
-import QuizAttempt from '#models/quiz_attempt'
+import QuizAttemptRepository from '../repositories/quiz_attempt_repository.js'
+import { parseListQuery } from '../helper/list_query.js'
+import apiCacheService from './api_cache_service.js'
 @inject()
 export default class QuizzesAttemptServices {
+  private readonly quizAttemptRepository = new QuizAttemptRepository()
+
   constructor(protected ctx: HttpContext) {}
+
+  private async getAuthenticatedUser() {
+    try {
+      return await this.ctx.auth.authenticate()
+    } catch {
+      return null
+    }
+  }
+
+  private invalidateQuizAttemptCache() {
+    apiCacheService.invalidateByPrefix('quiz-attempts:list:')
+    apiCacheService.invalidateByPrefix('quiz-attempts:one:')
+  }
+
   async attemptQuiz() {
     try {
       const requestData = this.ctx.request.all()
+      const authUser = await this.getAuthenticatedUser()
 
       const quizId = Number(requestData.quizId ?? requestData.quiz_id)
       const studentId = Number(requestData.studentId ?? requestData.student_id)
@@ -76,12 +95,16 @@ export default class QuizzesAttemptServices {
         score: Number.isNaN(score) ? 0 : score,
         status,
         attemptedAt: normalizedAttemptedAt,
+        createdBy: authUser?.id,
+        updatedBy: authUser?.id,
       }
 
       const trx = await db.transaction()
       try {
         const attempt = await quiz.related('attempts').create(attemptData, { client: trx })
         await trx.commit()
+
+        this.invalidateQuizAttemptCache()
 
         return {
           status: true,
@@ -102,30 +125,72 @@ export default class QuizzesAttemptServices {
   }
   async findAll({ searchFor }: { searchFor?: string }) {
     try {
-      const query = QuizAttempt.query()
-        .whereNull('deleted_at')
-        .preload('quiz', (quizQuery) => {
-          quizQuery.select('id', 'quiz_title','quiz_description')
-        })
-        .preload('student', (studentQuery) => {
-          studentQuery.select('id', 'student_name')
-        })
+      const authUser = await this.getAuthenticatedUser()
+      const { page, limit, search, withDeleted, searchFor: searchForQuery } = parseListQuery(this.ctx)
+      const effectiveSearch = search || searchFor || searchForQuery
 
-      if (searchFor) {
-        query.where((subQuery) => {
-          subQuery
-            .where('status', 'like', `%${searchFor}%`)
-            .orWhere('score', 'like', `%${searchFor}%`)
-        })
+      let instituteId: number | undefined
+      let studentId: number | undefined
+
+      if (authUser?.userType === 'institute') {
+        instituteId = authUser.instituteId
       }
 
-      const attempts = await query
+      if (authUser?.userType === 'student') {
+        studentId = authUser.studentId || undefined
+        instituteId = authUser.instituteId
+      }
+
+      const requestQuizId = Number(this.ctx.request.input('quizId'))
+      const requestStudentId = Number(this.ctx.request.input('studentId'))
+      const requestInstituteId = Number(this.ctx.request.input('instituteId'))
+
+      const quizId = Number.isFinite(requestQuizId) && requestQuizId > 0 ? requestQuizId : undefined
+      const filteredStudentId = studentId || (Number.isFinite(requestStudentId) && requestStudentId > 0 ? requestStudentId : undefined)
+      const filteredInstituteId = instituteId || (Number.isFinite(requestInstituteId) && requestInstituteId > 0 ? requestInstituteId : undefined)
+
+      const cacheKey = `quiz-attempts:list:${JSON.stringify({
+        page,
+        limit,
+        effectiveSearch,
+        withDeleted,
+        quizId,
+        studentId: filteredStudentId,
+        instituteId: filteredInstituteId,
+      })}`
+
+      const paginated = await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          return this.quizAttemptRepository.list(
+            {
+              quizId,
+              studentId: filteredStudentId,
+              instituteId: filteredInstituteId,
+              search: effectiveSearch,
+              withDeleted,
+            },
+            page,
+            limit
+          )
+        },
+        ['quiz-attempts']
+      )
+
+      const attempts = paginated.all()
 
       if (attempts.length > 0) {
         return {
           status: true,
           message: messages.attempt_fetched_successfully,
           data: attempts,
+          meta: {
+            total: paginated.total,
+            perPage: paginated.perPage,
+            currentPage: paginated.currentPage,
+            lastPage: paginated.lastPage,
+          },
         }
       } else {
         return {
@@ -146,16 +211,19 @@ export default class QuizzesAttemptServices {
   async findOne() {
     try {
       const attemptId = this.ctx.params.id
-      const attempt = await QuizAttempt.query()
-        .where('id', attemptId)
-        .whereNull('deleted_at')
-        .preload('quiz', (quizQuery) => {
-          quizQuery.select('id', 'quiz_title','quiz_description')
-        })
-        .preload('student', (studentQuery) => {
-          studentQuery.select('id', 'student_name')
-        })
-        .first()
+      const authUser = await this.getAuthenticatedUser()
+      const instituteId = authUser?.userType === 'institute' || authUser?.userType === 'student'
+        ? authUser.instituteId
+        : undefined
+      const studentId = authUser?.userType === 'student' ? authUser.studentId || undefined : undefined
+
+      const attempt = await apiCacheService.getOrSet(
+        `quiz-attempts:one:${attemptId}:institute:${instituteId || 'all'}:student:${studentId || 'all'}`,
+        30_000,
+        async () => this.quizAttemptRepository.findById(Number(attemptId), instituteId, studentId),
+        ['quiz-attempts']
+      )
+
       if (attempt) {
         return {
           status: true,

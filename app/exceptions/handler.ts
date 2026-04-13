@@ -23,6 +23,21 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * @note You should not attempt to send a response from this method.
    */
   async report(error: unknown, ctx: HttpContext) {
+    let userId: number | null = null
+    try {
+      const user = await ctx.auth.authenticate()
+      userId = user?.id ?? null
+    } catch {
+      userId = null
+    }
+
+    console.error('[API_ERROR]', {
+      method: ctx.request.method(),
+      path: ctx.request.url(),
+      userId,
+      error,
+    })
+
     return super.report(error, ctx)
   }
 }

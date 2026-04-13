@@ -1,5 +1,6 @@
 import messages from '#database/constants/messages';
 import Faculty from '#models/faculty';
+import Role from '#models/role';
 import { createFacultyValidator, updateFacultyValidator } from '#validators/faculty';
 import { inject } from '@adonisjs/core';
 import { HttpContext } from '@adonisjs/core/http';
@@ -9,6 +10,67 @@ import EmailService from './email_services.js';
 @inject()
 export default class FacultyController {
   constructor(protected ctx: HttpContext) { }
+
+  private isPrivilegedUser(authUser: any) {
+    const userType = authUser?.userType
+    return ['super_admin', 'admin', 'system_admin'].includes(String(userType))
+  }
+
+  private isInstituteScopedUser(authUser: any) {
+    return String(authUser?.userType) === 'institute'
+  }
+
+  private async getAuthenticatedUser() {
+    try {
+      const apiAuth = this.ctx.auth.use('api')
+      const isApiAuth = await apiAuth.check()
+      if (isApiAuth && apiAuth.user) {
+        return apiAuth.user
+      }
+    } catch {
+      // Try admin guard next
+    }
+
+    try {
+      const adminAuth = this.ctx.auth.use('adminapi')
+      const isAdminAuth = await adminAuth.check()
+      if (isAdminAuth && adminAuth.user) {
+        return adminAuth.user
+      }
+    } catch {
+      // No authenticated user found
+    }
+
+    return null
+  }
+  private getAuthInstituteId(authUser: any) {
+    if (!authUser || typeof authUser !== 'object') {
+      return undefined
+    }
+
+    if ('instituteId' in authUser) {
+      const parsedInstituteId = Number(authUser.instituteId)
+      if (Number.isFinite(parsedInstituteId) && parsedInstituteId > 0) {
+        return parsedInstituteId
+      }
+    }
+
+    if (String(authUser.userType) === 'institute' && 'id' in authUser) {
+      const parsedId = Number(authUser.id)
+      if (Number.isFinite(parsedId) && parsedId > 0) {
+        return parsedId
+      }
+    }
+
+    return undefined
+  }
+  private getRequestInstituteId() {
+    const instituteId = Number(this.ctx.request.qs().instituteId)
+    return Number.isFinite(instituteId) && instituteId > 0 ? instituteId : undefined
+  }
+  private getEffectiveInstituteId(authUser: any) {
+    return this.getAuthInstituteId(authUser) ?? this.getRequestInstituteId()
+  }
   private async sendEmail(email: string, password: string, userType: string, name: string) {
     try {
       const emailService = new EmailService();
@@ -22,30 +84,23 @@ export default class FacultyController {
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
       const { withDeleted, instituteId } = this.ctx.request.qs();
+      const authUser = await this.getAuthenticatedUser();
+      const authInstituteId = this.getAuthInstituteId(authUser);
+      const requestInstituteId = Number(instituteId)
+      const effectiveInstituteId = authInstituteId || (Number.isFinite(requestInstituteId) && requestInstituteId > 0 ? requestInstituteId : undefined)
 
       let query = Faculty.query()
-        .preload('department')
-        .preload('institute')
-        .preload('role');
+        .preload('department', (q) => q.select(['id', 'departmentName']))
+        .preload('institute', (q) => q.select(['id', 'instituteName']))
+        .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
 
-      let authUser = null;
-      try {
-        authUser = await this.ctx.auth.authenticate();
-      } catch (authError) {
-        authUser = null;
-      }
-
-      if (authUser?.userType === 'institute') {
-        if (!authUser.instituteId) {
-          return this.ctx.response.status(400).json({
-            status: false,
-            message: 'Institute not associated with this user.',
-            data: null,
-          });
+      if (this.isInstituteScopedUser(authUser)) {
+        if (effectiveInstituteId) {
+          query = query.where('institute_id', effectiveInstituteId);
+        } else {
+          query = query.where('id', 0);
         }
-        query = query.where('institute_id', authUser.instituteId);
-      }
-      else if (instituteId) {
+      } else if (this.isPrivilegedUser(authUser) && instituteId) {
         query = query.where('institute_id', Number(instituteId));
       }
 
@@ -106,9 +161,23 @@ export default class FacultyController {
 
       const validatedData = await createFacultyValidator.validate(requestData);
       const plainPassword = validatedData.facultyPassword;
+      const authUser = await this.getAuthenticatedUser();
+      const authInstituteId = this.getAuthInstituteId(authUser);
+      const facultyRole = await Role.query().where('roleKey', 'faculty').first();
+
+      if (!facultyRole) {
+        return this.ctx.response.status(422).send({
+          status: false,
+          message: 'Faculty role not configured',
+        });
+      }
 
       const faculty = await Faculty.create({
         ...validatedData,
+        instituteId: this.isInstituteScopedUser(authUser) && authInstituteId
+          ? authInstituteId
+          : validatedData.instituteId,
+        roleId: facultyRole.id,
         facultyId: validatedData.facultyId || `FAC${Date.now()}`,
         isActive: validatedData.isActive ?? true,
       });
@@ -141,6 +210,8 @@ export default class FacultyController {
   async findOne() {
     try {
       const id = this.ctx.request.param('id');
+      const authUser = await this.getAuthenticatedUser();
+      const effectiveInstituteId = this.getEffectiveInstituteId(authUser);
 
       if (!id || isNaN(Number(id))) {
         return this.ctx.response.badRequest({
@@ -149,13 +220,18 @@ export default class FacultyController {
         });
       }
 
-      const faculty = await Faculty.query()
+      let facultyQuery = Faculty.query()
         .where('id', id)
         .apply((scopes) => scopes.softDeletes())
-        .preload('department')
-        .preload('institute')
-        .preload('role')
-        .first();
+        .preload('department', (q) => q.select(['id', 'departmentName']))
+        .preload('institute', (q) => q.select(['id', 'instituteName']))
+        .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']));
+
+      if (this.isInstituteScopedUser(authUser)) {
+        facultyQuery = facultyQuery.where('institute_id', effectiveInstituteId || 0);
+      }
+
+      const faculty = await facultyQuery.first();
 
       return {
         status: !!faculty,
@@ -178,6 +254,8 @@ export default class FacultyController {
     try {
       const id = this.ctx.request.param('id');
       const requestData = this.ctx.request.all();
+      const authUser = await this.getAuthenticatedUser();
+      const effectiveInstituteId = this.getEffectiveInstituteId(authUser);
 
       if (requestData.facultyMobile) {
         requestData.facultyMobile = requestData.facultyMobile
@@ -187,9 +265,12 @@ export default class FacultyController {
 
       const validatedData = await updateFacultyValidator.validate(requestData);
 
-      const existingFaculty = await Faculty.find(id);
+      const existingFaculty = await Faculty.query()
+        .where('id', id)
+        .apply((scopes) => scopes.softDeletes())
+        .first();
 
-      if (!existingFaculty || existingFaculty.deletedAt) {
+      if (!existingFaculty || (this.isInstituteScopedUser(authUser) && existingFaculty.instituteId !== effectiveInstituteId)) {
         return {
           status: false,
           message: messages.faculty_not_found,
@@ -200,9 +281,9 @@ export default class FacultyController {
       existingFaculty.merge(validatedData);
       await existingFaculty.save();
 
-      await existingFaculty.load('department');
-      await existingFaculty.load('institute');
-      await existingFaculty.load('role');
+      await existingFaculty.load('department', (q) => q.select(['id', 'departmentName']));
+      await existingFaculty.load('institute', (q) => q.select(['id', 'instituteName']));
+      await existingFaculty.load('role', (q) => q.select(['id', 'roleName', 'roleKey']));
 
       return {
         status: true,
@@ -222,10 +303,15 @@ export default class FacultyController {
   async deleteOne() {
     try {
       const id = this.ctx.request.param('id');
+      const authUser = await this.getAuthenticatedUser();
+      const effectiveInstituteId = this.getEffectiveInstituteId(authUser);
 
-      const faculty = await Faculty.find(id);
+      const faculty = await Faculty.query()
+        .where('id', id)
+        .apply((scopes) => scopes.softDeletes())
+        .first();
 
-      if (!faculty || faculty.deletedAt) {
+      if (!faculty || (this.isInstituteScopedUser(authUser) && faculty.instituteId !== effectiveInstituteId)) {
         return {
           status: false,
           message: messages.faculty_not_found,

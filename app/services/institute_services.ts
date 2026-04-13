@@ -3,6 +3,7 @@ import { inject } from '@adonisjs/core';
 import { HttpContext } from '@adonisjs/core/http';
 import { errorHandler } from '../helper/error_handler.js';
 import Institute from '#models/institute';
+import Role from '#models/role';
 import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
 import { DateTime } from 'luxon';
 import EmailService from './email_services.js';
@@ -10,6 +11,43 @@ import EmailService from './email_services.js';
 @inject()
 export default class instituteController {
   constructor(protected ctx: HttpContext) { }
+
+  private isInstituteScopedUser(user: Awaited<ReturnType<instituteController['getAuthenticatedUser']>>) {
+    return Boolean(user && 'userType' in user && String(user.userType) === 'institute')
+  }
+
+  private getScopeInstituteId(user: Awaited<ReturnType<instituteController['getAuthenticatedUser']>>) {
+    if (!user || !('instituteId' in user)) {
+      return null
+    }
+
+    const instituteId = user.instituteId
+    return typeof instituteId === 'number' ? instituteId : null
+  }
+
+  private async getAuthenticatedUser() {
+    try {
+      const apiAuth = this.ctx.auth.use('api')
+      const isApiAuth = await apiAuth.check()
+      if (isApiAuth && apiAuth.user) {
+        return apiAuth.user
+      }
+    } catch {
+      // Try admin guard next
+    }
+
+    try {
+      const adminAuth = this.ctx.auth.use('adminapi')
+      const isAdminAuth = await adminAuth.check()
+      if (isAdminAuth && adminAuth.user) {
+        return adminAuth.user
+      }
+    } catch {
+      // No authenticated user found in supported guards
+    }
+
+    return null
+  }
   private async sendEmail(email: string, password: string, userType: string, name: string) {
     try {
       const emailService = new EmailService();
@@ -22,9 +60,15 @@ export default class instituteController {
   }
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
+      const authUser = await this.getAuthenticatedUser();
+      const scopeInstituteId = this.getScopeInstituteId(authUser)
       let query = Institute.query()
-        .preload('role')
+        .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
         .apply((scopes) => scopes.softDeletes());
+
+      if (this.isInstituteScopedUser(authUser)) {
+        query = query.where('id', scopeInstituteId || 0);
+      }
 
       if (searchFor === 'create') {
         query = query.where('isActive', true);
@@ -83,12 +127,20 @@ export default class instituteController {
 
       const validatedData = await createInstituteValidator.validate(requestData);
       const plainPassword = validatedData.institutePassword;
+      const instituteRole = await Role.query().where('roleKey', 'institute').first();
+
+      if (!instituteRole) {
+        return this.ctx.response.status(422).send({
+          status: false,
+          message: 'Institute role not configured',
+        });
+      }
 
       const instituteData = {
         ...validatedData,
         instituteEmail: validatedData.instituteEmail,
         isActive: validatedData.isActive ?? true,
-        roleId: validatedData.roleId ?? undefined,
+        roleId: instituteRole.id,
       };
 
       const institute = await Institute.create(instituteData);
@@ -106,16 +158,19 @@ export default class instituteController {
         data: institute,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       return {
         status: false,
         message: 'Failed to create institute',
-        error: error.message,
+        error: errorMessage,
       };
     }
   }
   async findOne() {
     try {
       const id = this.ctx.request.param('id');
+      const authUser = await this.getAuthenticatedUser();
+      const scopeInstituteId = this.getScopeInstituteId(authUser)
 
       if (!id || isNaN(Number(id))) {
         return this.ctx.response.status(400).send({
@@ -124,11 +179,16 @@ export default class instituteController {
         });
       }
 
-      const institute = await Institute.query()
+      let instituteQuery = Institute.query()
         .where('id', id)
         .apply((scopes) => scopes.softDeletes())
-        .preload('role')
-        .first();
+        .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
+
+      if (this.isInstituteScopedUser(authUser)) {
+        instituteQuery = instituteQuery.where('id', scopeInstituteId || 0);
+      }
+
+      const institute = await instituteQuery.first();
 
 
       if (institute) {
@@ -156,6 +216,8 @@ export default class instituteController {
     try {
       const id = this.ctx.request.param('id');
       const requestData = this.ctx.request.all();
+      const authUser = await this.getAuthenticatedUser();
+      const scopeInstituteId = this.getScopeInstituteId(authUser)
 
       if (requestData.instituteMobile) {
         requestData.instituteMobile = requestData.instituteMobile.toString().replace(/\D/g, '');
@@ -163,8 +225,12 @@ export default class instituteController {
 
       const validatedData = await updateInstituteValidator.validate(requestData);
 
-      const existinginstitute = await Institute.find(id);
-      if (!existinginstitute || existinginstitute.deletedAt) {
+      const existinginstitute = await Institute.query()
+        .where('id', id)
+        .apply((scopes) => scopes.softDeletes())
+        .first();
+
+      if (!existinginstitute || (this.isInstituteScopedUser(authUser) && existinginstitute.id !== scopeInstituteId)) {
         return {
           status: false,
           message: messages.institute_not_found,
@@ -175,7 +241,7 @@ export default class instituteController {
       existinginstitute.merge(validatedData);
       await existinginstitute.save();
 
-      await existinginstitute.load('role');
+      await existinginstitute.load('role', (q) => q.select(['id', 'roleName', 'roleKey']));
 
 
       return {
@@ -195,10 +261,15 @@ export default class instituteController {
   async deleteOne() {
     try {
       const id = this.ctx.request.param('id')
+      const authUser = await this.getAuthenticatedUser()
+      const scopeInstituteId = this.getScopeInstituteId(authUser)
 
-      const institute = await Institute.find(id)
+      const institute = await Institute.query()
+        .where('id', id)
+        .apply((scopes) => scopes.softDeletes())
+        .first()
 
-      if (!institute || institute.deletedAt) {
+      if (!institute || (this.isInstituteScopedUser(authUser) && institute.id !== scopeInstituteId)) {
         return {
           status: false,
           message: messages.institute_not_found,

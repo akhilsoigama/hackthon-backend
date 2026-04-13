@@ -17,14 +17,18 @@ const AUTH_COOKIE_NAME = env.get('AUTH_COOKIE_NAME') || 'token'
 
 export default class AuthController {
   private getAuthCookieOptions() {
-    const maxAge = env.get('AUTH_COOKIE_MAX_AGE') || 60 * 60 * 24 * 7
+    const secure = env.get('AUTH_COOKIE_SECURE', env.get('NODE_ENV') === 'production')
+    const domain = env.get('AUTH_COOKIE_DOMAIN')
+    const maxAge = env.get('AUTH_COOKIE_MAX_AGE') ?? 60 * 60 * 24 * 365
+    const sameSite: 'none' | 'lax' = secure ? 'none' : 'lax'
 
     return {
       httpOnly: true,
-      secure: true,
-      sameSite: 'none' as const,
+      secure,
+      sameSite,
       path: '/',
       maxAge,
+      ...(domain ? { domain } : {}),
     }
   }
 
@@ -77,7 +81,9 @@ export default class AuthController {
     }
   }
 
-  private async getUserResponseData(user: AuthUserType, authType: string) {
+  private async getUserResponseData(user: AuthUserType, authType: string, options?: { syncMissingRole?: boolean }) {
+    const syncMissingRole = options?.syncMissingRole ?? true
+
     if (this.isUserModel(user)) {
       const baseData = {
         id: user.id,
@@ -97,13 +103,20 @@ export default class AuthController {
       let roles: string[] = []
       let permissions: string[] = []
       let roleName: string = user.userType
+      const preloadedRoles = (user as any).$preloaded?.userRoles
 
-      const userWithRoles = await User.query()
-        .where('id', user.id)
-        .preload('userRoles', (query) => {
-          query.preload('permissions')
-        })
-        .first()
+      let userWithRoles = null
+
+      if (preloadedRoles && preloadedRoles.length > 0) {
+        userWithRoles = user
+      } else {
+        userWithRoles = await User.query()
+          .where('id', user.id)
+          .preload('userRoles', (query) => {
+            query.preload('permissions')
+          })
+          .first()
+      }
 
       if (userWithRoles && userWithRoles.userRoles && userWithRoles.userRoles.length > 0) {
         roles = userWithRoles.userRoles.map(role => role.roleKey)
@@ -125,7 +138,9 @@ export default class AuthController {
           permissions = instituteWithRole.role.permissions.map(p => p.permissionKey)
           roleName = instituteWithRole.role.roleName
 
-          await this.assignRoleToUser(user, instituteWithRole.role)
+          if (syncMissingRole) {
+            await this.assignRoleToUser(user, instituteWithRole.role)
+          }
         }
       }
       else if (authType === 'faculty' && user.facultyId) {
@@ -141,7 +156,9 @@ export default class AuthController {
           permissions = facultyWithRole.role.permissions.map(p => p.permissionKey)
           roleName = facultyWithRole.role.roleName
 
-          await this.assignRoleToUser(user, facultyWithRole.role)
+          if (syncMissingRole) {
+            await this.assignRoleToUser(user, facultyWithRole.role)
+          }
         }
       } else if (authType === 'student' && user.studentId) {
         const studentWithRole = await user.related('student').query().preload('role', (query) => {
@@ -153,7 +170,9 @@ export default class AuthController {
           permissions = studentWithRole.role.permissions.map(p => p.permissionKey)
           roleName = studentWithRole.role.roleName
 
-          await this.assignRoleToUser(user, studentWithRole.role)
+          if (syncMissingRole) {
+            await this.assignRoleToUser(user, studentWithRole.role)
+          }
         }
       }
       return {
@@ -444,15 +463,17 @@ export default class AuthController {
         console.log('❌ API Guard Error:', apiError.message)
       }
 
-      try {
-        const adminapiAuth = auth.use('adminapi')
-        const adminapiCheck = await adminapiAuth.check()
-        const adminapiUser = adminapiAuth.user as AuthUserType | undefined
-        if (adminapiCheck && adminapiUser) {
-          authenticatedUser = adminapiUser
+      if (!authenticatedUser) {
+        try {
+          const adminapiAuth = auth.use('adminapi')
+          const adminapiCheck = await adminapiAuth.check()
+          const adminapiUser = adminapiAuth.user as AuthUserType | undefined
+          if (adminapiCheck && adminapiUser) {
+            authenticatedUser = adminapiUser
+          }
+        } catch (adminapiError: any) {
+          console.log('❌ AdminAPI Guard Error:', adminapiError.message)
         }
-      } catch (adminapiError: any) {
-        console.log('❌ AdminAPI Guard Error:', adminapiError.message)
       }
 
       if (!authenticatedUser) {
@@ -483,14 +504,14 @@ export default class AuthController {
           .first()
 
         if (userWithRelations) {
-          const userData = await this.getUserResponseData(userWithRelations, authType)
+          const userData = await this.getUserResponseData(userWithRelations, authType, { syncMissingRole: false })
           return response.ok({
             success: true,
             authType: authType,
             data: userData
           })
         } else {
-          const userData = await this.getUserResponseData(authenticatedUser, authType)
+          const userData = await this.getUserResponseData(authenticatedUser, authType, { syncMissingRole: false })
           return response.ok({
             success: true,
             authType: authType,
@@ -558,10 +579,13 @@ export default class AuthController {
         }
       }
 
+      const cookieOptions = this.getAuthCookieOptions()
+
       response.clearCookie(AUTH_COOKIE_NAME, {
-        path: '/',
-        secure: true,
-        sameSite: 'none',
+        path: cookieOptions.path,
+        secure: cookieOptions.secure,
+        sameSite: cookieOptions.sameSite,
+        ...(cookieOptions.domain ? { domain: cookieOptions.domain } : {}),
       })
 
       return response.ok({
@@ -963,4 +987,3 @@ public async syncStudent({ request, response }: HttpContext) {
     }
   }
 }
-

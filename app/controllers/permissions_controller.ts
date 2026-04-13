@@ -1,6 +1,7 @@
 // app/controllers/permissions_controller.ts
 import type { HttpContext } from '@adonisjs/core/http'
 import Permission from '#models/permission'
+import { errorHandler } from '../helper/error_handler.js'
 
 export default class PermissionsController {
 
@@ -16,7 +17,7 @@ export default class PermissionsController {
       return response.internalServerError({
         success: false,
         message: 'Error fetching permissions',
-        error: error.message,
+        error: errorHandler(error),
       })
     }
   }
@@ -32,6 +33,7 @@ export default class PermissionsController {
       return response.notFound({
         success: false,
         message: 'Permission not found',
+        error: errorHandler(error),
       })
     }
   }

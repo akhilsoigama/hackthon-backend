@@ -5,9 +5,13 @@ import { HttpContext } from '@adonisjs/core/http'
 import { errorHandler } from '../helper/error_handler.js'
 import { createAssignmentValidator, updateAssignmentValidator } from '#validators/assignment'
 import { DateTime } from 'luxon'
+import AssignmentRepository from '../repositories/assignment_repository.js'
+import { parseListQuery } from '../helper/list_query.js'
+import apiCacheService from './api_cache_service.js'
 
 @inject()
 export default class AssignmentService {
+  private readonly assignmentRepository = new AssignmentRepository()
   constructor(protected ctx: HttpContext) {}
 
   private async getAuthenticatedUser() {
@@ -24,16 +28,20 @@ export default class AssignmentService {
     this.ctx.response.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
   }
 
+  private invalidateAssignmentCache() {
+    apiCacheService.invalidateByPrefix('assignments:list:')
+    apiCacheService.invalidateByPrefix('assignments:one:')
+  }
+
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      const { withDeleted, facultyId } = this.ctx.request.qs()
-      let query = Assignment.query()
-        .preload('department', (departmentQuery) =>
-          departmentQuery.select(['id', 'departmentName'])
-        )
-        .preload('institute', (instituteQuery) => instituteQuery.select(['id', 'instituteName']))
-        .preload('faculty', (facultyQuery) => facultyQuery.select(['id', 'facultyName']))
+      const { page, limit, search, withDeleted, searchFor: searchForQuery } = parseListQuery(this.ctx)
+      const requestFacultyId = Number(this.ctx.request.input('facultyId'))
       const authUser = await this.getAuthenticatedUser()
+      const effectiveSearchFor = searchForQuery || searchFor || undefined
+
+      let facultyId: number | undefined = undefined
+      let instituteId: number | undefined = undefined
 
       if (authUser?.userType === 'faculty') {
         if (!authUser.facultyId) {
@@ -43,20 +51,45 @@ export default class AssignmentService {
             data: null,
           })
         }
-        query = query.where('faculty_id', authUser.facultyId)
-      } else if (facultyId) {
-        query = query.where('faculty_id', Number(facultyId))
+        facultyId = authUser.facultyId
+      } else if (Number.isFinite(requestFacultyId) && requestFacultyId > 0) {
+        facultyId = requestFacultyId
       }
 
-      if (!withDeleted || withDeleted === 'false') {
-        query = query.apply((scopes) => scopes.softDeletes())
+      if (authUser?.userType === 'institute') {
+        instituteId = authUser.instituteId
       }
 
-      if (searchFor === 'create') {
-        query = query.where('is_active', true)
-      }
+      const cacheKey = `assignments:list:${JSON.stringify({
+        page,
+        limit,
+        search,
+        withDeleted,
+        facultyId,
+        instituteId,
+        searchFor: effectiveSearchFor,
+      })}`
 
-      const assignment = await query
+      const paginated = await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          return this.assignmentRepository.list(
+            {
+              facultyId,
+              instituteId,
+              search,
+              withDeleted,
+              onlyActive: effectiveSearchFor === 'create',
+            },
+            page,
+            limit
+          )
+        },
+        ['assignments']
+      )
+
+      const assignment = paginated.all()
       return {
         status: assignment.length > 0,
         messages:
@@ -64,6 +97,12 @@ export default class AssignmentService {
             ? messages.assignment_fetched_successfully
             : messages.assignment_not_found,
         data: assignment,
+        meta: {
+          total: paginated.total,
+          perPage: paginated.perPage,
+          currentPage: paginated.currentPage,
+          lastPage: paginated.lastPage,
+        },
       }
     } catch (error) {
       console.error('FindAll Error:', error)
@@ -125,9 +164,14 @@ export default class AssignmentService {
 
       const assignment = await Assignment.create({
         ...velidatedData,
+        createdBy: authUser?.id,
+        updatedBy: authUser?.id,
         isActive: velidatedData.isActive ?? true,
         dueDate: velidatedData.dueDate ? DateTime.fromJSDate(velidatedData.dueDate) : undefined,
       })
+
+      this.invalidateAssignmentCache()
+
       return {
         status: true,
         messages: messages.assignemnt_created_successfully,
@@ -187,6 +231,7 @@ export default class AssignmentService {
 
       const updatePayload = {
         ...validatedData,
+        updatedBy: authUser?.id || existingAssignment.updatedBy,
         dueDate:
           validatedData.dueDate !== undefined
             ? validatedData.dueDate
@@ -197,6 +242,8 @@ export default class AssignmentService {
 
       existingAssignment.merge(updatePayload)
       await existingAssignment.save()
+
+      this.invalidateAssignmentCache()
 
       await existingAssignment.load('department')
       await existingAssignment.load('institute')
@@ -219,14 +266,8 @@ export default class AssignmentService {
       this.setSecurityHeaders()
       const id = this.ctx.request.param('id')
       const authUser = await this.getAuthenticatedUser()
-      let query = Assignment.query()
-        .where('id', id)
-        .apply((scope) => scope.softDeletes())
-        .preload('department', (departmentQuery) =>
-          departmentQuery.select(['id', 'departmentName'])
-        )
-        .preload('institute', (instituteQuery) => instituteQuery.select(['id', 'instituteName']))
-        .preload('faculty', (facultyQuery) => facultyQuery.select(['id', 'facultyName']))
+      let facultyId: number | undefined
+      let instituteId: number | undefined
 
       if (authUser?.userType === 'faculty') {
         if (!authUser.facultyId) {
@@ -236,10 +277,20 @@ export default class AssignmentService {
           })  
         }
 
-        query = query.where('faculty_id', authUser.facultyId)
+        facultyId = authUser.facultyId
       }
 
-      const assignment = await query.first()
+      if (authUser?.userType === 'institute') {
+        instituteId = authUser.instituteId
+      }
+
+      const assignment = await apiCacheService.getOrSet(
+        `assignments:one:${id}:faculty:${facultyId || 'all'}:institute:${instituteId || 'all'}`,
+        30_000,
+        async () => this.assignmentRepository.findById(Number(id), facultyId, instituteId),
+        ['assignments']
+      )
+
       if (!assignment) {
         return this.ctx.response.status(404).send({
           status: false,
@@ -293,7 +344,11 @@ export default class AssignmentService {
       }
 
       assignment.deletedAt = new Date() as any
+      assignment.updatedBy = authUser?.id || assignment.updatedBy
       await assignment.save()
+
+      this.invalidateAssignmentCache()
+
       return {
         status: true,
         messages: messages.common_messages_record_deleted,

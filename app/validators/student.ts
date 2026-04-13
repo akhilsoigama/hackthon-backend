@@ -19,7 +19,7 @@ export const studentCreateValidator = vine.compile(
     studentId: vine.string(),
     departmentId: vine.number(),
     instituteId: vine.number(),
-    roleId: vine.number(),
+    roleId: vine.number().optional(),
     studentDob: dateRule.optional(),
     studentAddmissionDate: dateRule.optional(),
     studentStd: vine.string(),
