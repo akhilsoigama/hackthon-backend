@@ -154,19 +154,25 @@ export default class QuizzesService {
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
       let query = Quizzes.query()
-        .preload('department', (departmentQuery) => {
-          departmentQuery.select(['id', 'departmentName'])
-        })
+        .select([
+          'id',
+          'quiz_title',
+          'quiz_description',
+          'quiz_banner',
+          'subject',
+          'std',
+          'institute_id',
+          'faculty_id',
+          'department_id',
+          'due_date',
+          'marks',
+          'attempt_limit',
+          'is_active',
+          'created_at',
+          'updated_at',
+        ])
         .preload('questions', (questionQuery) => {
-          questionQuery.preload('options', (optionQuery) => {
-            optionQuery.select(['id', 'optionText'])
-          })
-        })
-        .preload('faculty', (facultyQuery) => {
-          facultyQuery.select(['id', 'facultyName', 'facultyEmail'])
-        })
-        .preload('institute', (instituteQuery) => {
-          instituteQuery.select(['id', 'instituteName'])
+          questionQuery.select(['id'])
         })
         .apply((scopes) => scopes.softDeletes())
       if (searchFor === 'create') {
