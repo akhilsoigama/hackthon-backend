@@ -436,6 +436,7 @@ export default class AuthController {
         success: true,
         message: messages.user_login_success,
         authType: authType,
+        token: token.value!.release(),
         user: userData,
       })
     } catch (error: any) {
