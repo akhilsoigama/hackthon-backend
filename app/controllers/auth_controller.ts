@@ -432,7 +432,24 @@ export default class AuthController {
       }
 
       const releasedToken = token.value!.release()
-      response.cookie(AUTH_COOKIE_NAME, releasedToken, this.getAuthCookieOptions())
+      const cookieOptions = this.getAuthCookieOptions()
+
+      // Clear older cookie variants (host-only + domain-scoped) before writing a fresh one.
+      response.clearCookie(AUTH_COOKIE_NAME, {
+        path: cookieOptions.path,
+        secure: cookieOptions.secure,
+        sameSite: cookieOptions.sameSite,
+      })
+      if (cookieOptions.domain) {
+        response.clearCookie(AUTH_COOKIE_NAME, {
+          path: cookieOptions.path,
+          secure: cookieOptions.secure,
+          sameSite: cookieOptions.sameSite,
+          domain: cookieOptions.domain,
+        })
+      }
+
+      response.cookie(AUTH_COOKIE_NAME, releasedToken, cookieOptions)
       response.header('authorization', `Bearer ${releasedToken}`)
       response.header('x-access-token', releasedToken)
 
@@ -592,6 +609,15 @@ export default class AuthController {
         sameSite: cookieOptions.sameSite,
         ...(cookieOptions.domain ? { domain: cookieOptions.domain } : {}),
       })
+
+      // Also clear host-only cookie variant when domain cookie is configured.
+      if (cookieOptions.domain) {
+        response.clearCookie(AUTH_COOKIE_NAME, {
+          path: cookieOptions.path,
+          secure: cookieOptions.secure,
+          sameSite: cookieOptions.sameSite,
+        })
+      }
 
       return response.ok({
         success: true,
