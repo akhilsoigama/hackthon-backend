@@ -151,7 +151,7 @@ export default class PermissionMiddleware {
     try {
       if (!permissions || permissions.length === 0) return next()
 
-      const user = (ctx as any).user || (ctx as any).authUser || (ctx.request as any).user || ctx.auth?.user
+      const user = (ctx as unknown & { user?: unknown }).user || (ctx as unknown & { authUser?: unknown }).authUser || (ctx.request as unknown & { user?: unknown }).user || ctx.auth?.user
 
       if (!user) {
         return ctx.response.unauthorized({
@@ -160,7 +160,11 @@ export default class PermissionMiddleware {
         })
       }
 
-      if (['super_admin', 'admin', 'system_admin'].includes(user.userType)) {
+      const userRecord =
+        typeof user === 'object' && user !== null ? (user as Record<string, unknown>) : null
+      const userType = typeof userRecord?.userType === 'string' ? userRecord.userType : undefined
+
+      if (userType && ['super_admin', 'admin', 'system_admin'].includes(userType)) {
         return next()
       }
 
@@ -195,12 +199,14 @@ export default class PermissionMiddleware {
         required: validPermissions,
         userHas: userPermissions,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       return ctx.response.internalServerError({
         success: false,
         message: 'Permission check failed.',
-        error: error.message,
+        error: errorMessage,
       })
     }
   }
 }
+

@@ -307,8 +307,9 @@ export default class QuizzesService {
           await existingQuestion.save()
 
           const existingOptionsMap = new Map()
-          existingQuestion.options.forEach((opt: any) => {
-            existingOptionsMap.set(opt.id, opt)
+          existingQuestion.options.forEach((opt: unknown) => {
+            const optObj = opt as Record<string, unknown>
+            existingOptionsMap.set(optObj.id, opt)
           })
 
           const incomingOptionIds: number[] = []
@@ -418,3 +419,4 @@ export default class QuizzesService {
     }
   }
 }
+

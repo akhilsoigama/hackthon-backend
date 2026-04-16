@@ -7,6 +7,7 @@ import Role from '#models/role';
 import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
 import { DateTime } from 'luxon';
 import EmailService from './email_services.js';
+import { generateCredentialPassword } from '../helper/password_generator.js';
 
 @inject()
 export default class instituteController {
@@ -103,7 +104,7 @@ export default class instituteController {
     try {
       const requestData = this.ctx.request.all();
 
-      const requiredFields = ['instituteName', 'instituteEmail', 'institutePassword'];
+      const requiredFields = ['instituteName', 'instituteEmail'];
       for (const field of requiredFields) {
         if (!requestData[field]) {
           return this.ctx.response.status(400).send({
@@ -126,7 +127,6 @@ export default class instituteController {
       }
 
       const validatedData = await createInstituteValidator.validate(requestData);
-      const plainPassword = validatedData.institutePassword;
       const instituteRole = await Role.query().where('roleKey', 'institute').first();
 
       if (!instituteRole) {
@@ -138,6 +138,7 @@ export default class instituteController {
 
       const instituteData = {
         ...validatedData,
+        institutePassword: generateCredentialPassword('INS'),
         instituteEmail: validatedData.instituteEmail,
         isActive: validatedData.isActive ?? true,
         roleId: instituteRole.id,
@@ -146,7 +147,7 @@ export default class instituteController {
       const institute = await Institute.create(instituteData);
       this.sendEmail(
         institute.instituteEmail,
-        plainPassword,
+        instituteData.institutePassword,
         'institute',
         institute.instituteName
       ).catch(err => {

@@ -54,3 +54,4 @@ export default class QuizAttempt extends BaseModel {
   @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 }
+

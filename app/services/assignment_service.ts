@@ -35,7 +35,13 @@ export default class AssignmentService {
 
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      const { page, limit, search, withDeleted, searchFor: searchForQuery } = parseListQuery(this.ctx)
+      const {
+        page,
+        limit,
+        search,
+        withDeleted,
+        searchFor: searchForQuery,
+      } = parseListQuery(this.ctx)
       const requestFacultyId = Number(this.ctx.request.input('facultyId'))
       const authUser = await this.getAuthenticatedUser()
       const effectiveSearchFor = searchForQuery || searchFor || undefined
@@ -274,7 +280,7 @@ export default class AssignmentService {
           return this.ctx.response.status(400).send({
             status: false,
             message: 'faculty not associated with this user.',
-          })  
+          })
         }
 
         facultyId = authUser.facultyId
@@ -343,7 +349,7 @@ export default class AssignmentService {
         }
       }
 
-      assignment.deletedAt = new Date() as any
+      assignment.deletedAt = DateTime.now()
       assignment.updatedBy = authUser?.id || assignment.updatedBy
       await assignment.save()
 

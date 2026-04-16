@@ -14,3 +14,4 @@ export default class ForceJsonResponseMiddleware {
     return next()
   }
 }
+

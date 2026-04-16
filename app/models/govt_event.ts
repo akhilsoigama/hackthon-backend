@@ -19,41 +19,53 @@ export default class GovtEvent extends BaseModel {
     })
   })
 
-  static filters = scope((query, filters: any) => {
-    if (!filters) return
+  static filters = scope((query, filters: unknown) => {
+    if (!filters || typeof filters !== 'object') return
 
-    if (filters.isActive !== undefined) {
-      query.where('is_active', filters.isActive)
+    const f = filters as Partial<{
+      isActive: boolean
+      isFeatured: boolean
+      eventStatus: string
+      eventCategory: string
+      eventSubCategory: string
+      isOnline: boolean
+      isFree: boolean
+      startDate: string
+      endDate: string
+    }>
+
+    if (typeof f.isActive === 'boolean') {
+      query.where('is_active', f.isActive)
     }
 
-    if (filters.isFeatured !== undefined) {
-      query.where('is_featured', filters.isFeatured)
+    if (typeof f.isFeatured === 'boolean') {
+      query.where('is_featured', f.isFeatured)
     }
 
-    if (filters.eventStatus) {
-      query.where('event_status', filters.eventStatus)
+    if (typeof f.eventStatus === 'string' && f.eventStatus) {
+      query.where('event_status', f.eventStatus)
     }
 
-    if (filters.eventCategory) {
-      query.where('event_category', filters.eventCategory)
+    if (typeof f.eventCategory === 'string' && f.eventCategory) {
+      query.where('event_category', f.eventCategory)
     }
 
-    if (filters.eventSubCategory) {
-      query.where('event_sub_category', filters.eventSubCategory)
+    if (typeof f.eventSubCategory === 'string' && f.eventSubCategory) {
+      query.where('event_sub_category', f.eventSubCategory)
     }
 
-    if (filters.isOnline !== undefined) {
-      query.where('is_online', filters.isOnline)
+    if (typeof f.isOnline === 'boolean') {
+      query.where('is_online', f.isOnline)
     }
 
-    if (filters.isFree !== undefined) {
-      query.where('is_free', filters.isFree)
+    if (typeof f.isFree === 'boolean') {
+      query.where('is_free', f.isFree)
     }
 
-    if (filters.startDate && filters.endDate) {
+    if (typeof f.startDate === 'string' && typeof f.endDate === 'string' && f.startDate && f.endDate) {
       query.whereBetween('event_date', [
-        filters.startDate,
-        filters.endDate,
+        f.startDate,
+        f.endDate,
       ])
     }
   })
@@ -95,3 +107,4 @@ export default class GovtEvent extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true }) declare updatedAt: DateTime
   @column.dateTime({ serializeAs: null }) declare deletedAt: DateTime
 }
+

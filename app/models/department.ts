@@ -34,3 +34,4 @@ export default class Department extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
 }
+

@@ -83,3 +83,4 @@ export default class QuizAttemptRepository {
     return query.first()
   }
 }
+

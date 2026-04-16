@@ -3,6 +3,19 @@ import { DateTime } from "luxon";
 import Institute from "./institute.js";
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
+export type InstituteEventFilters = {
+    isActive?: boolean
+    instituteId?: number
+    isFeatured?: boolean
+    eventStatus?: string
+    eventCategory?: string
+    eventSubCategory?: string
+    isOnline?: boolean
+    isFree?: boolean
+    startDate?: string | Date
+    endDate?: string | Date
+}
+
 export default class InstituteEvent extends BaseModel {
     static softDeletes = scope((query) => {
         query.whereNull('deleted_at')
@@ -20,7 +33,7 @@ export default class InstituteEvent extends BaseModel {
         })
     })
 
-    static filters = scope((query, filters: any) => {
+    static filters = scope((query, filters: InstituteEventFilters | null | undefined) => {
         if (!filters) return
 
         if (filters.isActive !== undefined) {

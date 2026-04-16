@@ -11,13 +11,8 @@ export default class ResponseTimeMiddleware {
       const durationMs = Number((performance.now() - start).toFixed(2))
       const thresholdMs = Number(process.env.SLOW_API_THRESHOLD_MS || 800)
 
-      let userId: number | null = null
-      try {
-        const user = await ctx.auth.authenticate()
-        userId = user?.id ?? null
-      } catch {
-        userId = null
-      }
+      // Do not trigger a second auth lookup here; use the user already resolved by auth middleware.
+      const userId = (ctx.auth.user as { id?: number } | null)?.id ?? null
 
       const payload = {
         method: ctx.request.method(),
@@ -37,3 +32,4 @@ export default class ResponseTimeMiddleware {
     }
   }
 }
+

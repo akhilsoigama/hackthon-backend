@@ -36,6 +36,18 @@ export default class Lecture extends BaseModel {
   @column({ columnName: 'text_content' })
   declare textContent: string | null
 
+  @column({ columnName: 'department_id' })
+  declare departmentId: number | null
+
+  @column({ columnName: 'chapter_topic' })
+  declare chapterTopic: string | null
+
+  @column({ columnName: 'learning_objectives' })
+  declare learningObjectives: string | null
+
+  @column({ columnName: 'difficulty_level' })
+  declare difficultyLevel: 'Beginner' | 'Intermediate' | 'Advanced' | null
+
   @belongsTo(() => Faculty, {
     foreignKey: 'faculty_id',
   })

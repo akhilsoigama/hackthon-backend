@@ -24,3 +24,4 @@ export const updateStudentQueryValidator = vine.compile(
     isActive: vine.boolean().optional(),
   })
 )
+

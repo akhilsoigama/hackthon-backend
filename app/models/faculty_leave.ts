@@ -64,3 +64,4 @@ export default class FacultyLeave extends BaseModel {
   @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 }
+

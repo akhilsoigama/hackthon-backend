@@ -218,3 +218,4 @@ export default class StudentQueryService {
       .send(ApiResponse.success({ id: query.id }, messages.student_query_deleted_successfully))
   }
 }
+

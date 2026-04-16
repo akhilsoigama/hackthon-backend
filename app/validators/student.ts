@@ -14,7 +14,6 @@ export const studentCreateValidator = vine.compile(
   vine.object({
     studentName: vine.string().trim().minLength(2),
     studentEmail: vine.string().email(),
-    studentPassword: vine.string().minLength(6),
     studentMobile: vine.string().minLength(10),
     studentId: vine.string(),
     departmentId: vine.number(),
@@ -59,3 +58,4 @@ export const studentIdParamValidator = vine.compile(
         id: vine.number(),
     })
 )
+

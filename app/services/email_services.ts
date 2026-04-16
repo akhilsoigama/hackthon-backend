@@ -75,8 +75,9 @@ export default class EmailService {
 
         await this.logEmailSent(email, password, name, userType, true)
         return true
-      } catch (error: any) {
-        console.error('❌ Brevo Email API Error:', error.message)
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error)
+        console.error('❌ Brevo Email API Error:', message)
       }
     }
 
@@ -245,3 +246,4 @@ This is an automated email. Do not reply.
 }
 
 }
+

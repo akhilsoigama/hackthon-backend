@@ -18,7 +18,6 @@ import InstitutesController from '#controllers/institutes_controller'
 import DepartmentsController from '#controllers/departments_controller'
 import FacultyController from '#controllers/faculties_controller'
 import ChatBotController from '#controllers/chatBotController'
-import TranslatesController from '#controllers/translates_controller'
 import LectureUploadsController from '#controllers/lacture_uploads_controller'
 import PingController from '#controllers/ping_controller'
 import StudentController from '#controllers/student_controller'
@@ -31,9 +30,11 @@ import AssignmentUploadsController from '#controllers/assignment_uploads_control
 import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
 import FacultyLeaveController from '#controllers/faculty_leave_controller'
 import StudentQueriesController from '#controllers/student_queries_controller'
+import InstituteEventWithGovtEventsController from '#controllers/institute_event_with_govt_events_controller'
 
-router.post('/login', [AuthController, 'login']).use(middleware.rateLimit({ config: RateLimitConfigs.auth }))
-router.post('/translate', [TranslatesController, 'translateMessage'])
+router
+  .post('/login', [AuthController, 'login'])
+  .use(middleware.rateLimit({ config: RateLimitConfigs.auth }))
 router.get('/test-db', [AuthController, 'testDB'])
 
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
@@ -51,7 +52,9 @@ router
       .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
 
     // Auth routes
-    router.get('/profile', [AuthController, 'me'])
+    router
+      .get('/profile', [AuthController, 'me'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
     router.post('/logout', [AuthController, 'logout'])
     router.get('/auth-type', [AuthController, 'getAuthType'])
     router.get('/my-permissions', [AuthController, 'getMyPermissions'])
@@ -261,6 +264,11 @@ router
     router
       .patch('/faculty-leaves/:id/reject', [FacultyLeaveController, 'reject'])
       .use(middleware.permission([PermissionKeys.LEAVE_REJECT_VIEW]))
+
+    router
+      .resource('institute-events-with-govt-events', InstituteEventWithGovtEventsController)
+      .apiOnly()
+      .use('index', middleware.permission([PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW]))
   })
   .use(middleware.rateLimit({ config: RateLimitConfigs.api }))
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))

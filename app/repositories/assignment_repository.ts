@@ -83,3 +83,4 @@ export default class AssignmentRepository {
     return query.first()
   }
 }
+

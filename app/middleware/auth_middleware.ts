@@ -22,7 +22,7 @@ export default class AuthMiddleware {
 
     const guards = options.guards || ['api', 'adminapi'] as (keyof Authenticators)[]
     let authenticatedGuard: string | null = null
-    let authenticatedUser: any = null
+    let authenticatedUser: unknown = null
     let authError: string | null = null
 
     for (const guard of guards) {
@@ -36,8 +36,8 @@ export default class AuthMiddleware {
         
         break
         
-      } catch (error: any) {
-        authError = error.message
+      } catch (error: unknown) {
+        authError = error instanceof Error ? error.message : String(error)
       }
     }
 
@@ -56,15 +56,15 @@ export default class AuthMiddleware {
     }
 
     try {
-      const ctxWithUser = ctx as any
+      const ctxWithUser = ctx as unknown & { user?: unknown; authUser?: unknown }
       ctxWithUser.user = authenticatedUser
       ctxWithUser.authUser = authenticatedUser
       
-      const requestWithUser = ctx.request as any
+      const requestWithUser = ctx.request as unknown & { user?: unknown }
       requestWithUser.user = authenticatedUser
 
       return next()
-    } catch (error: any) {
+    } catch (error: unknown) {
       return ctx.response.unauthorized({
         success: false,
         message: 'Authentication context setup failed',
@@ -73,3 +73,4 @@ export default class AuthMiddleware {
     }
   }
 }
+
