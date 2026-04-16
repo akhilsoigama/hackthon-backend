@@ -1,22 +1,30 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
-export const errorHandler = (e: any, ctx?: HttpContext) => {
+export const errorHandler = (e: unknown, ctx?: HttpContext) => {
+  const errorObj = e as Record<string, unknown>;
+  
   if (ctx) {
     ctx.response.status(400)
   }
-  if (e?.code === '23505') {
+  
+  if (errorObj?.code === '23505') {
     return {
-      error: e?.detail,
+      error: errorObj?.detail,
     }
   }
-  if (e?.code === 'E_VALIDATION_ERROR') {
+  
+  if (errorObj?.code === 'E_VALIDATION_ERROR') {
     return e
   }
-  if (e?.message) {
+  
+  if (errorObj?.message) {
     return {
-      error: e?.message,
+      error: errorObj?.message,
     }
   }
-
-  return e
+  
+  return {
+    error: 'Something went wrong',
+  }
 }
+

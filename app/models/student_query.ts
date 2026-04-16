@@ -84,3 +84,4 @@ export default class StudentQuery extends BaseModel {
   @column.dateTime()
   declare deletedAt: DateTime | null
 }
+

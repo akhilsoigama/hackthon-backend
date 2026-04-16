@@ -30,3 +30,4 @@ export default class FacultyLeaveController {
     return this.facultyLeaveService.review('rejected', request.input('instituteRemark'))
   }
 }
+

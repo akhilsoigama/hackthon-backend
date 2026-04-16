@@ -10,9 +10,21 @@ import { PermissionKeys } from "#database/constants/permission"
 @inject()
 export default class LectureUploadServices {
 
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error'
+  }
+
+  private getAuthUser(rawUser: unknown): { userType?: string; facultyId?: number | null; instituteId?: number | null; id?: number } | null {
+    if (typeof rawUser !== 'object' || rawUser === null) {
+      return null
+    }
+    return rawUser as { userType?: string; facultyId?: number | null; instituteId?: number | null; id?: number }
+  }
+
   public async create({ request, response, auth }: HttpContext) {
     try {
-      const user = (request.ctx as any)?.user || auth.user;
+      const rawUser = (request.ctx as unknown as { user?: unknown })?.user ?? auth.user
+      const user = this.getAuthUser(rawUser)
 
       if (!user) {
         return response.unauthorized({
@@ -39,9 +51,9 @@ export default class LectureUploadServices {
 
       if (isSystemAdmin && payload.faculty_id) {
         facultyId = payload.faculty_id;
-      } else if (user.userType === 'faculty' && user.facultyId) {
+      } else if (user.userType === 'faculty' && typeof user.facultyId === 'number') {
         facultyId = user.facultyId;
-      } else if (user.userType === 'institute' && user.instituteId) {
+      } else if (user.userType === 'institute' && typeof user.instituteId === 'number') {
         facultyId = user.instituteId;
       } else {
         return response.badRequest({
@@ -88,7 +100,7 @@ export default class LectureUploadServices {
         });
 
         if (mediaFile && mediaFile.isValid) {
-          const uploadOptions: any = {
+          const uploadOptions: Record<string, unknown> = {
             folder: `lectures/${payload.content_type}s`,
             resource_type: payload.content_type === 'video' ? 'video' : 'raw',
             public_id: `lecture_${payload.content_type}_${Date.now()}`,
@@ -188,6 +200,10 @@ export default class LectureUploadServices {
         description: payload.description ?? null,
         subject: payload.subject || null,
         std: payload.std || null,
+        departmentId: payload.department_id ?? null,
+        chapterTopic: payload.chapter_topic ?? null,
+        learningObjectives: payload.learning_objectives ?? null,
+        difficultyLevel: payload.difficulty_level ?? null,
         contentType: payload.content_type,
         facultyId: facultyId,
         contentUrl: contentUrl,
@@ -206,18 +222,19 @@ export default class LectureUploadServices {
         lecture
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.internalServerError({
         success: false,
         message: 'Failed to create lecture',
-        error: error.message
+        error: this.getErrorMessage(error)
       });
     }
   }
 
   public async updateOne({ params, request, response, auth }: HttpContext) {
     try {
-      const user = (request.ctx as any)?.user || auth.user;
+      const rawUser = (request.ctx as unknown as { user?: unknown })?.user ?? auth.user
+      const user = this.getAuthUser(rawUser)
 
       if (!user) {
         return response.unauthorized({
@@ -256,12 +273,16 @@ export default class LectureUploadServices {
 
       const payload = await updateLectureValidator.validate(request.all());
 
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       
       if (payload.title !== undefined) updateData.title = payload.title;
       if (payload.description !== undefined) updateData.description = payload.description;
       if (payload.subject !== undefined) updateData.subject = payload.subject;
       if (payload.std !== undefined) updateData.std = payload.std;
+      if (payload.department_id !== undefined) updateData.departmentId = payload.department_id;
+      if (payload.chapter_topic !== undefined) updateData.chapterTopic = payload.chapter_topic;
+      if (payload.learning_objectives !== undefined) updateData.learningObjectives = payload.learning_objectives;
+      if (payload.difficulty_level !== undefined) updateData.difficultyLevel = payload.difficulty_level;
       if (payload.content_type !== undefined) updateData.contentType = payload.content_type;
       if (payload.duration_in_seconds !== undefined) updateData.durationInSeconds = payload.duration_in_seconds;
       
@@ -287,7 +308,7 @@ export default class LectureUploadServices {
       const thumbnailFile = request.file('thumbnailFile');
 
       if (contentFile && contentFile.isValid) {
-        const uploadOptions: any = {
+        const uploadOptions: Record<string, unknown> = {
           folder: `lectures/${lecture.contentType}s`,
           resource_type: lecture.contentType === 'video' ? 'video' : 'raw',
           public_id: `lecture_${lecture.contentType}_${Date.now()}`,
@@ -323,18 +344,19 @@ export default class LectureUploadServices {
         message: 'Lecture updated successfully',
         lecture
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.internalServerError({
         success: false,
         message: 'Failed to update lecture',
-        error: error.message
+        error: this.getErrorMessage(error)
       });
     }
   }
 
   public async findAll({ auth, request, response }: HttpContext) {
     try {
-      const user = (request.ctx as any)?.user || auth.user;
+      const rawUser = (request.ctx as unknown as { user?: unknown })?.user ?? auth.user
+      const user = this.getAuthUser(rawUser)
 
       if (!user) {
         return response.unauthorized({
@@ -359,9 +381,9 @@ export default class LectureUploadServices {
       const filters = request.qs();
 
       if (!isSystemAdmin) {
-        if (user.userType === 'faculty' && user.facultyId) {
+        if (user.userType === 'faculty' && typeof user.facultyId === 'number') {
           query.where('faculty_id', user.facultyId);
-        } else if (user.userType === 'institute' && user.instituteId) {
+        } else if (user.userType === 'institute' && typeof user.instituteId === 'number') {
           const FacultyModel = (await import('#models/faculty')).default;
           const facultyIds = await FacultyModel.query()
             .where('institute_id', user.instituteId)
@@ -416,18 +438,19 @@ export default class LectureUploadServices {
           lastPage: lectures.lastPage
         }
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.internalServerError({
         success: false,
         message: 'Failed to fetch lectures',
-        error: error.message
+        error: this.getErrorMessage(error)
       });
     }
   }
 
   public async findOne({ params, request, response }: HttpContext) {
     try {
-      const user = (request.ctx as any)?.user;
+      const rawUser = (request.ctx as unknown as { user?: unknown })?.user
+      const user = this.getAuthUser(rawUser)
       
       if (!user) {
         return response.unauthorized({
@@ -469,18 +492,19 @@ export default class LectureUploadServices {
         success: true,
         lecture
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.internalServerError({
         success: false,
         message: 'Failed to fetch lecture',
-        error: error.message
+        error: this.getErrorMessage(error)
       });
     }
   }
 
   public async deleteOne({ params, request, response, auth }: HttpContext) {
     try {
-      const user = (request.ctx as any)?.user || auth.user;
+      const rawUser = (request.ctx as unknown as { user?: unknown })?.user ?? auth.user
+      const user = this.getAuthUser(rawUser)
       
       if (!user) {
         return response.unauthorized({
@@ -521,11 +545,11 @@ export default class LectureUploadServices {
         success: true,
         message: 'Lecture deleted successfully'
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.internalServerError({
         success: false,
         message: 'Failed to delete lecture',
-        error: error.message
+        error: this.getErrorMessage(error)
       });
     }
   }
@@ -547,3 +571,4 @@ export default class LectureUploadServices {
     return secureUrl;
   }
 }
+

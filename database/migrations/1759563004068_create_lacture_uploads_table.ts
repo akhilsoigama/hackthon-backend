@@ -24,11 +24,20 @@ export default class Lectures extends BaseSchema {
 
       table.integer('faculty_id').unsigned().notNullable()
       table.string('std').nullable()
+      table.integer('department_id').unsigned().nullable()
+      table.string('chapter_topic', 150).nullable()
+      table.text('learning_objectives').nullable()
+      table.enum('difficulty_level', ['Beginner', 'Intermediate', 'Advanced']).nullable()
       table
         .foreign('faculty_id')
         .references('id')
         .inTable('faculties')
         .onDelete('CASCADE')
+      table
+        .foreign('department_id')
+        .references('id')
+        .inTable('departments')
+        .onDelete('SET NULL')
 
       table.timestamp('created_at', { useTz: true }).defaultTo(this.now())
       table.timestamp('updated_at', { useTz: true }).defaultTo(this.now())

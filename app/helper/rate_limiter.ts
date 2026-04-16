@@ -165,3 +165,4 @@ export const RateLimitConfigs = {
     windowMs: 60 * 60 * 1000, // 40 requests per hour
   },
 }
+

@@ -4,8 +4,25 @@ import { HttpContext } from '@adonisjs/core/http'
 export default class PermissionsResolverService {
   constructor(
     protected ctx: HttpContext,
-    protected authenticatedUser?: any
+    protected authenticatedUser?: unknown
   ) {}
+
+  private getUserType(user: unknown): string | undefined {
+    if (typeof user !== 'object' || user === null) {
+      return undefined
+    }
+    const maybe = user as { userType?: unknown }
+    return typeof maybe.userType === 'string' ? maybe.userType : undefined
+  }
+
+  private getUserId(user: unknown): number | undefined {
+    if (typeof user !== 'object' || user === null) {
+      return undefined
+    }
+    const maybe = user as { id?: unknown }
+    const id = Number(maybe.id)
+    return Number.isFinite(id) ? id : undefined
+  }
 
   async permissionResolver(requiredPermissions?: PermissionKeys[]) {
     try {
@@ -65,9 +82,10 @@ export default class PermissionsResolverService {
     }
   }
 
-  private async checkIfSystemAdmin(user: any): Promise<boolean> {
+  private async checkIfSystemAdmin(user: unknown): Promise<boolean> {
     try {
-      if (user.userType === 'super_admin' || user.userType === 'system_admin' || user.userType === 'admin') {
+      const userType = this.getUserType(user)
+      if (userType === 'super_admin' || userType === 'system_admin' || userType === 'admin') {
         return true
       }
 
@@ -98,15 +116,21 @@ export default class PermissionsResolverService {
     }
   }
 
-  private async getUserPermissions(user: any): Promise<PermissionKeys[]> {
+  private async getUserPermissions(user: unknown): Promise<PermissionKeys[]> {
     try {
-      if (user.userType === 'super_admin' || user.userType === 'system_admin' || user.userType === 'admin') {
+      const userType = this.getUserType(user)
+      if (userType === 'super_admin' || userType === 'system_admin' || userType === 'admin') {
         return Object.values(PermissionKeys) as PermissionKeys[]
+      }
+
+      const userId = this.getUserId(user)
+      if (!userId) {
+        return []
       }
 
       const UserModel = (await import('#models/user')).default
       const userWithRoles = await UserModel.query()
-        .where('id', user.id)
+        .where('id', userId)
         .preload('userRoles', (roleQuery) => {
           roleQuery.preload('permissions')
         })

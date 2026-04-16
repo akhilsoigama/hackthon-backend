@@ -31,6 +31,12 @@ export default class Faculty extends BaseModel {
   declare designation: string
 
   @column()
+  declare qualification: string | null
+
+  @column()
+  declare experience: number | null
+
+  @column()
   declare departmentId: number
 
   @column()

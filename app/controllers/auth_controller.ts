@@ -10,6 +10,9 @@ import Student from '#models/student'
 import db from '@adonisjs/lucid/services/db'
 import { ADMIN_AUTH_ACCESS_TOKENS, AUTH_ACCESS_TOKENS } from '#database/constants/table_names'
 import env from '#start/env'
+import apiCacheService from '#services/api_cache_service'
+import { generateCredentialPassword } from '../helper/password_generator.js'
+import type { AccessToken } from '@adonisjs/auth/access_tokens'
 
 type AdminUserType = InstanceType<typeof AdminUser>
 type AuthUserType = User | AdminUserType
@@ -46,11 +49,31 @@ export default class AuthController {
     ])
   }
 
-  private isUserModel(user: any): user is User {
+  private async revokeOtherTokensForUser(user: User, keepTokenId?: number) {
+    const query = db.from(AUTH_ACCESS_TOKENS).where('tokenable_id', user.id)
+
+    if (keepTokenId !== undefined) {
+      query.whereNot('id', keepTokenId)
+    }
+
+    await query.delete()
+  }
+
+  private async revokeOtherTokensForAdminUser(adminUser: AdminUserType, keepTokenId?: number) {
+    const query = db.from(ADMIN_AUTH_ACCESS_TOKENS).where('tokenable_id', adminUser.id)
+
+    if (keepTokenId !== undefined) {
+      query.whereNot('id', keepTokenId)
+    }
+
+    await query.delete()
+  }
+
+  private isUserModel(user: unknown): user is User {
     return user instanceof User
   }
 
-  private isAdminUserModel(user: any): user is AdminUserType {
+  private isAdminUserModel(user: unknown): user is AdminUserType {
     return user instanceof AdminUser
   }
 
@@ -62,10 +85,11 @@ export default class AuthController {
         userExists: !!user,
         user: user
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       return response.json({
         success: false,
-        error: error.message
+        error: message
       })
     }
   }
@@ -104,11 +128,11 @@ export default class AuthController {
       let roles: string[] = []
       let permissions: string[] = []
       let roleName: string = user.userType
-      const preloadedRoles = (user as any).$preloaded?.userRoles
+      const preloadedRoles = user.$preloaded?.userRoles
 
       let userWithRoles = null
 
-      if (preloadedRoles && preloadedRoles.length > 0) {
+      if (Array.isArray(preloadedRoles) && preloadedRoles.length > 0) {
         userWithRoles = user
       } else {
         userWithRoles = await User.query()
@@ -320,13 +344,13 @@ export default class AuthController {
       const { email, password } = request.only(['email', 'password'])
 
       let user: AuthUserType | null = null
-      let token: any = null
+      let token: AccessToken | null = null
       let authType: string = ''
       try {
         const adminUser = await AdminUser.verifyCredentials(email, password)
         if (adminUser) {
           user = adminUser
-          token = await AdminUser.adminAccessTokens.create(user)
+          token = await AdminUser.adminAccessTokens.create(adminUser)
           authType = 'admin'
         }
       } catch { }
@@ -339,7 +363,7 @@ export default class AuthController {
             .first()
 
           if (institute) {
-            const isValid = await (institute as any).verifyPassword?.(password)
+            const isValid = await (institute as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }).verifyPassword?.(password)
             if (isValid) {
               user = await this.syncInstituteToUser(institute, password)
               token = await User.accessTokens.create(user)
@@ -359,7 +383,7 @@ export default class AuthController {
             .first()
 
           if (faculty) {
-            const isValid = await (faculty as any).verifyPassword?.(password)
+            const isValid = await (faculty as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }).verifyPassword?.(password)
             if (isValid) {
               user = await this.syncFacultyToUser(faculty, password)
               token = await User.accessTokens.create(user)
@@ -378,7 +402,7 @@ export default class AuthController {
             .first()
 
           if (student) {
-            const isValid = await (student as any).verifyPassword?.(password)
+            const isValid = await (student as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }).verifyPassword?.(password)
             if (isValid) {
               user = await this.syncStudentToUser(student, password)
               token = await User.accessTokens.create(user)
@@ -409,6 +433,16 @@ export default class AuthController {
         })
       }
 
+      const currentTokenId = Number(token.identifier)
+
+      if (Number.isFinite(currentTokenId)) {
+        if (this.isUserModel(user)) {
+          await this.revokeOtherTokensForUser(user, currentTokenId)
+        } else if (this.isAdminUserModel(user)) {
+          await this.revokeOtherTokensForAdminUser(user, currentTokenId)
+        }
+      }
+
       if (this.isUserModel(user)) {
         const userWithRelations = await User.query()
           .where('id', user.id)
@@ -431,7 +465,14 @@ export default class AuthController {
         })
       }
 
-      const releasedToken = token.value!.release()
+      if (!token.value) {
+        return response.internalServerError({
+          success: false,
+          message: messages.user_failed_data,
+        })
+      }
+
+      const releasedToken = token.value.release()
       const cookieOptions = this.getAuthCookieOptions()
 
       // Clear older cookie variants (host-only + domain-scoped) before writing a fresh one.
@@ -460,29 +501,33 @@ export default class AuthController {
         token: releasedToken,
         user: userData,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       return response.unauthorized({
         success: false,
         message: messages.user_authentication_failed,
-        error: error.message
+        error: message
       })
     }
   }
 
   public async me({ auth, response }: HttpContext) {
     try {
-      let authenticatedUser: AuthUserType | null = null
+      let authenticatedUser: AuthUserType | null = auth.user as AuthUserType | null
 
-      try {
-        const apiAuth = auth.use('api')
-        const apiCheck = await apiAuth.check()
-        const apiUser = apiAuth.user as AuthUserType | undefined
+      // Fallback only when route is reused without auth middleware.
+      if (!authenticatedUser) {
+        try {
+          const apiAuth = auth.use('api')
+          const apiCheck = await apiAuth.check()
+          const apiUser = apiAuth.user as AuthUserType | undefined
 
-        if (apiCheck && apiUser) {
-          authenticatedUser = apiUser
+          if (apiCheck && apiUser) {
+            authenticatedUser = apiUser
+          }
+        } catch {
+          // Try the admin guard next.
         }
-      } catch (apiError: any) {
-        console.log('❌ API Guard Error:', apiError.message)
       }
 
       if (!authenticatedUser) {
@@ -493,8 +538,8 @@ export default class AuthController {
           if (adminapiCheck && adminapiUser) {
             authenticatedUser = adminapiUser
           }
-        } catch (adminapiError: any) {
-          console.log('❌ AdminAPI Guard Error:', adminapiError.message)
+        } catch {
+          // Ignore and return unauthorized below.
         }
       }
 
@@ -507,55 +552,90 @@ export default class AuthController {
 
       let authType = 'user'
 
-      if (this.isUserModel(authenticatedUser)) {
-        if (authenticatedUser.userType === 'institute') {
-          authType = 'institute'
-        } else if (authenticatedUser.userType === 'faculty') {
-          authType = 'faculty'
-        } else if (authenticatedUser.userType === 'super_admin') {
-          authType = 'super_admin'
-        }else if(authenticatedUser.userType === 'student'){
-          authType = 'student'
-        }
+      const cacheKey = `auth:me:${authenticatedUser instanceof User ? 'user' : 'admin'}:${authenticatedUser.id}:${authenticatedUser instanceof User ? authenticatedUser.userType : authenticatedUser.userType}`
 
-        const userWithRelations = await User.query()
-          .where('id', authenticatedUser.id)
-          .preload('userRoles', (query) => {
-            query.preload('permissions')
-          })
-          .first()
+      const profileResponse = await apiCacheService.getOrSet(
+        cacheKey,
+        15_000,
+        async () => {
+          if (this.isUserModel(authenticatedUser)) {
+            if (authenticatedUser.userType === 'institute') {
+              authType = 'institute'
+            } else if (authenticatedUser.userType === 'faculty') {
+              authType = 'faculty'
+            } else if (authenticatedUser.userType === 'super_admin') {
+              authType = 'super_admin'
+            } else if (authenticatedUser.userType === 'student') {
+              authType = 'student'
+            }
 
-        if (userWithRelations) {
-          const userData = await this.getUserResponseData(userWithRelations, authType, { syncMissingRole: false })
-          return response.ok({
-            success: true,
-            authType: authType,
-            data: userData
-          })
-        } else {
-          const userData = await this.getUserResponseData(authenticatedUser, authType, { syncMissingRole: false })
-          return response.ok({
-            success: true,
-            authType: authType,
-            data: userData
-          })
-        }
-      } else if (this.isAdminUserModel(authenticatedUser)) {
-        authType = 'admin'
-        const userData = await this.getUserResponseData(authenticatedUser, authType)
-        return response.ok({
-          success: true,
-          authType: authType,
-          data: userData
-        })
+            const userWithRelations = await User.query()
+              .select([
+                'id',
+                'email',
+                'fullName',
+                'userType',
+                'instituteId',
+                'facultyId',
+                'studentId',
+                'mobile',
+                'isActive',
+                'isEmailVerified',
+                'isMobileVerified',
+              ])
+              .where('id', authenticatedUser.id)
+              .preload('userRoles', (query) => {
+                query.select(['id', 'roleName', 'roleKey']).preload('permissions', (permissionQuery) => {
+                  permissionQuery.select(['id', 'permissionKey'])
+                })
+              })
+              .first()
+
+            if (userWithRelations) {
+              const userData = await this.getUserResponseData(userWithRelations, authType, { syncMissingRole: false })
+              return {
+                success: true,
+                authType: authType,
+                data: userData,
+              }
+            }
+
+            const userData = await this.getUserResponseData(authenticatedUser, authType, { syncMissingRole: false })
+            return {
+              success: true,
+              authType: authType,
+              data: userData,
+            }
+          }
+
+          if (this.isAdminUserModel(authenticatedUser)) {
+            authType = 'admin'
+            const userData = await this.getUserResponseData(authenticatedUser, authType)
+            return {
+              success: true,
+              authType: authType,
+              data: userData,
+            }
+          }
+
+          return {
+            success: false,
+            message: 'Unknown user type',
+          }
+        },
+        ['auth-me']
+      )
+
+      if (profileResponse.success) {
+        return response.ok(profileResponse)
       }
 
       return response.unauthorized({
         success: false,
-        message: 'Unknown user type'
+        message: profileResponse.message || 'Unknown user type'
       })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.status(500).json({
         success: false,
         message: 'Failed to fetch user data'
@@ -574,10 +654,8 @@ export default class AuthController {
         await apiAuth.authenticate()
 
         const user = apiAuth.user
-        const token = user?.currentAccessToken
-
-        if (user && token) {
-          await User.accessTokens.delete(user, token.identifier)
+        if (user) {
+          await this.revokeOtherTokensForUser(user)
           loggedOut = true
         }
       } catch {
@@ -590,10 +668,8 @@ export default class AuthController {
           await adminAuth.authenticate()
 
           const adminUser = adminAuth.user
-          const adminToken = adminUser?.currentAccessToken
-
-          if (adminUser && adminToken) {
-            await AdminUser.adminAccessTokens.delete(adminUser, adminToken.identifier)
+          if (adminUser) {
+            await this.revokeOtherTokensForAdminUser(adminUser)
             loggedOut = true
           }
         } catch {
@@ -619,11 +695,13 @@ export default class AuthController {
         })
       }
 
+      apiCacheService.invalidateByPrefix('auth:me:')
+
       return response.ok({
         success: true,
         message: loggedOut ? messages.user_logout_success : 'Session cleared',
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Logout error:', error)
       return response.status(500).json({
         success: false,
@@ -654,7 +732,7 @@ export default class AuthController {
         success: true,
         authType: authType
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Get auth type error:', error)
       return response.status(500).json({
         success: false,
@@ -699,7 +777,7 @@ export default class AuthController {
         hasPermission,
         permissionKey
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Check permission error:', error)
       return response.status(500).json({
         success: false,
@@ -743,7 +821,7 @@ export default class AuthController {
         success: true,
         permissions
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Get my permissions error:', error)
       return response.status(500).json({
         success: false,
@@ -760,11 +838,12 @@ export default class AuthController {
 
       for (const institute of institutes) {
         try {
-          const defaultPassword = 'defaultPassword123'
+          const defaultPassword = generateCredentialPassword('INS')
           await this.syncInstituteToUser(institute, defaultPassword)
           syncedCount++
-        } catch (error: any) {
-          const errorMsg = `Failed to sync institute ${institute.instituteEmail}: ${error.message}`
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          const errorMsg = `Failed to sync institute ${institute.instituteEmail}: ${msg}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -777,12 +856,13 @@ export default class AuthController {
         totalInstitutes: institutes.length,
         errors: errors.length > 0 ? errors : undefined
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Sync all institutes error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync institutes',
-        error: error.message
+        error: message
       })
     }
   }
@@ -795,11 +875,12 @@ export default class AuthController {
 
       for (const faculty of faculties) {
         try {
-          const defaultPassword = 'defaultPassword123'
+          const defaultPassword = generateCredentialPassword('FAC')
           await this.syncFacultyToUser(faculty, defaultPassword)
           syncedCount++
-        } catch (error: any) {
-          const errorMsg = `Failed to sync faculty ${faculty.facultyEmail}: ${error.message}`
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          const errorMsg = `Failed to sync faculty ${faculty.facultyEmail}: ${msg}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -812,12 +893,12 @@ export default class AuthController {
         totalFaculties: faculties.length,
         errors: errors.length > 0 ? errors : undefined
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sync all faculties error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculties',
-        error: error.message
+        error: error instanceof Error ? error.message : "Unknown error"
       })
     }
   }
@@ -829,11 +910,12 @@ export default class AuthController {
 
       for (const student of students) {
         try {
-          const defaultPassword = 'defaultPassword123'
+          const defaultPassword = generateCredentialPassword('STUD')
           await this.syncStudentToUser(student, defaultPassword)
           syncedCount++
-        } catch (error: any) {
-          const errorMsg = `Failed to sync student ${student.studentEmail}: ${error.message}`
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : String(error);
+          const errorMsg = `Failed to sync student ${student.studentEmail}: ${msg}`
           errors.push(errorMsg)
           console.error(errorMsg)
         }
@@ -846,17 +928,17 @@ export default class AuthController {
         totalstudents: students.length,
         errors: errors.length > 0 ? errors : undefined
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculties',
-        error: error.message
+        error: error instanceof Error ? error.message : "Unknown error"
       })
     }
   }
   public async syncInstitute({ request, response }: HttpContext) {
     try {
-      const { instituteId, password } = request.only(['instituteId', 'password'])
+      const { instituteId } = request.only(['instituteId'])
 
       const institute = await Institute.query()
         .where('id', instituteId)
@@ -869,6 +951,7 @@ export default class AuthController {
         })
       }
 
+      const password = generateCredentialPassword('INS')
       const user = await this.syncInstituteToUser(institute, password)
 
       return response.ok({
@@ -880,19 +963,19 @@ export default class AuthController {
           userType: user.userType
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sync institute error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync institute',
-        error: error.message
+        error: error instanceof Error ? error.message : "Unknown error"
       })
     }
   }
 
   public async syncFaculty({ request, response }: HttpContext) {
     try {
-      const { facultyId, password } = request.only(['facultyId', 'password'])
+      const { facultyId } = request.only(['facultyId'])
 
       const faculty = await Faculty.query()
         .where('id', facultyId)
@@ -905,6 +988,7 @@ export default class AuthController {
         })
       }
 
+      const password = generateCredentialPassword('FAC')
       const user = await this.syncFacultyToUser(faculty, password)
 
       return response.ok({
@@ -916,18 +1000,18 @@ export default class AuthController {
           userType: user.userType
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sync faculty error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync faculty',
-        error: error.message
+        error: error instanceof Error ? error.message : "Unknown error"
       })
     }
   }
 public async syncStudent({ request, response }: HttpContext) {
     try {
-      const { studentId, password } = request.only(['studentId', 'password'])
+  const { studentId } = request.only(['studentId'])
 
       const student = await Student.query()
         .where('id', studentId)
@@ -940,6 +1024,7 @@ public async syncStudent({ request, response }: HttpContext) {
         })
       }
 
+      const password = generateCredentialPassword('STUD')
       const user = await this.syncStudentToUser(student, password)
 
       return response.ok({
@@ -951,12 +1036,12 @@ public async syncStudent({ request, response }: HttpContext) {
           userType: user.userType
         }
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sync student error:', error)
       return response.internalServerError({
         success: false,
         message: 'Failed to sync student',
-        error: error.message
+        error: error instanceof Error ? error.message : "Unknown error"
       })
     }
   }
@@ -994,8 +1079,8 @@ public async syncStudent({ request, response }: HttpContext) {
             errors.push(errorMsg)
             console.log(`❌ ${errorMsg}`)
           }
-        } catch (error: any) {
-          const errorMsg = `Failed to assign role to ${user.email}: ${error.message}`
+        } catch (error: unknown) {
+          const errorMsg = `Failed to assign role to ${user.email}: ${error instanceof Error ? error.message : String(error)}`
           errors.push(errorMsg)
           console.log(`❌ ${errorMsg}`)
         }
@@ -1009,12 +1094,13 @@ public async syncStudent({ request, response }: HttpContext) {
         usersWithoutRoles: instituteUsersWithoutRoles.length,
         errors: errors.length > 0 ? errors : undefined
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Error in fixInstituteRoles:', error)
       return response.status(500).json({
         success: false,
-        error: error.message
+        error: error instanceof Error ? error.message : "Unknown error"
       })
     }
   }
 }
+

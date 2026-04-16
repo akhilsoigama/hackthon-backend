@@ -4,7 +4,6 @@ export const createInstituteValidator = vine.compile(
   vine.object({
     instituteName: vine.string().trim().minLength(3),
     instituteEmail: vine.string().email(),
-    institutePassword: vine.string().minLength(6),
     instituteAddress: vine.string().trim().minLength(5),
     institutePhone: vine.string().trim().minLength(10),
     instituteWebsite: vine

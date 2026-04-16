@@ -246,3 +246,4 @@ export default class QuizzesAttemptServices {
     }
   }
 }
+

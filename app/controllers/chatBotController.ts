@@ -76,10 +76,11 @@ export default class ChatBotController {
         message: completion.choices[0]?.message?.content || '',
         completion,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       return response.status(500).json({
         message: 'Chat request failed',
-        error: error?.message || error,
+        error: errorMessage,
       })
     }
   }
@@ -145,3 +146,4 @@ export default class ChatBotController {
     return searchResult.results?.[0]?.content || ''
   }
 }
+

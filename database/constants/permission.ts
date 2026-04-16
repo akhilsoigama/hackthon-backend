@@ -78,6 +78,7 @@ export enum PermissionKeys {
   INSTITUTE_SURVEY_DELETE = 'institute_survey_delete',
   INSTITUTE_SURVEY_LIST = 'institute_survey_list',
 
+  INSTITUTEWITHGOVT_EVENT_VIEW = 'institute_with_govt_event_view',
   // ========== STUDENT MANAGEMENT MODULE ==========
 
   // Assignment
@@ -357,6 +358,7 @@ export const PermissionModules = {
       PermissionKeys.DASHBOARD_PROGRESS_VIEW,
       PermissionKeys.DASHBOARD_EVENTS_VIEW,
       PermissionKeys.DASHBOARD_QUIZ_VIEW,
+      PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
     ]
   },
   COMMUNICATION: {

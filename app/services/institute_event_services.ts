@@ -3,6 +3,8 @@ import { HttpContext } from '@adonisjs/core/http'
 import { errorHandler } from '../helper/error_handler.js'
 import messages from '#database/constants/messages'
 import InstituteEvent from '#models/institute_event'
+import type { InstituteEventFilters } from '#models/institute_event'
+import apiCacheService from './api_cache_service.js'
 import {
   createInstituteEventValidator,
   updateInstituteEventValidator,
@@ -15,6 +17,42 @@ export default class InstituteEventService {
     this.ctx.response.header('Cross-Origin-Embedder-Policy', 'credentialless') 
     this.ctx.response.header('Cross-Origin-Resource-Policy', 'cross-origin')
     this.ctx.response.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
+  }
+
+  private invalidateEventCaches() {
+    apiCacheService.invalidateByPrefix('institute-govt-events:list:')
+  }
+
+  private normalizeFilters(input: unknown): InstituteEventFilters | undefined {
+    if (!input || typeof input !== 'object') {
+      return undefined
+    }
+
+    const raw = input as Record<string, unknown>
+    const normalized: InstituteEventFilters = {}
+
+    if (typeof raw.isActive === 'boolean') normalized.isActive = raw.isActive
+    if (typeof raw.isFeatured === 'boolean') normalized.isFeatured = raw.isFeatured
+    if (typeof raw.eventStatus === 'string') normalized.eventStatus = raw.eventStatus
+    if (typeof raw.eventCategory === 'string') normalized.eventCategory = raw.eventCategory
+    if (typeof raw.eventSubCategory === 'string') normalized.eventSubCategory = raw.eventSubCategory
+    if (typeof raw.isOnline === 'boolean') normalized.isOnline = raw.isOnline
+    if (typeof raw.isFree === 'boolean') normalized.isFree = raw.isFree
+    if (typeof raw.startDate === 'string' || raw.startDate instanceof Date) {
+      normalized.startDate = raw.startDate
+    }
+    if (typeof raw.endDate === 'string' || raw.endDate instanceof Date) {
+      normalized.endDate = raw.endDate
+    }
+
+    if (typeof raw.instituteId === 'number') {
+      normalized.instituteId = raw.instituteId
+    } else if (typeof raw.instituteId === 'string' && raw.instituteId.trim() !== '') {
+      const instituteId = Number(raw.instituteId)
+      if (!Number.isNaN(instituteId)) normalized.instituteId = instituteId
+    }
+
+    return normalized
   }
   async create() {
     try {
@@ -45,6 +83,7 @@ export default class InstituteEventService {
         isActive: validate?.isActive ?? true,
       }
       const instituteEvent = await InstituteEvent.create(instituteEventData)
+      this.invalidateEventCaches()
       return {
         status: true,
         message: messages.institute_event_created_successfully,
@@ -80,6 +119,7 @@ export default class InstituteEventService {
       const validatedData = await updateInstituteEventValidator.validate(requestData)
       instituteEvent.merge(validatedData)
       await instituteEvent.save()
+      this.invalidateEventCaches()
       return {
         status: true,
         message: messages.institute_event_updated_successfully,
@@ -101,16 +141,17 @@ export default class InstituteEventService {
     searchFor,
   }: {
     search?: string
-    filters?: any
+    filters?: unknown
     searchFor?: string | null
   }) {
     const { instituteId, withDeleted } = this.ctx.request.qs()
     try {
       this.setSecurityHeaders()
+      const normalizedFilters = this.normalizeFilters(filters)
       let query = InstituteEvent.query()
         .apply((scope) => scope.softDeletes())
         .apply((scope) => scope.search(search))
-        .apply((scope) => scope.filters(filters))
+        .apply((scope) => scope.filters(normalizedFilters))
         .preload('institute')
 
       if (!withDeleted || withDeleted === 'false') {
@@ -123,7 +164,7 @@ export default class InstituteEventService {
         authUser = null
       }
       if (authUser?.userType === 'institute') {
-        const userWithAny = authUser as any
+        const userWithAny = authUser as unknown & { instituteId?: number | string }
         const instituteId = userWithAny.instituteId
 
         if (!instituteId) {
@@ -219,6 +260,7 @@ export default class InstituteEventService {
 
       instituteEvent.deletedAt = DateTime.now()
       await instituteEvent.save()
+      this.invalidateEventCaches()
 
       return {
         status: true,
@@ -235,3 +277,4 @@ export default class InstituteEventService {
     }
   }
 }
+

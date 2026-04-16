@@ -48,3 +48,4 @@ export default class CookieAuthMiddleware {
     return next()
   }
 }
+

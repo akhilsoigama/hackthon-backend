@@ -5,6 +5,7 @@ import { inject } from "@adonisjs/core";
 import { HttpContext } from '@adonisjs/core/http';
 import { errorHandler } from "../helper/error_handler.js";
 import { DateTime } from "luxon";
+import apiCacheService from './api_cache_service.js'
 
 @inject()
 export default class GovtEventServices {
@@ -14,6 +15,10 @@ export default class GovtEventServices {
         this.ctx.response.header('Cross-Origin-Embedder-Policy', 'credentialless'); 
         this.ctx.response.header('Cross-Origin-Resource-Policy', 'cross-origin');
         this.ctx.response.header('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    }
+
+    private invalidateEventCaches() {
+        apiCacheService.invalidateByPrefix('institute-govt-events:list:')
     }
 
     async create() {
@@ -49,7 +54,7 @@ export default class GovtEventServices {
                 isActive: validatedData.isActive ?? true,
             };
             
-            const uploadOptions: any = {
+            const uploadOptions: Record<string, unknown> = {
                 folder: `govt_events/${validatedData.eventBanner}s`,
                 resource_type: validatedData.eventBanner === 'video' ? 'video' : 'raw',
                 public_id: `govt_event_${validatedData.eventBanner}_${Date.now()}`,
@@ -63,6 +68,7 @@ export default class GovtEventServices {
             };
             
             const govtEvent = await GovtEvent.create(govtEventData, uploadOptions);
+            this.invalidateEventCaches()
             
             return this.ctx.response.send({
                 status: true,
@@ -101,6 +107,7 @@ export default class GovtEventServices {
 
             existingGovtEvent.merge(validatedData);
             await existingGovtEvent.save();
+            this.invalidateEventCaches()
 
             return this.ctx.response.send({
                 status: true,
@@ -122,7 +129,7 @@ export default class GovtEventServices {
         searchFor,
     }: {
         search?: string
-        filters?: any
+        filters?: unknown
         searchFor?: string | null
     } = {}) {
         try {
@@ -214,6 +221,7 @@ export default class GovtEventServices {
 
             govtEvent.deletedAt = DateTime.now()
             await govtEvent.save()
+            this.invalidateEventCaches()
 
             return this.ctx.response.send({
                 status: true,

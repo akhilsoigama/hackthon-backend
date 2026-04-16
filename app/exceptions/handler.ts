@@ -41,3 +41,4 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     return super.report(error, ctx)
   }
 }
+

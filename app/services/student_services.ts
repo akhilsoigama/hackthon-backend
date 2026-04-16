@@ -11,6 +11,7 @@ import EmailService from './email_services.js'
 import StudentRepository from '../repositories/student_repository.js'
 import { parseListQuery } from '../helper/list_query.js'
 import apiCacheService from './api_cache_service.js'
+import { generateCredentialPassword } from '../helper/password_generator.js'
 
 type AuthUserScope = {
   id: number
@@ -72,6 +73,7 @@ export default class StudentServices {
     try {
       const requestData = this.ctx.request.all()
 
+      // Check email uniqueness in both Student and User models
       const existingStudent = await Student.query()
         .where('student_email', requestData.studentEmail)
         .whereNull('deleted_at')
@@ -80,14 +82,39 @@ export default class StudentServices {
       if (existingStudent) {
         return this.ctx.response.status(422).send({
           status: false,
-          message: messages.student_already_exists,
+          message: 'This email id already exist',
         })
       }
 
+      const existingUser = await User.query()
+        .where('email', requestData.studentEmail)
+        .first()
+
+      if (existingUser) {
+        return this.ctx.response.status(422).send({
+          status: false,
+          message: 'This email id already exist',
+        })
+      }
+
+      // Validate 5-year gap between DOB and admission date
+      if (requestData.studentDob && requestData.studentAddmissionDate) {
+        const dob = new Date(requestData.studentDob)
+        const admissionDate = new Date(requestData.studentAddmissionDate)
+        const ageAtAdmission = (admissionDate.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+        
+        if (ageAtAdmission < 5) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Student must be at least 5 years old at admission date',
+          })
+        }
+      }
+
       const validatedData = await studentCreateValidator.validate(requestData)
-      const plainPassword = validatedData.studentPassword;
       const authUser = await this.getAuthenticatedUser()
       const studentRole = await Role.query().where('roleKey', 'student').first()
+      const plainPassword = generateCredentialPassword('STUD')
 
       if (!studentRole) {
         return this.ctx.response.status(422).send({
@@ -98,6 +125,7 @@ export default class StudentServices {
 
       const student = await Student.create({
         ...validatedData,
+        studentPassword: plainPassword,
         roleId: studentRole.id,
         instituteId: authUser?.userType === 'institute' && authUser.instituteId
           ? authUser.instituteId
@@ -370,4 +398,5 @@ export default class StudentServices {
   }
 
 }
+
 

@@ -71,3 +71,4 @@ export const updateQuizzezValidator = vine.compile(
       .optional(),
   })
 )
+

@@ -70,3 +70,4 @@ declare dueDate: DateTime | null
   @column.dateTime()
   declare deletedAt: DateTime | null
 }
+

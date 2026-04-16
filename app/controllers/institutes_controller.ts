@@ -27,3 +27,4 @@ export default class InstitutesController {
     return this.instituteServices.deleteOne()
   }
 }
+

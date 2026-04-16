@@ -12,6 +12,10 @@ export const createLectureValidator = vine.compile(
     subject: vine.string().trim().maxLength(50),
     faculty_id: vine.number().positive(),
     std: vine.string().trim().maxLength(50),
+    department_id: vine.number().positive().optional(),
+    chapter_topic: vine.string().trim().maxLength(150).optional(),
+    learning_objectives: vine.string().trim().maxLength(1000).optional(),
+    difficulty_level: vine.enum(['Beginner', 'Intermediate', 'Advanced']).optional(),
     duration: vine.string().optional(),
   })
 )
@@ -29,6 +33,10 @@ export const updateLectureValidator = vine.compile(
     duration_in_seconds: vine.number().positive().optional(),
     duration: vine.string().optional(),
     std: vine.string().trim().optional(),
+    department_id: vine.number().positive().optional(),
+    chapter_topic: vine.string().trim().maxLength(150).optional(),
+    learning_objectives: vine.string().trim().maxLength(1000).optional(),
+    difficulty_level: vine.enum(['Beginner', 'Intermediate', 'Advanced']).optional(),
     language: vine.string().trim().maxLength(30).optional(),
     faculty_id: vine.number().positive().optional(),
   })
@@ -39,3 +47,4 @@ export const lectureIdParamValidator = vine.compile(
     id: vine.number().positive(),
   })
 )
+

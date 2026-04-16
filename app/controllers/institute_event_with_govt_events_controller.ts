@@ -1,14 +1,14 @@
-import InstituteEventService from "#services/institute_event_services";
-import { inject } from "@adonisjs/core";
-import { HttpContext } from '@adonisjs/core/http';
+import InstituteEventWithGovtEventService from '#services/institute_event_with_govt_event_service';
+import { inject } from '@adonisjs/core';
+import type { HttpContext } from '@adonisjs/core/http'
 @inject()
-export default class InstituteEventsController {
-    constructor(protected instituteEventServices: InstituteEventService) { }
+export default class InstituteEventWithGovtEventsController {
+
+    constructor(protected instituteEventWithGovtEventService: InstituteEventWithGovtEventService) {}
 
     async index({ request }: HttpContext) {
         const search = request.input('search')
         const searchFor = request.input('searchFor')
-
         const filters = {
             isActive: request.input('isActive'),
             isFeatured: request.input('isFeatured'),
@@ -19,28 +19,14 @@ export default class InstituteEventsController {
             isFree: request.input('isFree'),
             startDate: request.input('startDate'),
             endDate: request.input('endDate'),
+            instituteId: request.input('instituteId'),
         }
-        return this.instituteEventServices.findAll({
+
+        return this.instituteEventWithGovtEventService.findAll({
             search,
             filters,
             searchFor,
         })
     }
-
-    async store() {
-        return this.instituteEventServices.create();
-    }
-
-    async show() {
-        return this.instituteEventServices.findOne();
-    }
-
-    async update() {
-        return this.instituteEventServices.update();
-    }
-
-    async destroy() {
-        return this.instituteEventServices.delete();
-    }
-
 }
+

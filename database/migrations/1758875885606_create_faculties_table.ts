@@ -8,8 +8,10 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table.string('faculty_name').notNullable()
-      table.string('faculty_id').notNullable().unique() 
+      table.string('faculty_id').notNullable()
       table.string('designation').notNullable()
+      table.string('qualification').nullable()
+      table.integer('experience').nullable()
 
       table.string('faculty_email').notNullable().unique()
       table.string('faculty_mobile').notNullable().unique()
@@ -42,6 +44,8 @@ export default class extends BaseSchema {
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })
       table.timestamp('deleted_at', { useTz: true })
+
+      table.unique(['faculty_id', 'department_id'])
     })
   }
 

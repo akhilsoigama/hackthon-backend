@@ -16,3 +16,4 @@ export default class QuizAttemptController {
     return this.quizAttemptServices.findOne()
   }
 }
+

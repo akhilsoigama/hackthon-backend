@@ -57,3 +57,4 @@ export const userSchemaWithRole = vine.object({
   isMobileVerified: vine.boolean().optional(),
   isActive: vine.boolean().optional(),
 })
+

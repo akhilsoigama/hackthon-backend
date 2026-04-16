@@ -111,3 +111,4 @@ export default class StudentRepository {
     return query.first()
   }
 }
+

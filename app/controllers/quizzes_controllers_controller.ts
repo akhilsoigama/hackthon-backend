@@ -27,3 +27,4 @@ export default class QuizzesControllersController {
     return this.quizzesService.delete()
   }
 }
+

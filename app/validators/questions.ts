@@ -17,3 +17,4 @@ export const updateQuestionValidator = vine.compile(
     quizId: vine.number().positive().optional(),
   })
 )
+

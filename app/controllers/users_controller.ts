@@ -48,3 +48,4 @@ export default class UsersController {
 
   async destroy() {}
 }
+

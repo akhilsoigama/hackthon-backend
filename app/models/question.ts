@@ -41,3 +41,4 @@ export default class Question extends BaseModel {
   @column.dateTime({ columnName: 'deleted_at' })
   declare deletedAt: DateTime | null
 }
+

@@ -22,3 +22,4 @@ export default class StudentQueriesController {
     return new StudentQueryService(ctx).delete()
   }
 }
+
