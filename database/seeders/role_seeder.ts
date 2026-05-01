@@ -129,6 +129,7 @@ export default class extends BaseSeeder {
         PermissionKeys.STUDENT_QUERY_ACCESS,
         PermissionKeys.COMMUNICATION_ACCESS,
         PermissionKeys.CHATBOT_ACCESS,
+        PermissionKeys.CHAT_ACCESS,
         PermissionKeys.REPORTS_VIEW,
       ],
       student: [
