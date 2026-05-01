@@ -1,16 +1,5 @@
 import env from '#start/env'
 
-interface EmailLogEntry {
-  timestamp: string
-  type: 'REAL_EMAIL' | 'MOCK_EMAIL'
-  email: string
-  password: string
-  name: string
-  userType: string
-  loginUrl: string
-  appUrl: string
-}
-
 export default class EmailService {
   private appUrl: string
   private brevoApiKey: string | null
@@ -18,110 +7,67 @@ export default class EmailService {
   constructor() {
     this.appUrl = env.get('APP_URL') || 'https://www.ruralspark.me'
     this.brevoApiKey = env.get('BREVO_API_KEY') || null
-
-    if (!this.brevoApiKey) {
-      console.log('BREVO_API_KEY missing → using MOCK email mode')
-    }
   }
 
-  // 🔥 MAIN METHOD
   async sendCredentialsEmail(
     email: string,
     password: string,
     userType: string,
     name: string
   ): Promise<boolean> {
-    if (this.brevoApiKey) {
-      try {
-        const response = await fetch(
-          'https://api.brevo.com/v3/smtp/email',
-          {
-            method: 'POST',
-            headers: {
-              'api-key': this.brevoApiKey,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sender: {
-                email:
-                  env.get('SMTP_FROM_ADDRESS') ||
-                  'akhilsoigama@gmail.com',
-                name: env.get('SMTP_FROM_NAME') || 'EduHub',
-              },
-              to: [{ email }],
-              subject: `EduHub - Your ${userType} Account Credentials`,
-              htmlContent: this.getEmailHtml(
-                name,
-                userType,
-                email,
-                password
-              ),
-              textContent: this.getEmailText(
-                name,
-                userType,
-                email,
-                password
-              ),
-            }),
-          }
-        )
-
-        if (!response.ok) {
-          const errorBody = await response.text()
-          throw new Error(
-            `Brevo API failed: ${response.status} - ${errorBody}`
-          )
-        }
-
-        await this.logEmailSent(email, password, name, userType, true)
-        return true
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error)
-        console.error('❌ Brevo Email API Error:', message)
-      }
+    if (!this.brevoApiKey) {
+      return true
     }
 
-    await this.logEmailSent(email, password, name, userType, false)
-    return true
+    try {
+      const response = await fetch(
+        'https://api.brevo.com/v3/smtp/email',
+        {
+          method: 'POST',
+          headers: {
+            'api-key': this.brevoApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            sender: {
+              email: env.get('SMTP_FROM_ADDRESS') || 'akhilsoigama@gmail.com',
+              name: env.get('SMTP_FROM_NAME') || 'RuralSpark Team',
+            },
+            to: [{ email }],
+            subject: `RuralSpark Team - Your ${userType} Account Credentials`,
+            htmlContent: this.getEmailHtml(name, userType, email, password),
+            textContent: this.getEmailText(name, userType, email, password),
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        const errorBody = await response.text()
+        throw new Error(`Brevo API failed: ${response.status} - ${errorBody}`)
+      }
+
+      return true
+    } catch (error) {
+      console.error('Email sending failed:', error)
+      return false
+    }
   }
 
-  // 🧾 LOGGING
-  private async logEmailSent(
-    email: string,
-    password: string,
+  private getEmailHtml(
     name: string,
     userType: string,
-    realEmail: boolean
-  ): Promise<void> {
-    const logEntry: EmailLogEntry = {
-      timestamp: new Date().toISOString(),
-      type: realEmail ? 'REAL_EMAIL' : 'MOCK_EMAIL',
-      email,
-      password,
-      name,
-      userType,
-      loginUrl: `${this.appUrl}/login`,
-      appUrl: this.appUrl,
-    }
+    email: string,
+    password: string
+  ): string {
+    const loginUrl = `${this.appUrl}/login`
 
-    console.log('Email log:', logEntry)
-  }
-
-private getEmailHtml(
-  name: string,
-  userType: string,
-  email: string,
-  password: string
-): string {
-  const loginUrl = `${this.appUrl}/login`
-
-  return `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>EduHub Account Credentials</title>
+  <title>RuralSpark Team Account Credentials</title>
 </head>
 <body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0">
@@ -132,7 +78,7 @@ private getEmailHtml(
           <!-- HEADER -->
           <tr>
             <td style="background:#4f46e5; padding:24px; text-align:center; color:#ffffff;">
-              <h1 style="margin:0; font-size:24px;">🎓 Rural Spark</h1>
+              <h1 style="margin:0; font-size:24px;">🎓 RuralSpark Team</h1>
               <p style="margin:8px 0 0; font-size:14px;">
                 Your ${userType} account is ready
               </p>
@@ -145,7 +91,7 @@ private getEmailHtml(
               <h2 style="margin-top:0;">Hello ${name},</h2>
 
               <p style="font-size:15px; line-height:1.6;">
-                Welcome to <strong>Rural Spark</strong>! Your <b>${userType}</b> account has been successfully created.
+                Welcome to <strong>RuralSpark</strong>! Your <b>${userType}</b> account has been successfully created.
               </p>
 
               <!-- CREDENTIAL BOX -->
@@ -167,7 +113,7 @@ private getEmailHtml(
                 <p style="margin-top:16px;">
                   <a href="${loginUrl}" 
                      style="display:inline-block; background:#4f46e5; color:#ffffff; text-decoration:none; padding:12px 24px; border-radius:6px; font-weight:bold;">
-                    🚀 Login to Rural Spark
+                    🚀 Login to RuralSpark
                   </a>
                 </p>
               </div>
@@ -186,7 +132,7 @@ private getEmailHtml(
 
               <p style="margin-top:30px; font-size:14px;">
                 Regards,<br />
-                <strong>Rural Spark Team</strong>
+                <strong>RuralSpark Team</strong>
               </p>
             </td>
           </tr>
@@ -199,28 +145,28 @@ private getEmailHtml(
           </tr>
 
         </table>
-      </td>
+      </table>
     </tr>
   </table>
 </body>
 </html>
 `
-}
+  }
 
   private getEmailText(
-  name: string,
-  userType: string,
-  email: string,
-  password: string
-): string {
-  const loginUrl = `${this.appUrl}/login`
+    name: string,
+    userType: string,
+    email: string,
+    password: string
+  ): string {
+    const loginUrl = `${this.appUrl}/login`
 
-  return `
-🎓 EDUHUB – ACCOUNT DETAILS
+    return `
+🎓 RURALSPARK – ACCOUNT DETAILS
 
 Hello ${name},
 
-Welcome to EduHub!
+Welcome to RuralSpark!
 Your ${userType} account has been created successfully.
 
 ────────────────────────
@@ -238,12 +184,10 @@ Please change your password immediately after your first login.
 If you need any help, contact our support team.
 
 Regards,
-EduHub Team
+RuralSpark Team
 
 ────────────────────────
 This is an automated email. Do not reply.
 `
+  }
 }
-
-}
-

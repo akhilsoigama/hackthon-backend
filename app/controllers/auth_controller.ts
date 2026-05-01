@@ -132,7 +132,7 @@ export default class AuthController {
 
       let userWithRoles = null
 
-      if (Array.isArray(preloadedRoles) && preloadedRoles.length > 0) {
+      if (Array.isArray(preloadedRoles)) {
         userWithRoles = user
       } else {
         userWithRoles = await User.query()
@@ -556,7 +556,7 @@ export default class AuthController {
 
       const profileResponse = await apiCacheService.getOrSet(
         cacheKey,
-        15_000,
+        60_000,
         async () => {
           if (this.isUserModel(authenticatedUser)) {
             if (authenticatedUser.userType === 'institute') {

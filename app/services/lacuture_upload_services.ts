@@ -6,9 +6,11 @@ import cloudinary from "#config/cloudinary"
 import { createLectureValidator, lectureIdParamValidator, updateLectureValidator } from "#validators/lacture_upload"
 import PermissionsResolverService from "./permissions_resolver_service.js"
 import { PermissionKeys } from "#database/constants/permission"
+import apiCacheService from "#services/api_cache_service"
 
 @inject()
 export default class LectureUploadServices {
+  private readonly lectureListCacheTtlMs = 30_000
 
   private getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'Unknown error'
@@ -19,6 +21,27 @@ export default class LectureUploadServices {
       return null
     }
     return rawUser as { userType?: string; facultyId?: number | null; instituteId?: number | null; id?: number }
+  }
+
+  private invalidateLectureCaches() {
+    apiCacheService.invalidateByPrefix('lectures:list:')
+  }
+
+  private buildLectureListCacheKey(
+    user: { id?: number; userType?: string; facultyId?: number | null; instituteId?: number | null },
+    isSystemAdmin: boolean,
+    filters: Record<string, unknown>,
+    page: number,
+    limit: number
+  ) {
+    const normalizedFilters = {
+      subject: typeof filters.subject === 'string' ? filters.subject : '',
+      contentType: typeof filters.contentType === 'string' ? filters.contentType : '',
+      title: typeof filters.title === 'string' ? filters.title : '',
+      faculty_id: typeof filters.faculty_id === 'string' || typeof filters.faculty_id === 'number' ? String(filters.faculty_id) : '',
+    }
+
+    return `lectures:list:${user.id ?? 'guest'}:${user.userType ?? 'unknown'}:${user.facultyId ?? 'none'}:${user.instituteId ?? 'none'}:${isSystemAdmin ? 'admin' : 'scoped'}:${page}:${limit}:${JSON.stringify(normalizedFilters)}`
   }
 
   public async create({ request, response, auth }: HttpContext) {
@@ -213,6 +236,7 @@ export default class LectureUploadServices {
       };
 
       const lecture = await Lecture.create(lectureData);
+      this.invalidateLectureCaches();
 
       response.header('Cross-Origin-Resource-Policy', 'cross-origin');
 
@@ -338,6 +362,7 @@ export default class LectureUploadServices {
 
       await lecture.save();
       await lecture.refresh();
+      this.invalidateLectureCaches();
       
       return response.ok({
         success: true,
@@ -377,67 +402,104 @@ export default class LectureUploadServices {
         });
       }
 
-      const query = Lecture.query().orderBy('created_at', 'desc');
       const filters = request.qs();
-
-      if (!isSystemAdmin) {
-        if (user.userType === 'faculty' && typeof user.facultyId === 'number') {
-          query.where('faculty_id', user.facultyId);
-        } else if (user.userType === 'institute' && typeof user.instituteId === 'number') {
-          const FacultyModel = (await import('#models/faculty')).default;
-          const facultyIds = await FacultyModel.query()
-            .where('institute_id', user.instituteId)
-            .select('id');
-
-          if (facultyIds.length > 0) {
-            const ids = facultyIds.map(f => f.id);
-            query.whereIn('faculty_id', ids);
-          } else {
-            return response.ok({
-              success: true,
-              data: [],
-              meta: { total: 0 }
-            });
-          }
-        } else {
-          return response.badRequest({
-            success: false,
-            message: 'User type not supported for lecture access'
-          });
-        }
-      }
-
-      if (filters.subject) {
-        query.where('subject', 'like', `%${filters.subject}%`);
-      }
-      if (filters.contentType) {
-        query.where('content_type', filters.contentType);
-      }
-      if (filters.title) {
-        query.where('title', 'like', `%${filters.title}%`);
-      }
-      if (filters.faculty_id && isSystemAdmin) {
-        query.where('faculty_id', filters.faculty_id);
-      }
-
       const page = Number(filters.page || 1);
       const limit = Number(filters.limit || 50);
+      const cacheKey = this.buildLectureListCacheKey(user, isSystemAdmin, filters, page, limit)
 
-      const lectures = await query.paginate(page, limit);
+      const cachedResult = await apiCacheService.getOrSet(
+        cacheKey,
+        this.lectureListCacheTtlMs,
+        async () => {
+          const query = Lecture.query()
+            .select([
+              'id',
+              'title',
+              'description',
+              'subject',
+              'std',
+              'department_id',
+              'chapter_topic',
+              'learning_objectives',
+              'difficulty_level',
+              'content_type',
+              'faculty_id',
+              'content_url',
+              'thumbnail_url',
+              'duration_in_seconds',
+              'created_at',
+            ])
+            .orderBy('created_at', 'desc')
+
+          if (!isSystemAdmin) {
+            if (user.userType === 'faculty' && typeof user.facultyId === 'number') {
+              query.where('faculty_id', user.facultyId)
+            } else if (user.userType === 'institute' && typeof user.instituteId === 'number') {
+              const FacultyModel = (await import('#models/faculty')).default
+              const facultyIds = await FacultyModel.query().where('institute_id', user.instituteId).select('id')
+
+              if (facultyIds.length > 0) {
+                query.whereIn('faculty_id', facultyIds.map((f) => f.id))
+              } else {
+                return {
+                  success: true,
+                  message: 'Lectures fetched successfully',
+                  data: [],
+                  meta: {
+                    total: 0,
+                    currentPage: page,
+                    perPage: limit,
+                    lastPage: 0,
+                  },
+                }
+              }
+            } else {
+              return {
+                success: false,
+                message: 'User type not supported for lecture access',
+                statusCode: 400,
+              }
+            }
+          }
+
+          if (filters.subject) {
+            query.where('subject', 'like', `%${filters.subject}%`)
+          }
+          if (filters.contentType) {
+            query.where('content_type', filters.contentType)
+          }
+          if (filters.title) {
+            query.where('title', 'like', `%${filters.title}%`)
+          }
+          if (filters.faculty_id && isSystemAdmin) {
+            query.where('faculty_id', filters.faculty_id)
+          }
+
+          const lectures = await query.paginate(page, limit)
+          return {
+            success: true,
+            message: 'Lectures fetched successfully',
+            data: lectures.all(),
+            meta: {
+              total: lectures.total,
+              currentPage: lectures.currentPage,
+              perPage: lectures.perPage,
+              lastPage: lectures.lastPage,
+            },
+          }
+        },
+        ['lectures-list']
+      )
+
+      if (!cachedResult.success && cachedResult.statusCode === 400) {
+        return response.badRequest({
+          success: false,
+          message: cachedResult.message,
+        })
+      }
 
       response.header('Cross-Origin-Resource-Policy', 'cross-origin');
-
-      return response.ok({
-        success: true,
-        message: 'Lectures fetched successfully',
-        data: lectures.all(),
-        meta: {
-          total: lectures.total,
-          currentPage: lectures.currentPage,
-          perPage: lectures.perPage,
-          lastPage: lectures.lastPage
-        }
-      });
+      return response.ok(cachedResult);
     } catch (error: unknown) {
       return response.internalServerError({
         success: false,
@@ -540,6 +602,7 @@ export default class LectureUploadServices {
       }
 
       await lecture.delete();
+      this.invalidateLectureCaches();
 
       return response.ok({
         success: true,
