@@ -22,6 +22,18 @@ export default class Student extends BaseModel {
   @column({ columnName: 'student_std' })
   declare studentStd: string
 
+  @column({ columnName: 'student_degree' })
+  declare studentDegree: string | null
+
+  @column({ columnName: 'student_semester' })
+  declare studentSemester: string | null
+
+  @column({ columnName: 'commerce_specialization' })
+  declare commerceSpecialization: string | null
+
+  @column({ columnName: 'diploma_branch' })
+  declare diplomaBranch: string | null
+
   @column({ columnName: 'student_gr_no' })
   declare studentGrNo: number
 
