@@ -168,6 +168,12 @@ router
       .use('index', middleware.permission([PermissionKeys.STUDENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.STUDENT_DELETE]))
 
+    // Student Progress Routes
+    router
+      .get('/student-queries/progress-report', [StudentQueriesController, 'progressReport'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use(middleware.permission([PermissionKeys.PROGRESS_VIEW]))
+
     // Student Query Routes
     router
       .resource('student-queries', StudentQueriesController)

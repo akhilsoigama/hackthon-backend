@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import StudentQueryService from '#services/student_query_service'
+import StudentProgressService from '#services/student_progress_service'
 
 export default class StudentQueriesController {
   async index(ctx: HttpContext) {
@@ -20,6 +21,10 @@ export default class StudentQueriesController {
 
   async destroy(ctx: HttpContext) {
     return new StudentQueryService(ctx).delete()
+  }
+
+  async progressReport(ctx: HttpContext) {
+    return new StudentProgressService(ctx).generateProgressReport()
   }
 }
 

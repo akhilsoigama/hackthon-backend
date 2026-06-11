@@ -110,6 +110,16 @@ export default class AuthController {
     const syncMissingRole = options?.syncMissingRole ?? true
 
     if (this.isUserModel(user)) {
+      if (user.userType === 'faculty' && !user.faculty) {
+        await user.load('faculty')
+      } else if (user.userType === 'student' && !user.student) {
+        await user.load('student')
+      }
+
+      const departmentId = user.userType === 'faculty' && user.faculty
+        ? user.faculty.departmentId
+        : (user.userType === 'student' && user.student ? user.student.departmentId : null)
+
       const baseData = {
         id: user.id,
         email: user.email,
@@ -123,6 +133,7 @@ export default class AuthController {
         isActive: user.isActive,
         isEmailVerified: user.isEmailVerified,
         isMobileVerified: user.isMobileVerified,
+        departmentId: departmentId,
       }
 
       let roles: string[] = []

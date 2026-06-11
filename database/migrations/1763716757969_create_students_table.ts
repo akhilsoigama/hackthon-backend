@@ -16,6 +16,10 @@ export default class extends BaseSchema {
       table.string('student_password').notNullable()
 
       table.string('student_std').nullable()
+      table.string('student_degree').nullable()
+      table.string('student_semester').nullable()
+      table.string('commerce_specialization').nullable()
+      table.string('diploma_branch').nullable()
       table.string('student_gender').nullable()
       table.integer('student_gr_no').nullable()
 
