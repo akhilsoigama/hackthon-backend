@@ -1,23 +1,26 @@
-import messages from '#database/constants/messages';
-import { inject } from '@adonisjs/core';
-import { HttpContext } from '@adonisjs/core/http';
-import { errorHandler } from '../helper/error_handler.js';
-import Institute from '#models/institute';
-import Role from '#models/role';
-import { createInstituteValidator, updateInstituteValidator } from '#validators/institute';
-import { DateTime } from 'luxon';
-import EmailService from './email_services.js';
-import { generateCredentialPassword } from '../helper/password_generator.js';
+import messages from '#database/constants/messages'
+import { inject } from '@adonisjs/core'
+import { HttpContext } from '@adonisjs/core/http'
+import { errorHandler } from '../helper/error_handler.js'
+import Institute from '#models/institute'
+import Role from '#models/role'
+import { createInstituteValidator, updateInstituteValidator } from '#validators/institute'
+import EmailService from './email_services.js'
+import { generateCredentialPassword } from '../helper/password_generator.js'
 
 @inject()
 export default class instituteController {
-  constructor(protected ctx: HttpContext) { }
+  constructor(protected ctx: HttpContext) {}
 
-  private isInstituteScopedUser(user: Awaited<ReturnType<instituteController['getAuthenticatedUser']>>) {
+  private isInstituteScopedUser(
+    user: Awaited<ReturnType<instituteController['getAuthenticatedUser']>>
+  ) {
     return Boolean(user && 'userType' in user && String(user.userType) === 'institute')
   }
 
-  private getScopeInstituteId(user: Awaited<ReturnType<instituteController['getAuthenticatedUser']>>) {
+  private getScopeInstituteId(
+    user: Awaited<ReturnType<instituteController['getAuthenticatedUser']>>
+  ) {
     if (!user || !('instituteId' in user)) {
       return null
     }
@@ -51,133 +54,133 @@ export default class instituteController {
   }
   private async sendEmail(email: string, password: string, userType: string, name: string) {
     try {
-      const emailService = new EmailService();
-      await emailService.sendCredentialsEmail(email, password, userType, name);
-      return true;
+      const emailService = new EmailService()
+      await emailService.sendCredentialsEmail(email, password, userType, name)
+      return true
     } catch (error) {
-      console.error('Email sending failed (but continuing):', error);
-      return false;
+      console.error('Email sending failed (but continuing):', error)
+      return false
     }
   }
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      const authUser = await this.getAuthenticatedUser();
+      const authUser = await this.getAuthenticatedUser()
       const scopeInstituteId = this.getScopeInstituteId(authUser)
       let query = Institute.query()
         .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
-        .apply((scopes) => scopes.softDeletes());
+        .apply((scopes) => scopes.softDeletes())
 
       if (this.isInstituteScopedUser(authUser)) {
-        query = query.where('id', scopeInstituteId || 0);
+        query = query.where('id', scopeInstituteId || 0)
       }
 
       if (searchFor === 'create') {
-        query = query.where('isActive', true);
+        query = query.where('isActive', true)
       }
 
-      const institute = await query;
+      const institute = await query
 
       if (institute && institute.length > 0) {
         return {
           status: true,
           message: messages.indtitute_fetched_successfully,
           data: institute,
-        };
+        }
       } else {
         return {
           status: false,
           message: messages.institute_not_found,
           data: [],
-        };
+        }
       }
     } catch (error) {
-      console.error('Error in findAll:', error);
+      console.error('Error in findAll:', error)
       return {
         status: false,
         message: messages.common_messages_error,
         error: errorHandler(error),
-      };
+      }
     }
   }
 
   async create() {
     try {
-      const requestData = this.ctx.request.all();
+      const requestData = this.ctx.request.all()
 
-      const requiredFields = ['instituteName', 'instituteEmail'];
+      const requiredFields = ['instituteName', 'instituteEmail']
       for (const field of requiredFields) {
         if (!requestData[field]) {
           return this.ctx.response.status(400).send({
             status: false,
             message: `${field} is required`,
-          });
+          })
         }
       }
 
       const existingInstitute = await Institute.query()
         .where('instituteEmail', requestData.instituteEmail)
         .apply((scope) => scope.softDeletes())
-        .first();
+        .first()
 
       if (existingInstitute) {
         return this.ctx.response.status(422).send({
           status: false,
           message: messages.institute_already_exists,
-        });
+        })
       }
 
-      const validatedData = await createInstituteValidator.validate(requestData);
-      const instituteRole = await Role.query().where('roleKey', 'institute').first();
-
+      const validatedData = await createInstituteValidator.validate(requestData)
+      const instituteRole = await Role.query().where('roleKey', 'institute').first()
+      const plainPassword = requestData.institutePassword || generateCredentialPassword('INS')
       if (!instituteRole) {
         return this.ctx.response.status(422).send({
           status: false,
           message: 'Institute role not configured',
-        });
+        })
       }
 
       const instituteData = {
         ...validatedData,
-        institutePassword: generateCredentialPassword('INS'),
+        institutePassword: plainPassword,
         instituteEmail: validatedData.instituteEmail,
         isActive: validatedData.isActive ?? true,
         roleId: instituteRole.id,
-      };
+      }
 
-      const institute = await Institute.create(instituteData);
+      const institute = await Institute.create(instituteData)
       this.sendEmail(
         institute.instituteEmail,
         instituteData.institutePassword,
         'institute',
         institute.instituteName
-      ).catch(err => {
-        console.error('Email failed in background:', err);
-      });
+      ).catch((err) => {
+        console.error('Email failed in background:', err)
+      })
       return {
         status: true,
         message: messages.institute_created_successfully,
         data: institute,
-      };
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       return {
         status: false,
         message: 'Failed to create institute',
         error: errorMessage,
-      };
+      }
     }
   }
   async findOne() {
     try {
-      const id = this.ctx.request.param('id');
-      const authUser = await this.getAuthenticatedUser();
+      const id = this.ctx.request.param('id')
+      const authUser = await this.getAuthenticatedUser()
       const scopeInstituteId = this.getScopeInstituteId(authUser)
 
       if (!id || isNaN(Number(id))) {
         return this.ctx.response.status(400).send({
           status: false,
           message: 'Invalid institute ID',
-        });
+        })
       }
 
       let instituteQuery = Institute.query()
@@ -186,24 +189,23 @@ export default class instituteController {
         .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
 
       if (this.isInstituteScopedUser(authUser)) {
-        instituteQuery = instituteQuery.where('id', scopeInstituteId || 0);
+        instituteQuery = instituteQuery.where('id', scopeInstituteId || 0)
       }
 
-      const institute = await instituteQuery.first();
-
+      const institute = await instituteQuery.first()
 
       if (institute) {
         return {
           status: true,
           message: messages.indtitute_fetched_successfully,
           data: institute,
-        };
+        }
       } else {
         return {
           status: false,
           message: messages.institute_not_found,
           data: null,
-        };
+        }
       }
     } catch (error) {
       return {
@@ -215,62 +217,26 @@ export default class instituteController {
   }
   async updateOne() {
     try {
-      const id = this.ctx.request.param('id');
-      const requestData = this.ctx.request.all();
-      const authUser = await this.getAuthenticatedUser();
+      const id = this.ctx.request.param('id')
+      const requestData = this.ctx.request.all()
+      const authUser = await this.getAuthenticatedUser()
       const scopeInstituteId = this.getScopeInstituteId(authUser)
 
       if (requestData.instituteMobile) {
-        requestData.instituteMobile = requestData.instituteMobile.toString().replace(/\D/g, '');
+        requestData.instituteMobile = requestData.instituteMobile.toString().replace(/\D/g, '')
       }
 
-      const validatedData = await updateInstituteValidator.validate(requestData);
+      const validatedData = await updateInstituteValidator.validate(requestData)
 
       const existinginstitute = await Institute.query()
         .where('id', id)
         .apply((scopes) => scopes.softDeletes())
-        .first();
-
-      if (!existinginstitute || (this.isInstituteScopedUser(authUser) && existinginstitute.id !== scopeInstituteId)) {
-        return {
-          status: false,
-          message: messages.institute_not_found,
-          data: null,
-        };
-      }
-
-      existinginstitute.merge(validatedData);
-      await existinginstitute.save();
-
-      await existinginstitute.load('role', (q) => q.select(['id', 'roleName', 'roleKey']));
-
-
-      return {
-        status: true,
-        message: messages.institute_updated_successfully,
-        data: existinginstitute,
-      };
-    } catch (error) {
-      return {
-        status: false,
-        Message: messages.common_messages_error,
-        error: errorHandler(error)
-      }
-    }
-  }
-
-  async deleteOne() {
-    try {
-      const id = this.ctx.request.param('id')
-      const authUser = await this.getAuthenticatedUser()
-      const scopeInstituteId = this.getScopeInstituteId(authUser)
-
-      const institute = await Institute.query()
-        .where('id', id)
-        .apply((scopes) => scopes.softDeletes())
         .first()
 
-      if (!institute || (this.isInstituteScopedUser(authUser) && institute.id !== scopeInstituteId)) {
+      if (
+        !existinginstitute ||
+        (this.isInstituteScopedUser(authUser) && existinginstitute.id !== scopeInstituteId)
+      ) {
         return {
           status: false,
           message: messages.institute_not_found,
@@ -278,13 +244,15 @@ export default class instituteController {
         }
       }
 
-      institute.deletedAt = DateTime.now()
-      await institute.save()
+      existinginstitute.merge(validatedData)
+      await existinginstitute.save()
+
+      await existinginstitute.load('role', (q) => q.select(['id', 'roleName', 'roleKey']))
 
       return {
         status: true,
-        Message: messages.common_messages_record_deleted,
-        Data: null,
+        message: messages.institute_updated_successfully,
+        data: existinginstitute,
       }
     } catch (error) {
       return {
@@ -295,4 +263,43 @@ export default class instituteController {
     }
   }
 
+ async deleteOne() {
+  try {
+    const id = this.ctx.request.param('id')
+    const authUser = await this.getAuthenticatedUser()
+    const scopeInstituteId = this.getScopeInstituteId(authUser)
+
+    const institute = await Institute.query()
+      .where('id', id)
+      .apply((scopes) => scopes.softDeletes())
+      .first()
+
+    if (
+      !institute ||
+      (this.isInstituteScopedUser(authUser) && institute.id !== scopeInstituteId)
+    ) {
+      return {
+        status: false,
+        message: messages.institute_not_found,
+        data: null,
+      }
+    }
+
+    // Institute aur linked user dono permanently delete karo
+    await institute.delete()
+    
+
+    return {
+      status: true,
+      message: messages.common_messages_record_deleted,
+      data: null,
+    }
+  } catch (error) {
+    return {
+      status: false,
+      message: messages.common_messages_error,
+      error: errorHandler(error),
+    }
+  }
+}
 }

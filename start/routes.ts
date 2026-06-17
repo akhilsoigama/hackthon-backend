@@ -49,7 +49,7 @@ router
     router
       .post('/chatbot', [ChatBotController, 'chat'])
       .use(middleware.rateLimit({ config: RateLimitConfigs.chatbot }))
-      .use(middleware.permission([PermissionKeys.DEPARTMENT_CREATE]))
+      .use(middleware.permission([PermissionKeys.CHATBOT_ACCESS]))
 
     // Auth routes
     router
@@ -116,6 +116,10 @@ router
 
     // Institute Routes
     router
+      .get('/institutes/overview', [InstitutesController, 'progressReport'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use(middleware.permission([PermissionKeys.DASHBOARD_OVERVIEW_VIEW]))  
+    router
       .resource('institutes', InstitutesController)
       .apiOnly()
       .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
@@ -172,7 +176,7 @@ router
     router
       .get('/student-queries/progress-report', [StudentQueriesController, 'progressReport'])
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
-      .use(middleware.permission([PermissionKeys.PROGRESS_VIEW]))
+      .use(middleware.permission([PermissionKeys.STUDENT_PROGRESS_VIEW]))
 
     // Student Query Routes
     router

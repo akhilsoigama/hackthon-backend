@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import InstituteServices from '#services/institute_services'
 import type { HttpContext } from '@adonisjs/core/http'
+import OverviewServices from '#services/overview_services'
 
 @inject()
 export default class InstitutesController {
@@ -26,5 +27,8 @@ export default class InstitutesController {
   async destroy() {
     return this.instituteServices.deleteOne()
   }
-}
 
+  async progressReport(ctx: HttpContext) {
+    return new OverviewServices(ctx).getOverview()
+  }
+}

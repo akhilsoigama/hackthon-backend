@@ -1,18 +1,38 @@
-// Define and export all the permission keys with global and user-specific access
 export enum PermissionKeys {
-  // ========== CORE MODULES ==========
+  ADMIN_MANAGEMENT_ACCESS = 'admin_management_access',
   CORE_MANAGEMENT_ACCESS = 'core_management_access',
+  INSTITUTE_MANAGEMENT_ACCESS = 'institute_management_access',
+  FACULTY_MANAGEMENT_ACCESS = 'faculty_management_access',
+  STUDENT_QUERY_ACCESS = 'student_query_access',
+  LEAVE_MANAGEMENT_ACCESS = 'leave_management_access',
+  STUDENT_UPLOAD_ACCESS = 'student_upload_access',
+  DASHBOARD_ACCESS = 'dashboard_access',
+  COMMUNICATION_ACCESS = 'communication_access',
+  GAMIFICATION_ACCESS = 'gamification_access',
+  OFFLINE_LIBRARY_ACCESS = 'offline_library_access',
+  STUDENT_QNA_ACCESS = 'student_qna_access',
+  SETTINGS_ACCESS = 'settings_access',
+  EVENTS_ACCESS = 'events_access',
+  FACULTY_ANSWER_QNA_ACCESS = 'faculty_answer_qna_access',
+
+  FACULTY_ALL_QUESTIONS_QNA_VIEW = 'faculty_all_questions_qna_view',
+  FACULTY_VIEW_QNA_ACCESS = 'faculty_view_qna_access',
+  FACULTY_UNANSWERED_QUESTIONS_QNA_VIEW = 'faculty_unanswered_questions_qna_view',
+
+  STUDENT_ALL_QUESTIONS_QNA_VIEW = 'student_all_questions_qna_view',
+  STUDENT_ASK_QNA_CREATE = 'student_ask_qna_create',
+  STUDENT_ASK_QNA_UPDATE = 'student_ask_qna_update',
+  STUDENT_ASK_QNA_DELETE = 'student_ask_qna_delete',
+
+  // ========== CORE MODULES ==========
   // Role & Permission Management
   ROLES_VIEW = 'roles_view',
   ROLES_CREATE = 'roles_create',
   ROLES_UPDATE = 'roles_update',
   ROLES_DELETE = 'roles_delete',
   ROLES_LIST = 'roles_list',
-  ROLES_ACCESS = 'roles_access',
 
   PERMISSIONS_VIEW = 'permissions_view',
-  PERMISSIONS_LIST = 'permissions_list',
-  PERMISSIONS_ASSIGN = 'permissions_assign',
 
   // User Management
   USERS_CREATE = 'users_create',
@@ -25,13 +45,7 @@ export enum PermissionKeys {
   USER_ROLES_REMOVE = 'user_roles_remove',
   USER_ROLES_VIEW = 'user_roles_view',
 
-  USER_PERMISSIONS_ASSIGN = 'user_permissions_assign',
-  USER_PERMISSIONS_REMOVE = 'user_permissions_remove',
-  USER_PERMISSIONS_VIEW = 'user_permissions_view',
-
   // ========== NABHA MANAGEMENT MODULE ==========
-  NABHA_MANAGEMENT_ACCESS = 'nabha_management_access',
-
   // Institute
   INSTITUTE_VIEW = 'institute_view',
   INSTITUTE_CREATE = 'institute_create',
@@ -44,12 +58,8 @@ export enum PermissionKeys {
   GOVT_SURVEY_UPDATE = 'govt_survey_update',
   GOVT_SURVEY_DELETE = 'govt_survey_delete',
   GOVT_SURVEY_LIST = 'govt_survey_list',
-  GOVT_SURVEY_SUBMIT = 'govt_survey_submit',
-  GOVT_SURVEY_APPROVE = 'govt_survey_approve',
 
   // ========== INSTITUTE MANAGEMENT MODULE ==========
-  INSTITUTE_MANAGEMENT_ACCESS = 'institute_management_access',
-
   // Faculty
   FACULTY_VIEW = 'faculty_view',
   FACULTY_CREATE = 'faculty_create',
@@ -69,7 +79,6 @@ export enum PermissionKeys {
   DEPARTMENT_CREATE = 'department_create',
   DEPARTMENT_UPDATE = 'department_update',
   DEPARTMENT_DELETE = 'department_delete',
-  DEPARTMENT_LIST = 'department_list',
 
   // Institute Survey
   INSTITUTE_SURVEY_VIEW = 'institute_survey_view',
@@ -79,23 +88,14 @@ export enum PermissionKeys {
   INSTITUTE_SURVEY_LIST = 'institute_survey_list',
 
   INSTITUTEWITHGOVT_EVENT_VIEW = 'institute_with_govt_event_view',
-  // ========== STUDENT MANAGEMENT MODULE ==========
 
+  // ========== STUDENT MANAGEMENT MODULE ==========
   // Assignment
   ASSIGNMENT_VIEW = 'assignment_view',
   ASSIGNMENT_CREATE = 'assignment_create',
   ASSIGNMENT_UPDATE = 'assignment_update',
   ASSIGNMENT_DELETE = 'assignment_delete',
   ASSIGNMENT_LIST = 'assignment_list',
-  ASSIGNMENT_SUBMIT = 'assignment_submit',
-  ASSIGNMENT_GRADE = 'assignment_grade',
-
-  // Lesson
-  LESSON_VIEW = 'lesson_view',
-  LESSON_CREATE = 'lesson_create',
-  LESSON_UPDATE = 'lesson_update',
-  LESSON_DELETE = 'lesson_delete',
-  LESSON_LIST = 'lesson_list',
 
   // Lecture Upload 
   LECTURE_CREATE = 'lecture_create',
@@ -113,23 +113,19 @@ export enum PermissionKeys {
   QUIZ_ATTEMPT_CREATE = 'quiz_attempt_create',
   QUIZ_ATTEMPT_VIEW = 'quiz_attempt_view',
   QUIZ_ATTEMPT_LIST = 'quiz_attempt_list',
+
   // Progress
-  PROGRESS_VIEW = 'progress_view',
-  PROGRESS_TRACK = 'progress_track',
-  PROGRESS_REPORT = 'progress_report',
+  STUDENT_PROGRESS_VIEW = 'student_progress_view',
 
   // ========== LEAVE MANAGEMENT MODULE ==========
-  LEAVE_MANAGEMENT_ACCESS = 'leave_management_access',
-  LEAVE_VIEW = 'leave_view',
   LEAVE_CREATE = 'leave_create',
   LEAVE_UPDATE = 'leave_update',
   LEAVE_DELETE = 'leave_delete',
   LEAVE_LIST = 'leave_list',
   LEAVE_APPROVE_VIEW = 'leave_approve',
   LEAVE_REJECT_VIEW = 'leave_reject',
-  // ========== STUDENT UPLOAD MODULE ==========
-  STUDENT_UPLOAD_ACCESS = 'student_upload_access',
 
+  // ========== STUDENT UPLOAD MODULE ==========
   // Assignment Upload
   ASSIGNMENT_UPLOAD_VIEW = 'assignment_upload_view',
   ASSIGNMENT_UPLOAD_CREATE = 'assignment_upload_create',
@@ -137,87 +133,12 @@ export enum PermissionKeys {
   ASSIGNMENT_UPLOAD_DELETE = 'assignment_upload_delete',
   ASSIGNMENT_UPLOAD_LIST = 'assignment_upload_list',
 
-  // Lesson Upload
-  LESSON_UPLOAD_VIEW = 'lesson_upload_view',
-  LESSON_UPLOAD_CREATE = 'lesson_upload_create',
-  LESSON_UPLOAD_UPDATE = 'lesson_upload_update',
-  LESSON_UPLOAD_DELETE = 'lesson_upload_delete',
-  LESSON_UPLOAD_LIST = 'lesson_upload_list',
-
   // ========== DASHBOARD MODULE ==========
-  DASHBOARD_ACCESS = 'dashboard_access',
   DASHBOARD_OVERVIEW_VIEW = 'dashboard_overview_view',
-  DASHBOARD_PROGRESS_VIEW = 'dashboard_progress_view',
-  DASHBOARD_EVENTS_VIEW = 'dashboard_events_view',
-  DASHBOARD_QUIZ_VIEW = 'dashboard_quiz_view',
+
   // ========== COMMUNICATION MODULE ==========
-  COMMUNICATION_ACCESS = 'communication_access',
-
   CHATBOT_ACCESS = 'chatbot_access',
-  MESSAGING_SEND = 'messaging_send',
-  MESSAGING_RECEIVE = 'messaging_receive',
-  CHAT_ACCESS = 'chat_access',
-
-  // ========== SETTINGS MODULE ==========
-  SETTINGS_ACCESS = 'settings_access',
-
-  SETTINGS_VIEW = 'settings_view',
-  SETTINGS_UPDATE = 'settings_update',
-  SYSTEM_CONFIG = 'system_config',
-
-  // ========== ADMINISTRATIVE PERMISSIONS ==========
-  ADMIN_ACCESS = 'admin_access',
-  SUPER_ADMIN = 'super_admin',
-  MODERATOR_ACCESS = 'moderator_access',
-  INSTITUTE_ACCESS = 'institute_access',
-
-  // ========== DATA MANAGEMENT ==========
-  DATA_EXPORT = 'data_export',
-  DATA_IMPORT = 'data_import',
-
-  // ========== AUDIT & REPORTS ==========
-  AUDIT_LOGS_VIEW = 'audit_logs_view',
-  REPORTS_GENERATE = 'reports_generate',
-  REPORTS_VIEW = 'reports_view',
-
-  // ========== FACULTY MANAGEMENT MODULE ==========
-  FACULTY_MANAGEMENT_ACCESS = 'faculty_management_access',
-
-  // ========== STUDENT QUERY MODULE ==========
-  STUDENT_QUERY_ACCESS = 'student_query_access',
-
-  // ========== GAMIFICATION MODULE ==========
-  GAMIFICATION_ACCESS = 'gamification_access',
-
-  ACHIEVEMENTS_VIEW = 'achievements_view',
-  BADGES_VIEW = 'badges_view',
-
-  // ========== OFFLINE LIBRARY MODULE ==========
-  OFFLINE_LIBRARY_ACCESS = 'offline_library_access',
-
-  LIBRARY_ACCESS = 'library_access',
-  LIBRARY_DOWNLOAD = 'library_download',
-
-  // ========== ISSUE/DISCUSSION MODULE ==========
-  ISSUE_DISCUSSION_ACCESS = 'issue_discussion_access',
-
-  // ========== CONTENT MANAGEMENT ==========
-  MATERIAL_VIEW = 'material_view',
-  MATERIAL_CREATE = 'material_create',
-  MATERIAL_LIST = 'material_list',
-  MATERIAL_UPDATE = 'material_update',
-  MATERIAL_DELETE = 'material_delete',
-
-  QNA_VIEW = 'qna_view',
-  QNA_CREATE = 'qna_create',
-  QNA_LIST = 'qna_list',
-
-  QUESTION_VIEW = 'question_view',
-  QUESTION_CREATE = 'question_create',
-  QUESTION_LIST = 'question_list'
 }
-
-// Module grouping for better organization
 export const PermissionModules = {
   CORE: {
     name: 'Core System',
@@ -226,28 +147,19 @@ export const PermissionModules = {
       PermissionKeys.ROLES_CREATE,
       PermissionKeys.ROLES_UPDATE,
       PermissionKeys.ROLES_DELETE,
-      PermissionKeys.ROLES_LIST,
-      PermissionKeys.ROLES_ACCESS,
       PermissionKeys.PERMISSIONS_VIEW,
-      PermissionKeys.PERMISSIONS_LIST,
-      PermissionKeys.PERMISSIONS_ASSIGN,
       PermissionKeys.USERS_CREATE,
       PermissionKeys.USERS_UPDATE,
       PermissionKeys.USERS_VIEW,
-      PermissionKeys.USERS_LIST,
       PermissionKeys.USERS_DELETE,
       PermissionKeys.USER_ROLES_ASSIGN,
       PermissionKeys.USER_ROLES_REMOVE,
       PermissionKeys.USER_ROLES_VIEW,
-      PermissionKeys.USER_PERMISSIONS_ASSIGN,
-      PermissionKeys.USER_PERMISSIONS_REMOVE,
-      PermissionKeys.USER_PERMISSIONS_VIEW,
     ]
   },
   NABHA_MANAGEMENT: {
     name: 'Nabha Management',
     permissions: [
-      PermissionKeys.NABHA_MANAGEMENT_ACCESS,
       PermissionKeys.INSTITUTE_VIEW,
       PermissionKeys.INSTITUTE_CREATE,
       PermissionKeys.INSTITUTE_UPDATE,
@@ -258,14 +170,11 @@ export const PermissionModules = {
       PermissionKeys.GOVT_SURVEY_UPDATE,
       PermissionKeys.GOVT_SURVEY_DELETE,
       PermissionKeys.GOVT_SURVEY_LIST,
-      PermissionKeys.GOVT_SURVEY_SUBMIT,
-      PermissionKeys.GOVT_SURVEY_APPROVE,
     ]
   },
   INSTITUTE_MANAGEMENT: {
     name: 'Institute Management',
     permissions: [
-      PermissionKeys.INSTITUTE_MANAGEMENT_ACCESS,
       PermissionKeys.FACULTY_VIEW,
       PermissionKeys.FACULTY_CREATE,
       PermissionKeys.FACULTY_UPDATE,
@@ -280,12 +189,12 @@ export const PermissionModules = {
       PermissionKeys.DEPARTMENT_CREATE,
       PermissionKeys.DEPARTMENT_UPDATE,
       PermissionKeys.DEPARTMENT_DELETE,
-      PermissionKeys.DEPARTMENT_LIST,
       PermissionKeys.INSTITUTE_SURVEY_VIEW,
       PermissionKeys.INSTITUTE_SURVEY_CREATE,
       PermissionKeys.INSTITUTE_SURVEY_UPDATE,
       PermissionKeys.INSTITUTE_SURVEY_DELETE,
       PermissionKeys.INSTITUTE_SURVEY_LIST,
+      PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
     ]
   },
   STUDENT_MANAGEMENT: {
@@ -296,13 +205,6 @@ export const PermissionModules = {
       PermissionKeys.ASSIGNMENT_UPDATE,
       PermissionKeys.ASSIGNMENT_DELETE,
       PermissionKeys.ASSIGNMENT_LIST,
-      PermissionKeys.ASSIGNMENT_SUBMIT,
-      PermissionKeys.ASSIGNMENT_GRADE,
-      PermissionKeys.LESSON_VIEW,
-      PermissionKeys.LESSON_CREATE,
-      PermissionKeys.LESSON_UPDATE,
-      PermissionKeys.LESSON_DELETE,
-      PermissionKeys.LESSON_LIST,
       PermissionKeys.LECTURE_CREATE,
       PermissionKeys.LECTURE_LIST,
       PermissionKeys.LECTURE_UPDATE,
@@ -316,16 +218,12 @@ export const PermissionModules = {
       PermissionKeys.QUIZ_ATTEMPT_CREATE,
       PermissionKeys.QUIZ_ATTEMPT_VIEW,
       PermissionKeys.QUIZ_ATTEMPT_LIST,
-      PermissionKeys.PROGRESS_VIEW,
-      PermissionKeys.PROGRESS_TRACK,
-      PermissionKeys.PROGRESS_REPORT,
+      PermissionKeys.STUDENT_PROGRESS_VIEW,
     ]
   },
   LEAVE_MANAGEMENT: {
     name: 'Leave Management',
     permissions: [
-      PermissionKeys.LEAVE_MANAGEMENT_ACCESS,
-      PermissionKeys.LEAVE_VIEW,
       PermissionKeys.LEAVE_CREATE,
       PermissionKeys.LEAVE_UPDATE,
       PermissionKeys.LEAVE_DELETE,
@@ -337,125 +235,45 @@ export const PermissionModules = {
   STUDENT_UPLOAD: {
     name: 'Student Upload',
     permissions: [
-      PermissionKeys.STUDENT_UPLOAD_ACCESS,
       PermissionKeys.ASSIGNMENT_UPLOAD_VIEW,
       PermissionKeys.ASSIGNMENT_UPLOAD_CREATE,
       PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE,
       PermissionKeys.ASSIGNMENT_UPLOAD_DELETE,
       PermissionKeys.ASSIGNMENT_UPLOAD_LIST,
-      PermissionKeys.LESSON_UPLOAD_VIEW,
-      PermissionKeys.LESSON_UPLOAD_CREATE,
-      PermissionKeys.LESSON_UPLOAD_UPDATE,
-      PermissionKeys.LESSON_UPLOAD_DELETE,
-      PermissionKeys.LESSON_UPLOAD_LIST,
     ]
   },
   DASHBOARD: {
     name: 'Dashboard',
     permissions: [
-      PermissionKeys.DASHBOARD_ACCESS,
       PermissionKeys.DASHBOARD_OVERVIEW_VIEW,
-      PermissionKeys.DASHBOARD_PROGRESS_VIEW,
-      PermissionKeys.DASHBOARD_EVENTS_VIEW,
-      PermissionKeys.DASHBOARD_QUIZ_VIEW,
-      PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
     ]
   },
   COMMUNICATION: {
     name: 'Communication',
     permissions: [
-      PermissionKeys.COMMUNICATION_ACCESS,
       PermissionKeys.CHATBOT_ACCESS,
-      PermissionKeys.MESSAGING_SEND,
-      PermissionKeys.MESSAGING_RECEIVE,
-      PermissionKeys.CHAT_ACCESS,
     ]
   },
-  SETTINGS: {
-    name: 'Settings',
+  FACULTIES_QNA: {
+    name: 'Faculties QnA',
     permissions: [
-      PermissionKeys.SETTINGS_ACCESS,
-      PermissionKeys.SETTINGS_VIEW,
-      PermissionKeys.SETTINGS_UPDATE,
-      PermissionKeys.SYSTEM_CONFIG,
-    ]
-  },
-  ADMINISTRATIVE: {
-    name: 'Administrative',
-    permissions: [
-      PermissionKeys.ADMIN_ACCESS,
-      PermissionKeys.SUPER_ADMIN,
-      PermissionKeys.MODERATOR_ACCESS,
-      PermissionKeys.INSTITUTE_ACCESS,
-    ]
-  },
-  DATA_MANAGEMENT: {
-    name: 'Data Management',
-    permissions: [
-      PermissionKeys.DATA_EXPORT,
-      PermissionKeys.DATA_IMPORT,
-    ]
-  },
-  AUDIT_REPORTS: {
-    name: 'Audit & Reports',
-    permissions: [
-      PermissionKeys.AUDIT_LOGS_VIEW,
-      PermissionKeys.REPORTS_GENERATE,
-      PermissionKeys.REPORTS_VIEW,
-    ]
-  },
-  FACULTY_MANAGEMENT: {
-    name: 'Faculty Management',
-    permissions: [
-      PermissionKeys.FACULTY_MANAGEMENT_ACCESS,
-    ]
+      PermissionKeys.FACULTY_ALL_QUESTIONS_QNA_VIEW,
+      PermissionKeys.FACULTY_ANSWER_QNA_ACCESS,
+      PermissionKeys.FACULTY_VIEW_QNA_ACCESS,
+      PermissionKeys.FACULTY_UNANSWERED_QUESTIONS_QNA_VIEW,
+    ] 
   },
   STUDENT_QUERY: {
     name: 'Student Query',
     permissions: [
       PermissionKeys.STUDENT_QUERY_ACCESS,
-    ]
-  },
-  GAMIFICATION: {
-    name: 'Gamification',
-    permissions: [
-      PermissionKeys.GAMIFICATION_ACCESS,
-      PermissionKeys.ACHIEVEMENTS_VIEW,
-      PermissionKeys.BADGES_VIEW,
-    ]
-  },
-  OFFLINE_LIBRARY: {
-    name: 'Offline Library',
-    permissions: [
-      PermissionKeys.OFFLINE_LIBRARY_ACCESS,
-      PermissionKeys.LIBRARY_ACCESS,
-      PermissionKeys.LIBRARY_DOWNLOAD,
-    ]
-  },
-  ISSUE_DISCUSSION: {
-    name: 'Issue & Discussion',
-    permissions: [
-      PermissionKeys.ISSUE_DISCUSSION_ACCESS,
-    ]
-  },
-  CONTENT_MANAGEMENT: {
-    name: 'Content Management',
-    permissions: [
-      PermissionKeys.MATERIAL_VIEW,
-      PermissionKeys.MATERIAL_CREATE,
-      PermissionKeys.MATERIAL_LIST,
-      PermissionKeys.MATERIAL_UPDATE,
-      PermissionKeys.MATERIAL_DELETE,
-      PermissionKeys.QNA_VIEW,
-      PermissionKeys.QNA_CREATE,
-      PermissionKeys.QNA_LIST,
-      PermissionKeys.QUESTION_VIEW,
-      PermissionKeys.QUESTION_CREATE,
-      PermissionKeys.QUESTION_LIST,
+      PermissionKeys.STUDENT_ALL_QUESTIONS_QNA_VIEW,
+      PermissionKeys.STUDENT_ASK_QNA_CREATE,
+      PermissionKeys.STUDENT_ASK_QNA_UPDATE,
+      PermissionKeys.STUDENT_ASK_QNA_DELETE,
     ]
   }
 } as const;
-
 export const permissions = Object.values(PermissionKeys).map((key) => ({
   permissionName: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
   permissionKey: key,

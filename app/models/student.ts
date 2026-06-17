@@ -8,7 +8,6 @@ import Institute from './institute.js'
 import Department from './department.js'
 
 export default class Student extends BaseModel {
-
   public static softDeletes = scope((query) => {
     query.whereNull('deleted_at')
   })
@@ -110,13 +109,13 @@ export default class Student extends BaseModel {
   declare department: BelongsTo<typeof Department>
 
   @beforeSave()
-  public static async hashPassword(student: Student) {
+   public static async hashPassword(student: Student) {
     if (student.$dirty.studentPassword) {
-      student.studentPassword = await hash.make(student.studentPassword)
+      student.studentPassword = await hash.make(student.studentPassword) 
     }
   }
 
-  public async verifyPassword(password: string): Promise<boolean> {
-    return await hash.verify(this.studentPassword, password)
+  async verifyPassword(password: string): Promise<boolean> {
+    return await hash.verify(this.studentPassword, password) 
   }
 }

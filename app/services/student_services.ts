@@ -23,7 +23,7 @@ type AuthUserScope = {
 export default class StudentServices {
   private readonly studentRepository = new StudentRepository()
 
-  constructor(protected ctx: HttpContext) { }
+  constructor(protected ctx: HttpContext) {}
 
   private async getAuthenticatedUser() {
     try {
@@ -61,12 +61,12 @@ export default class StudentServices {
   }
   private async sendEmail(email: string, password: string, userType: string, name: string) {
     try {
-      const emailService = new EmailService();
-      await emailService.sendCredentialsEmail(email, password, userType, name);
-      return true;
+      const emailService = new EmailService()
+      await emailService.sendCredentialsEmail(email, password, userType, name)
+      return true
     } catch (error) {
-      console.error('Email sending failed (but continuing):', error);
-      return false;
+      console.error('Email sending failed (but continuing):', error)
+      return false
     }
   }
   async create() {
@@ -86,9 +86,7 @@ export default class StudentServices {
         })
       }
 
-      const existingUser = await User.query()
-        .where('email', requestData.studentEmail)
-        .first()
+      const existingUser = await User.query().where('email', requestData.studentEmail).first()
 
       if (existingUser) {
         return this.ctx.response.status(422).send({
@@ -101,8 +99,9 @@ export default class StudentServices {
       if (requestData.studentDob && requestData.studentAddmissionDate) {
         const dob = new Date(requestData.studentDob)
         const admissionDate = new Date(requestData.studentAddmissionDate)
-        const ageAtAdmission = (admissionDate.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
-        
+        const ageAtAdmission =
+          (admissionDate.getTime() - dob.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+
         if (ageAtAdmission < 5) {
           return this.ctx.response.status(422).send({
             status: false,
@@ -114,8 +113,7 @@ export default class StudentServices {
       const validatedData = await studentCreateValidator.validate(requestData)
       const authUser = await this.getAuthenticatedUser()
       const studentRole = await Role.query().where('roleKey', 'student').first()
-      const plainPassword = generateCredentialPassword('STUD')
-
+      const plainPassword = requestData.studentPassword || generateCredentialPassword('STUD')
       if (!studentRole) {
         return this.ctx.response.status(422).send({
           status: false,
@@ -127,9 +125,10 @@ export default class StudentServices {
         ...validatedData,
         studentPassword: plainPassword,
         roleId: studentRole.id,
-        instituteId: authUser?.userType === 'institute' && authUser.instituteId
-          ? authUser.instituteId
-          : validatedData.instituteId,
+        instituteId:
+          authUser?.userType === 'institute' && authUser.instituteId
+            ? authUser.instituteId
+            : validatedData.instituteId,
         studentId: validatedData.studentId || `STU${Date.now()}`,
         isActive: validatedData.isActive ?? true,
         createdBy: authUser?.id,
@@ -138,14 +137,11 @@ export default class StudentServices {
 
       this.invalidateStudentCache()
 
-      this.sendEmail(
-        student.studentEmail,
-        plainPassword,
-        'student',
-        student.studentName
-      ).catch(err => {
-        console.error('Email failed in background:', err);
-      });
+      this.sendEmail(student.studentEmail, plainPassword, 'student', student.studentName).catch(
+        (err) => {
+          console.error('Email failed in background:', err)
+        }
+      )
       return this.ctx.response.status(201).send({
         status: true,
         message: messages.student_created_successfully,
@@ -164,15 +160,22 @@ export default class StudentServices {
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
       const authUser = await this.getAuthenticatedUser()
-      const { page, limit, search, withDeleted, searchFor: searchForQuery } = parseListQuery(this.ctx)
+      const {
+        page,
+        limit,
+        search,
+        withDeleted,
+        searchFor: searchForQuery,
+      } = parseListQuery(this.ctx)
       const requestedInstituteId = Number(this.ctx.request.input('instituteId'))
       const effectiveSearchFor = searchForQuery || searchFor || undefined
 
-      const instituteId = authUser?.userType === 'institute'
-        ? authUser.instituteId
-        : Number.isFinite(requestedInstituteId) && requestedInstituteId > 0
-          ? requestedInstituteId
-          : undefined
+      const instituteId =
+        authUser?.userType === 'institute'
+          ? authUser.instituteId
+          : Number.isFinite(requestedInstituteId) && requestedInstituteId > 0
+            ? requestedInstituteId
+            : undefined
 
       if (authUser?.userType === 'institute' && !instituteId) {
         return {
@@ -216,9 +219,8 @@ export default class StudentServices {
 
       return {
         status: true,
-        message: students.length > 0
-          ? messages.student_fetched_successfully
-          : messages.student_not_found,
+        message:
+          students.length > 0 ? messages.student_fetched_successfully : messages.student_not_found,
         data: students,
         meta: {
           total: paginated.total,
@@ -250,9 +252,7 @@ export default class StudentServices {
 
       const validatedData = await studentUpdateValidator.validate(requestData)
 
-      const existingStudentQuery = Student.query()
-        .where('id', id)
-        .whereNull('deleted_at')
+      const existingStudentQuery = Student.query().where('id', id).whereNull('deleted_at')
 
       if (authUser?.userType !== 'super_admin') {
         existingStudentQuery.where((scope) => {
@@ -302,9 +302,10 @@ export default class StudentServices {
       const id = this.ctx.request.param('id')
       const authUser = await this.getAuthenticatedUser()
       const studentId = Number(id)
-      const instituteId = authUser?.userType === 'institute'
-        ? this.getEffectiveInstituteId(authUser as AuthUserScope | null)
-        : undefined
+      const instituteId =
+        authUser?.userType === 'institute'
+          ? this.getEffectiveInstituteId(authUser as AuthUserScope | null)
+          : undefined
 
       const student = await apiCacheService.getOrSet(
         `students:one:${studentId}:institute:${instituteId || 'all'}:auth:${authUser?.id || 'guest'}:${authUser?.userType || 'none'}`,
@@ -341,9 +342,7 @@ export default class StudentServices {
       const authUser = await this.getAuthenticatedUser()
       const authInstituteId = this.getEffectiveInstituteId(authUser as AuthUserScope | null)
 
-      const studentQuery = Student.query()
-        .where('id', id)
-        .whereNull('deleted_at')
+      const studentQuery = Student.query().where('id', id).whereNull('deleted_at')
 
       if (authUser?.userType !== 'super_admin') {
         studentQuery.where((scope) => {
@@ -396,7 +395,4 @@ export default class StudentServices {
       }
     }
   }
-
 }
-
-
