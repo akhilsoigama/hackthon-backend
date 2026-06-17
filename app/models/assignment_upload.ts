@@ -8,7 +8,7 @@ import Student from './student.js'
 import Department from './department.js'
 
 export default class AssignmentUpload extends BaseModel {
-  static table = 'assignemtn_uploads'
+  static table = 'assignment_uploads'
 
   static softDeletes = scope((query) => {
     query.whereNull('deleted_at')
@@ -72,5 +72,8 @@ export default class AssignmentUpload extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @column.dateTime({ columnName: 'deleted_at' })
+  declare deletedAt: DateTime | null
 }
 

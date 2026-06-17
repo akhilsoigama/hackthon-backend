@@ -1,6 +1,7 @@
-import { BaseModel, belongsTo, column } from "@adonisjs/lucid/orm"
-import Faculty from "./faculty.js"
-import type { BelongsTo } from "@adonisjs/lucid/types/relations"
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import Faculty from './faculty.js'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { DateTime } from 'luxon'
 
 export default class Lecture extends BaseModel {
   @column({ isPrimary: true })
@@ -27,8 +28,8 @@ export default class Lecture extends BaseModel {
   @column({ columnName: 'thumbnail_url' })
   declare thumbnailUrl: string | null
 
-  @column({ columnName: 'content_url' }) 
-  declare contentUrl: string | null 
+  @column({ columnName: 'content_url' })
+  declare contentUrl: string | null
 
   @column({ columnName: 'duration_in_seconds' })
   declare durationInSeconds: number | null
@@ -52,4 +53,15 @@ export default class Lecture extends BaseModel {
     foreignKey: 'faculty_id',
   })
   declare faculty: BelongsTo<typeof Faculty>
+
+  @column({ columnName: 'institute_id' })
+  declare instituteId: number
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+
+  @column.dateTime({ columnName: 'deleted_at' })
+  declare deletedAt: DateTime | null
 }

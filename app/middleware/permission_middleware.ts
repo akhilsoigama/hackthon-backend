@@ -6,8 +6,20 @@ import type { NextFn } from '@adonisjs/core/types/http'
 type ExtendedPermissionKeys = PermissionKeys | string
 
 const PermissionMapping: Record<string, PermissionKeys> = {
+  // Module level permissions
+  admin_management_access: PermissionKeys.ADMIN_MANAGEMENT_ACCESS,
+  core_management_access: PermissionKeys.CORE_MANAGEMENT_ACCESS,
+  institute_management_access: PermissionKeys.INSTITUTE_MANAGEMENT_ACCESS,
+  faculty_management_access: PermissionKeys.FACULTY_MANAGEMENT_ACCESS,
+  student_query_access: PermissionKeys.STUDENT_QUERY_ACCESS,
+  leave_management_access: PermissionKeys.LEAVE_MANAGEMENT_ACCESS,
+  student_upload_access: PermissionKeys.STUDENT_UPLOAD_ACCESS,
+  dashboard_access: PermissionKeys.DASHBOARD_ACCESS,
+  communication_access: PermissionKeys.COMMUNICATION_ACCESS,
 
+  // Chatbot
   chatbot_access: PermissionKeys.CHATBOT_ACCESS,
+
   // Lecture
   lecture_create: PermissionKeys.LECTURE_CREATE,
   lecture_update: PermissionKeys.LECTURE_UPDATE,
@@ -15,26 +27,25 @@ const PermissionMapping: Record<string, PermissionKeys> = {
   lecture_list: PermissionKeys.LECTURE_LIST,
   lecture_delete: PermissionKeys.LECTURE_DELETE,
 
-  // Lesson
-  lesson_create: PermissionKeys.LESSON_CREATE,
-  lesson_update: PermissionKeys.LESSON_UPDATE,
-  lesson_view: PermissionKeys.LESSON_VIEW,
-  lesson_list: PermissionKeys.LESSON_LIST,
-  lesson_delete: PermissionKeys.LESSON_DELETE,
-
   // Users
   users_create: PermissionKeys.USERS_CREATE,
   users_update: PermissionKeys.USERS_UPDATE,
   users_view: PermissionKeys.USERS_VIEW,
-  users_list: PermissionKeys.USERS_LIST,
   users_delete: PermissionKeys.USERS_DELETE,
 
   // Roles
   roles_create: PermissionKeys.ROLES_CREATE,
   roles_update: PermissionKeys.ROLES_UPDATE,
   roles_view: PermissionKeys.ROLES_VIEW,
-  roles_list: PermissionKeys.ROLES_LIST,
   roles_delete: PermissionKeys.ROLES_DELETE,
+
+  // Permissions
+  permissions_view: PermissionKeys.PERMISSIONS_VIEW,
+
+  // User roles
+  user_roles_assign: PermissionKeys.USER_ROLES_ASSIGN,
+  user_roles_remove: PermissionKeys.USER_ROLES_REMOVE,
+  user_roles_view: PermissionKeys.USER_ROLES_VIEW,
 
   // Institute
   institute_create: PermissionKeys.INSTITUTE_CREATE,
@@ -42,6 +53,13 @@ const PermissionMapping: Record<string, PermissionKeys> = {
   institute_view: PermissionKeys.INSTITUTE_VIEW,
   institute_list: PermissionKeys.INSTITUTE_LIST,
   institute_delete: PermissionKeys.INSTITUTE_DELETE,
+
+  // Govt Survey
+  survey_create: PermissionKeys.GOVT_SURVEY_CREATE,
+  survey_update: PermissionKeys.GOVT_SURVEY_UPDATE,
+  survey_view: PermissionKeys.GOVT_SURVEY_VIEW,
+  survey_delete: PermissionKeys.GOVT_SURVEY_DELETE,
+  survey_list: PermissionKeys.GOVT_SURVEY_LIST,
 
   // Faculty
   faculty_create: PermissionKeys.FACULTY_CREATE,
@@ -61,74 +79,58 @@ const PermissionMapping: Record<string, PermissionKeys> = {
   department_create: PermissionKeys.DEPARTMENT_CREATE,
   department_update: PermissionKeys.DEPARTMENT_UPDATE,
   department_view: PermissionKeys.DEPARTMENT_VIEW,
-  department_list: PermissionKeys.DEPARTMENT_LIST,
   department_delete: PermissionKeys.DEPARTMENT_DELETE,
 
-  // Permissions
-  permissions_view: PermissionKeys.PERMISSIONS_VIEW,
-  permissions_list: PermissionKeys.PERMISSIONS_LIST,
+  // Institute Survey
+  institute_survey_create: PermissionKeys.INSTITUTE_SURVEY_CREATE,
+  institute_survey_update: PermissionKeys.INSTITUTE_SURVEY_UPDATE,
+  institute_survey_view: PermissionKeys.INSTITUTE_SURVEY_VIEW,
+  institute_survey_delete: PermissionKeys.INSTITUTE_SURVEY_DELETE,
+  institute_survey_list: PermissionKeys.INSTITUTE_SURVEY_LIST,
 
-  // User roles
-  user_roles_assign: PermissionKeys.USER_ROLES_ASSIGN,
-  user_roles_remove: PermissionKeys.USER_ROLES_REMOVE,
-  user_roles_view: PermissionKeys.USER_ROLES_VIEW,
+  // Institute with Govt Events
+  institute_with_govt_event_view: PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
 
   // Assignment
   assignment_create: PermissionKeys.ASSIGNMENT_CREATE,
   assignment_update: PermissionKeys.ASSIGNMENT_UPDATE,
   assignment_view: PermissionKeys.ASSIGNMENT_VIEW,
   assignment_delete: PermissionKeys.ASSIGNMENT_DELETE,
+  assignment_list: PermissionKeys.ASSIGNMENT_LIST,
 
   // Quiz
   quiz_create: PermissionKeys.QUIZ_CREATE,
   quiz_update: PermissionKeys.QUIZ_UPDATE,
   quiz_view: PermissionKeys.QUIZ_VIEW,
   quiz_delete: PermissionKeys.QUIZ_DELETE,
-  quiz_create_attempt: PermissionKeys.QUIZ_ATTEMPT_CREATE,
-  quiz_view_attempt: PermissionKeys.QUIZ_ATTEMPT_VIEW,
-  quiz_list_attempt: PermissionKeys.QUIZ_ATTEMPT_LIST,
-  // Material
-  material_create: PermissionKeys.MATERIAL_CREATE,
-  material_update: PermissionKeys.MATERIAL_UPDATE,
-  material_view: PermissionKeys.MATERIAL_VIEW,
-  material_delete: PermissionKeys.MATERIAL_DELETE,
+  quiz_list: PermissionKeys.QUIZ_LIST,
+  quiz_attempt_create: PermissionKeys.QUIZ_ATTEMPT_CREATE,
+  quiz_attempt_view: PermissionKeys.QUIZ_ATTEMPT_VIEW,
+  quiz_attempt_list: PermissionKeys.QUIZ_ATTEMPT_LIST,
 
-  // Survey
-  survey_create: PermissionKeys.GOVT_SURVEY_CREATE,
-  survey_update: PermissionKeys.GOVT_SURVEY_UPDATE,
-  survey_view: PermissionKeys.GOVT_SURVEY_VIEW,
-  survey_delete: PermissionKeys.GOVT_SURVEY_DELETE,
+  // Student Progress
+  student_progress_view: PermissionKeys.STUDENT_PROGRESS_VIEW,
 
-  // Progress
-  progress_view: PermissionKeys.PROGRESS_VIEW,
-
+  // Leave
   leave_create: PermissionKeys.LEAVE_CREATE,
   leave_update: PermissionKeys.LEAVE_UPDATE,
-  leave_view: PermissionKeys.LEAVE_VIEW,
   leave_delete: PermissionKeys.LEAVE_DELETE,
+  leave_list: PermissionKeys.LEAVE_LIST,
+  leave_approve: PermissionKeys.LEAVE_APPROVE_VIEW,
+  leave_reject: PermissionKeys.LEAVE_REJECT_VIEW,
 
-  // Settings
-  settings_view: PermissionKeys.SETTINGS_VIEW,
-  settings_update: PermissionKeys.SETTINGS_UPDATE,
+  // Assignment Upload
+  assignment_upload_create: PermissionKeys.ASSIGNMENT_UPLOAD_CREATE,
+  assignment_upload_update: PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE,
+  assignment_upload_view: PermissionKeys.ASSIGNMENT_UPLOAD_VIEW,
+  assignment_upload_delete: PermissionKeys.ASSIGNMENT_UPLOAD_DELETE,
+  assignment_upload_list: PermissionKeys.ASSIGNMENT_UPLOAD_LIST,
 
-  // Reports
-  reports_view: PermissionKeys.REPORTS_VIEW,
+  // Dashboard
+  dashboard_overview_view: PermissionKeys.DASHBOARD_OVERVIEW_VIEW,
 
-  // QnA
-  qna_view: PermissionKeys.QNA_VIEW,
-  qna_create: PermissionKeys.QNA_CREATE,
-
-  // Achievements
-  achievements_view: PermissionKeys.ACHIEVEMENTS_VIEW,
-
-  // Badges
-  badges_view: PermissionKeys.BADGES_VIEW,
-
-  // Question
-  question_view: PermissionKeys.QUESTION_VIEW,
-  question_create: PermissionKeys.QUESTION_CREATE,
+  // Student Query
 }
-
 
 function hasEquivalentViewPermission(
   required: PermissionKeys[],
@@ -151,7 +153,10 @@ export default class PermissionMiddleware {
     try {
       if (!permissions || permissions.length === 0) return next()
 
-      const user = (ctx as unknown & { user?: unknown }).user || (ctx as unknown & { authUser?: unknown }).authUser || (ctx.request as unknown & { user?: unknown }).user || ctx.auth?.user
+      const user = (ctx as unknown & { user?: unknown }).user || 
+                   (ctx as unknown & { authUser?: unknown }).authUser || 
+                   (ctx.request as unknown & { user?: unknown }).user || 
+                   ctx.auth?.user
 
       if (!user) {
         return ctx.response.unauthorized({
@@ -209,4 +214,3 @@ export default class PermissionMiddleware {
     }
   }
 }
-
