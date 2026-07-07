@@ -116,6 +116,7 @@ export enum PermissionKeys {
 
   // Progress
   STUDENT_PROGRESS_VIEW = 'student_progress_view',
+  FACULTY_STUDENT_PROGRESS_VIEW = 'faculty_student_progress_view',
 
   // ========== LEAVE MANAGEMENT MODULE ==========
   LEAVE_CREATE = 'leave_create',
@@ -219,6 +220,7 @@ export const PermissionModules = {
       PermissionKeys.QUIZ_ATTEMPT_VIEW,
       PermissionKeys.QUIZ_ATTEMPT_LIST,
       PermissionKeys.STUDENT_PROGRESS_VIEW,
+      PermissionKeys.FACULTY_STUDENT_PROGRESS_VIEW,
     ]
   },
   LEAVE_MANAGEMENT: {

@@ -118,7 +118,7 @@ router
     router
       .get('/institutes/overview', [InstitutesController, 'progressReport'])
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
-      .use(middleware.permission([PermissionKeys.DASHBOARD_OVERVIEW_VIEW]))  
+      .use(middleware.permission([PermissionKeys.DASHBOARD_OVERVIEW_VIEW]))
     router
       .resource('institutes', InstitutesController)
       .apiOnly()
@@ -176,8 +176,7 @@ router
     router
       .get('/student-queries/progress-report', [StudentQueriesController, 'progressReport'])
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
-      .use(middleware.permission([PermissionKeys.STUDENT_PROGRESS_VIEW]))
-
+      .use(middleware.studentProgressPermission())
     // Student Query Routes
     router
       .resource('student-queries', StudentQueriesController)

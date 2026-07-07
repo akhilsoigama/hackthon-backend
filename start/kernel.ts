@@ -36,6 +36,8 @@ router.use([
  * the routes or the routes group.
  */
 export const middleware = router.named({
+  
+  studentProgressPermission: () => import('#middleware/student_progress_permission_middleware'),
   guest: () => import('#middleware/guest_middleware'),
   auth: () => import('#middleware/auth_middleware'),
   permission: () => import('#middleware/permission_middleware'),
