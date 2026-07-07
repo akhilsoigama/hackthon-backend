@@ -105,14 +105,6 @@ export default class extends BaseSeeder {
         PermissionKeys.ASSIGNMENT_VIEW,
         PermissionKeys.ASSIGNMENT_LIST,
 
-        // Leave
-        PermissionKeys.LEAVE_APPROVE_VIEW,
-        PermissionKeys.LEAVE_REJECT_VIEW,
-        PermissionKeys.LEAVE_CREATE,
-        PermissionKeys.LEAVE_LIST,
-        PermissionKeys.LEAVE_UPDATE,
-        PermissionKeys.LEAVE_DELETE,
-
         // Lecture
         PermissionKeys.LECTURE_VIEW,
         PermissionKeys.LECTURE_LIST,
@@ -130,9 +122,6 @@ export default class extends BaseSeeder {
         // Student Query
         PermissionKeys.STUDENT_QUERY_ACCESS,
 
-        // Institute with Govt Events
-        PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
-
         // Chatbot
         PermissionKeys.CHATBOT_ACCESS,
 
@@ -142,12 +131,6 @@ export default class extends BaseSeeder {
         PermissionKeys.ASSIGNMENT_UPLOAD_CREATE,
         PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE,
         PermissionKeys.ASSIGNMENT_UPLOAD_DELETE,
-
-        // Student Progress
-        PermissionKeys.STUDENT_PROGRESS_VIEW,
-
-        // Gamification
-        PermissionKeys.GAMIFICATION_ACCESS,
 
         // Offline Library
         PermissionKeys.OFFLINE_LIBRARY_ACCESS,
@@ -162,7 +145,6 @@ export default class extends BaseSeeder {
 
       faculty: [
         // Module level
-        PermissionKeys.INSTITUTE_MANAGEMENT_ACCESS,
         PermissionKeys.FACULTY_MANAGEMENT_ACCESS,
         PermissionKeys.STUDENT_QUERY_ACCESS,
         PermissionKeys.LEAVE_MANAGEMENT_ACCESS,
@@ -177,10 +159,6 @@ export default class extends BaseSeeder {
 
         // Dashboard
         PermissionKeys.DASHBOARD_OVERVIEW_VIEW,
-
-        // Faculty
-        PermissionKeys.FACULTY_VIEW,
-        PermissionKeys.FACULTY_LIST,
 
         // Student
         PermissionKeys.STUDENT_VIEW,
@@ -206,9 +184,6 @@ export default class extends BaseSeeder {
         PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE,
         PermissionKeys.ASSIGNMENT_UPLOAD_DELETE,
 
-        // Govt Survey
-        PermissionKeys.GOVT_SURVEY_VIEW,
-        PermissionKeys.GOVT_SURVEY_LIST,
 
         // Institute Survey
         PermissionKeys.INSTITUTE_SURVEY_VIEW,
@@ -234,29 +209,15 @@ export default class extends BaseSeeder {
         PermissionKeys.LECTURE_UPDATE,
         PermissionKeys.LECTURE_DELETE,
 
-        // Student Progress
-        PermissionKeys.STUDENT_PROGRESS_VIEW,
+        // Faculty Progress
+        PermissionKeys.FACULTY_STUDENT_PROGRESS_VIEW,
 
         // Chatbot
         PermissionKeys.CHATBOT_ACCESS,
 
-        // Leave
-        PermissionKeys.LEAVE_CREATE,
-        PermissionKeys.LEAVE_LIST,
-        PermissionKeys.LEAVE_UPDATE,
-        PermissionKeys.LEAVE_DELETE,
-        PermissionKeys.LEAVE_APPROVE_VIEW,
-        PermissionKeys.LEAVE_REJECT_VIEW,
-
         // Institute
         PermissionKeys.INSTITUTE_VIEW,
         PermissionKeys.INSTITUTE_LIST,
-
-        // Institute with Govt Events
-        PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
-
-        // Gamification
-        PermissionKeys.GAMIFICATION_ACCESS,
 
         // Offline Library
         PermissionKeys.OFFLINE_LIBRARY_ACCESS,
@@ -280,7 +241,6 @@ export default class extends BaseSeeder {
         // Module level
         PermissionKeys.DASHBOARD_ACCESS,
         PermissionKeys.STUDENT_QUERY_ACCESS,
-        PermissionKeys.LEAVE_MANAGEMENT_ACCESS,
         PermissionKeys.STUDENT_UPLOAD_ACCESS,
         PermissionKeys.COMMUNICATION_ACCESS,
         PermissionKeys.GAMIFICATION_ACCESS,
@@ -310,10 +270,6 @@ export default class extends BaseSeeder {
         // Student Query
         PermissionKeys.STUDENT_QUERY_ACCESS,
 
-        // Leave
-        PermissionKeys.LEAVE_CREATE,
-        PermissionKeys.LEAVE_LIST,
-
         // Assignment Upload
         PermissionKeys.ASSIGNMENT_UPLOAD_VIEW,
         PermissionKeys.ASSIGNMENT_UPLOAD_LIST,
@@ -331,6 +287,7 @@ export default class extends BaseSeeder {
 
         // Institute with Govt Events
         PermissionKeys.INSTITUTEWITHGOVT_EVENT_VIEW,
+        PermissionKeys.INSTITUTE_SURVEY_VIEW,
 
         // Gamification
         PermissionKeys.GAMIFICATION_ACCESS,
