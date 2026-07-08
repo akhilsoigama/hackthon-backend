@@ -31,6 +31,7 @@ import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
 import FacultyLeaveController from '#controllers/faculty_leave_controller'
 import StudentQueriesController from '#controllers/student_queries_controller'
 import InstituteEventWithGovtEventsController from '#controllers/institute_event_with_govt_events_controller'
+import OnlineLibrariesController from '#controllers/online_libraries_controller'
 
 router
   .post('/login', [AuthController, 'login'])
@@ -43,7 +44,8 @@ router.post('/sync/institute', [AuthController, 'syncInstitute'])
 router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 
 router.get('/ping', [PingController, 'handle'])
-
+router.get('/api/online-library/search', [OnlineLibrariesController, 'search'])
+router.get('/api/online-library/metadata/:identifier', [OnlineLibrariesController, 'metadata'])
 router
   .group(() => {
     router
