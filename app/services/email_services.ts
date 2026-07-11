@@ -30,7 +30,7 @@ export default class EmailService {
           },
           body: JSON.stringify({
             sender: {
-              email: env.get('SMTP_FROM_ADDRESS') || 'akhilsoigama@gmail.com',
+              email: env.get('SMTP_FROM_ADDRESS') || 'ruralsparklearning@gmail.com',
               name: env.get('SMTP_FROM_NAME') || 'RuralSpark Team',
             },
             to: [{ email }],
@@ -52,7 +52,59 @@ export default class EmailService {
       return false
     }
   }
+async sendContactEmail(data: {
+  firstName: string
+  lastName: string
+  email: string
+  message: string
+}): Promise<boolean> {
+  if (!this.brevoApiKey) {
+    return true
+  }
 
+  try {
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": this.brevoApiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: {
+          email: env.get("SMTP_FROM_ADDRESS") || "ruralsparklearning@gmail.com",
+          name: env.get("SMTP_FROM_NAME") || "RuralSpark",
+        },
+
+        to: [
+          {
+            email: env.get("CONTACT_RECEIVER_EMAIL") || "akhilsoigama@gmail.com",
+          },
+        ],
+
+        replyTo: {
+          email: data.email,
+          name: `${data.firstName} ${data.lastName}`,
+        },
+
+        subject: `📩 New Contact Request from ${data.firstName} ${data.lastName}`,
+
+        htmlContent: this.getContactHtml(data),
+
+        textContent: this.getContactText(data),
+      }),
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      throw new Error(`Brevo API failed: ${response.status} - ${errorBody}`)
+    }
+
+    return true
+  } catch (error) {
+    console.error("Contact email failed:", error)
+    return false
+  }
+}
   private getEmailHtml(
     name: string,
     userType: string,
@@ -190,4 +242,143 @@ RuralSpark Team
 This is an automated email. Do not reply.
 `
   }
+private getContactHtml(data: {
+  firstName: string
+  lastName: string
+  email: string
+  message: string
+}) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>New Contact Request</title>
+</head>
+
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td align="center" style="padding:40px 15px;">
+
+<table width="620" cellpadding="0" cellspacing="0"
+style="background:#ffffff;border-radius:12px;overflow:hidden;
+box-shadow:0 8px 24px rgba(0,0,0,.08);">
+
+<!-- Header -->
+<tr>
+<td style="background:#2563eb;padding:28px;text-align:center;color:#fff;">
+<h1 style="margin:0;font-size:28px;">📩 RuralSpark</h1>
+<p style="margin:8px 0 0;font-size:15px;">
+New Contact Form Submission
+</p>
+</td>
+</tr>
+
+<!-- Body -->
+<tr>
+<td style="padding:32px;">
+
+<p style="margin-top:0;font-size:16px;color:#374151;">
+A new enquiry has been submitted through the
+<strong>RuralSpark Contact Us</strong> page.
+</p>
+
+<table width="100%" cellpadding="10"
+style="border-collapse:collapse;margin-top:25px;">
+
+<tr style="background:#f8fafc;">
+<td width="180"><strong>👤 Name</strong></td>
+<td>${data.firstName} ${data.lastName}</td>
+</tr>
+
+<tr>
+<td><strong>📧 Email</strong></td>
+<td>
+<a href="mailto:${data.email}"
+style="color:#2563eb;text-decoration:none;">
+${data.email}
+</a>
+</td>
+</tr>
+
+<tr style="background:#f8fafc;">
+<td valign="top"><strong>💬 Message</strong></td>
+<td style="line-height:1.7;">
+${data.message.replace(/\n/g, "<br/>")}
+</td>
+</tr>
+
+</table>
+
+<div
+style="margin-top:28px;padding:18px;background:#eff6ff;
+border-left:4px solid #2563eb;border-radius:6px;">
+
+<strong>Quick Action</strong>
+
+<p style="margin:8px 0 0;color:#475569;">
+Click the email address above to reply directly to the sender.
+</p>
+
+</div>
+
+</td>
+</tr>
+
+<!-- Footer -->
+<tr>
+<td
+style="padding:18px;background:#f8fafc;
+text-align:center;font-size:13px;color:#64748b;">
+
+This email was automatically generated from the
+<strong>RuralSpark Contact Form</strong>.
+
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+`;
+}
+private getContactText(data: {
+  firstName: string
+  lastName: string
+  email: string
+  message: string
+}) {
+  return `
+==============================
+📩 RURALSPARK CONTACT REQUEST
+==============================
+
+Name:
+${data.firstName} ${data.lastName}
+
+Email:
+${data.email}
+
+--------------------------------
+
+Message:
+
+${data.message}
+
+--------------------------------
+
+Reply directly to:
+${data.email}
+
+This message was submitted from the RuralSpark website.
+`;
+}
 }
