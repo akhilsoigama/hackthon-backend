@@ -32,12 +32,13 @@ import FacultyLeaveController from '#controllers/faculty_leave_controller'
 import StudentQueriesController from '#controllers/student_queries_controller'
 import InstituteEventWithGovtEventsController from '#controllers/institute_event_with_govt_events_controller'
 import OnlineLibrariesController from '#controllers/online_libraries_controller'
+import ContactController from '#controllers/contactuses_controller'
 
 router
   .post('/login', [AuthController, 'login'])
   .use(middleware.rateLimit({ config: RateLimitConfigs.auth }))
 router.get('/test-db', [AuthController, 'testDB'])
-
+router.post('/api/contact', [ContactController, 'store'])
 router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
 router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
 router.post('/sync/institute', [AuthController, 'syncInstitute'])
