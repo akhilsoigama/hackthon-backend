@@ -7,32 +7,32 @@
 |
 */
 
-import AuthController from '#controllers/auth_controller'
-import RolesController from '#controllers/roles_controller'
+const AuthController = () => import('#controllers/auth_controller')
+const RolesController = () => import('#controllers/roles_controller')
 import { PermissionKeys } from '#database/constants/permission'
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
-import PermissionsController from '#controllers/permissions_controller'
-import UsersController from '#controllers/users_controller'
-import InstitutesController from '#controllers/institutes_controller'
-import DepartmentsController from '#controllers/departments_controller'
-import FacultyController from '#controllers/faculties_controller'
-import ChatBotController from '#controllers/chatBotController'
-import LectureUploadsController from '#controllers/lacture_uploads_controller'
-import PingController from '#controllers/ping_controller'
-import StudentController from '#controllers/student_controller'
-import GovtEventsController from '#controllers/govt_events_controller'
-import InstituteEventsController from '#controllers/institute_events_controller'
-import AssignmentsController from '#controllers/assignments_controller'
-import QuizzesControllersController from '#controllers/quizzes_controllers_controller'
-import QuizAttemptController from '#controllers/quiz_attempt_controller'
-import AssignmentUploadsController from '#controllers/assignment_uploads_controller'
+const PermissionsController = () => import('#controllers/permissions_controller')
+const UsersController = () => import('#controllers/users_controller')
+const InstitutesController = () => import('#controllers/institutes_controller')
+const DepartmentsController = () => import('#controllers/departments_controller')
+const FacultyController = () => import('#controllers/faculties_controller')
+const ChatBotController = () => import('#controllers/chatBotController')
+const LectureUploadsController = () => import('#controllers/lacture_uploads_controller')
+const PingController = () => import('#controllers/ping_controller')
+const StudentController = () => import('#controllers/student_controller')
+const GovtEventsController = () => import('#controllers/govt_events_controller')
+const InstituteEventsController = () => import('#controllers/institute_events_controller')
+const AssignmentsController = () => import('#controllers/assignments_controller')
+const QuizzesControllersController = () => import('#controllers/quizzes_controllers_controller')
+const QuizAttemptController = () => import('#controllers/quiz_attempt_controller')
+const AssignmentUploadsController = () => import('#controllers/assignment_uploads_controller')
 import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
-import FacultyLeaveController from '#controllers/faculty_leave_controller'
-import StudentQueriesController from '#controllers/student_queries_controller'
-import InstituteEventWithGovtEventsController from '#controllers/institute_event_with_govt_events_controller'
-import OnlineLibrariesController from '#controllers/online_libraries_controller'
-import ContactController from '#controllers/contactuses_controller'
+const FacultyLeaveController = () => import('#controllers/faculty_leave_controller')
+const StudentQueriesController = () => import('#controllers/student_queries_controller')
+const InstituteEventWithGovtEventsController = () => import('#controllers/institute_event_with_govt_events_controller')
+const OnlineLibrariesController = () => import('#controllers/online_libraries_controller')
+const ContactController = () => import('#controllers/contactuses_controller')
 
 router
   .post('/login', [AuthController, 'login'])

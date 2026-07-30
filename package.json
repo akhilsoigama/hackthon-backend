@@ -34,7 +34,10 @@
     "#database/*": "./database/*.js",
     "#start/*": "./start/*.js",
     "#tests/*": "./tests/*.js",
-    "#config/*": "./config/*.js"
+    "#config/*": "./config/*.js",
+    "#shared/*": "./app/shared/*.js",
+    "#modules/*": "./app/modules/*.js",
+    "#infrastructure/*": "./app/infrastructure/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.2",
@@ -77,6 +80,7 @@
     "luxon": "^3.7.2",
     "nodemailer": "^7.0.12",
     "pg": "^8.16.3",
+    "redis": "^6.1.0",
     "reflect-metadata": "^0.2.2",
     "streamifier": "^0.1.1"
   },

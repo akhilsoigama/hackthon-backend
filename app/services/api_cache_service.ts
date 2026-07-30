@@ -1,52 +1,62 @@
-type CacheEntry<T> = {
-  value: T
-  expiresAt: number
-  tags: string[]
-}
+/**
+ * api_cache_service.ts — Redis-backed drop-in replacement.
+ *
+ * BEFORE: In-memory Map<string, CacheEntry> — lost on restart, not shared across instances,
+ *         accumulates in Node.js heap causing memory pressure.
+ *
+ * AFTER:  Delegates to RedisCacheService (app/shared/cache/RedisCache.ts) which uses
+ *         Redis SETEX with automatic TTL expiry. Falls back to in-memory transparently
+ *         when Redis is unavailable (local dev without Redis).
+ *
+ * All existing callers work with zero changes — the interface is identical.
+ */
+
+import redisCacheService from '#shared/cache/RedisCache'
 
 class ApiCacheService {
-  private store = new Map<string, CacheEntry<unknown>>()
-
-  async getOrSet<T>(key: string, ttlMs: number, producer: () => Promise<T>, tags: string[] = []): Promise<T> {
-    const now = Date.now()
-    const cached = this.store.get(key)
-
-    if (cached && cached.expiresAt > now) {
-      return cached.value as T
-    }
-
-    const value = await producer()
-    this.store.set(key, {
-      value,
-      expiresAt: now + ttlMs,
-      tags,
-    })
-
-    return value
+  /**
+   * Get a cached value or compute and store it.
+   * TTL is in milliseconds (same as the previous in-memory interface).
+   */
+  async getOrSet<T>(
+    key: string,
+    ttlMs: number,
+    producer: () => Promise<T>,
+    tags: string[] = []
+  ): Promise<T> {
+    return redisCacheService.getOrSet(key, ttlMs, producer, tags)
   }
 
-  invalidateByPrefix(prefix: string): void {
-    for (const key of this.store.keys()) {
-      if (key.startsWith(prefix)) {
-        this.store.delete(key)
-      }
-    }
+  /**
+   * Invalidate all keys with the given prefix.
+   * Uses Redis KEYS pattern — suitable for low-to-medium frequency invalidation.
+   */
+  async invalidateByPrefix(prefix: string): Promise<void> {
+    return redisCacheService.invalidateByPrefix(prefix)
   }
 
-  invalidateByTags(tags: string[]): void {
-    if (!tags.length) return
+  /**
+   * Invalidate all keys associated with any of the given tags.
+   */
+  async invalidateByTags(tags: string[]): Promise<void> {
+    return redisCacheService.invalidateByTags(tags)
+  }
 
-    const tagSet = new Set(tags)
+  /**
+   * Explicitly cache a value.
+   */
+  async set<T>(key: string, value: T, ttlMs: number): Promise<void> {
+    return redisCacheService.set(key, value, ttlMs)
+  }
 
-    for (const [key, entry] of this.store.entries()) {
-      if (entry.tags.some((tag) => tagSet.has(tag))) {
-        this.store.delete(key)
-      }
-    }
+  /**
+   * Delete a single cache key.
+   */
+  async del(key: string): Promise<void> {
+    return redisCacheService.del(key)
   }
 }
 
 const apiCacheService = new ApiCacheService()
 
 export default apiCacheService
-

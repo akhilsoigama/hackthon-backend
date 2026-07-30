@@ -1,9 +1,17 @@
 /**
- * In-memory rate limiter for API endpoints
- * Stores request counts with automatic cleanup
+ * Redis-backed rate limiter for API endpoints.
+ *
+ * Uses Redis INCR + EXPIRE (sliding fixed-window) strategy:
+ *  - Each client gets a key that auto-expires after the window — no manual cleanup needed.
+ *  - Shared across all server instances and survives restarts.
+ *  - Falls back to in-memory map when Redis is unavailable (dev environments).
+ *
+ * Redis memory estimate: ~80 bytes per tracked client key × 10K clients = ~800 KB
  */
 
-interface RateLimitConfig {
+import redisCacheService from '#shared/cache/RedisCache'
+
+export interface RateLimitConfig {
   maxRequests: number
   windowMs: number
 }
@@ -18,151 +26,157 @@ const DEFAULT_CONFIG: RateLimitConfig = {
   windowMs: 15 * 60 * 1000, // 15 minutes
 }
 
+// ── In-memory fallback (used only when Redis is unavailable) ─────────────────
+const fallbackStore = new Map<string, ClientRequestRecord>()
+
+setInterval(
+  () => {
+    const now = Date.now()
+    for (const [key, record] of fallbackStore.entries()) {
+      if (record.resetTime < now) fallbackStore.delete(key)
+    }
+  },
+  5 * 60 * 1000
+)
+
+function fallbackCheck(
+  clientId: string,
+  config: RateLimitConfig
+): { allowed: boolean; remaining: number; resetTime: number } {
+  const now = Date.now()
+  let record = fallbackStore.get(clientId)
+
+  if (!record || record.resetTime < now) {
+    record = { count: 0, resetTime: now + config.windowMs }
+  }
+
+  record.count++
+  fallbackStore.set(clientId, record)
+
+  return {
+    allowed: record.count <= config.maxRequests,
+    remaining: Math.max(0, config.maxRequests - record.count),
+    resetTime: record.resetTime,
+  }
+}
+
+// ── Redis-backed implementation ───────────────────────────────────────────────
 class RateLimiter {
-  private store: Map<string, ClientRequestRecord> = new Map()
-  private cleanupInterval: NodeJS.Timeout | null = null
-
-  constructor() {
-    // Cleanup old entries every 5 minutes
-    this.startCleanup()
-  }
-
-  private startCleanup() {
-    this.cleanupInterval = setInterval(() => {
-      const now = Date.now()
-      for (const [key, record] of this.store.entries()) {
-        if (record.resetTime < now) {
-          this.store.delete(key)
-        }
-      }
-    }, 5 * 60 * 1000)
-  }
-
   /**
-   * Get client identifier (IP, user ID, or both)
+   * Build a deterministic client identifier.
+   * Prefer user ID (stable, survives IP changes) over raw IP.
    */
   getClientId(ip: string | undefined, userId?: number | string): string {
-    if (userId) {
-      return `user:${userId}`
-    }
-    return `ip:${ip || 'unknown'}`
+    if (userId) return `rl:user:${userId}`
+    return `rl:ip:${ip ?? 'unknown'}`
   }
 
   /**
-   * Check if client has exceeded rate limit
+   * Check and increment the rate limit counter for a client.
+   *
+   * Redis INCR is atomic — safe under concurrency.
+   * EXPIRE is only set on the first increment to avoid resetting the window.
+   */
+  async checkAsync(
+    clientId: string,
+    config: RateLimitConfig = DEFAULT_CONFIG
+  ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+    const redis = await (redisCacheService as any).getClient()
+
+    if (!redis) {
+      // Graceful fallback to in-memory
+      return fallbackCheck(clientId, config)
+    }
+
+    try {
+      const windowSeconds = Math.ceil(config.windowMs / 1000)
+
+      // INCR is atomic — returns new count after increment
+      const count = await redis.incr(clientId)
+
+      // Only set expiry on first request in the window
+      if (count === 1) {
+        await redis.expire(clientId, windowSeconds)
+      }
+
+      // Get remaining TTL so we can compute the reset time accurately
+      const ttl = await redis.ttl(clientId)
+      const resetTime = Date.now() + (ttl > 0 ? ttl * 1000 : config.windowMs)
+
+      return {
+        allowed: count <= config.maxRequests,
+        remaining: Math.max(0, config.maxRequests - count),
+        resetTime,
+      }
+    } catch {
+      // Redis error — fall back to in-memory to stay available
+      return fallbackCheck(clientId, config)
+    }
+  }
+
+  /**
+   * Synchronous check for backward compatibility.
+   * Prefer checkAsync in new middleware.
    */
   check(
     clientId: string,
     config: RateLimitConfig = DEFAULT_CONFIG
   ): { allowed: boolean; remaining: number; resetTime: number } {
-    const now = Date.now()
-    let record = this.store.get(clientId)
-
-    // Create new record if doesn't exist or is expired
-    if (!record || record.resetTime < now) {
-      record = {
-        count: 0,
-        resetTime: now + config.windowMs,
-      }
-    }
-
-    record.count++
-    this.store.set(clientId, record)
-
-    const remaining = Math.max(0, config.maxRequests - record.count)
-    const allowed = record.count <= config.maxRequests
-
-    return {
-      allowed,
-      remaining,
-      resetTime: record.resetTime,
-    }
+    return fallbackCheck(clientId, config)
   }
 
-  /**
-   * Reset client's request count
-   */
   reset(clientId: string) {
-    this.store.delete(clientId)
-  }
-
-  /**
-   * Get current status for a client
-   */
-  getStatus(
-    clientId: string,
-    config: RateLimitConfig = DEFAULT_CONFIG
-  ): { count: number; remaining: number; resetTime: number } | null {
-    const record = this.store.get(clientId)
-    if (!record) {
-      return null
-    }
-
-    const remaining = Math.max(0, config.maxRequests - record.count)
-    return {
-      count: record.count,
-      remaining,
-      resetTime: record.resetTime,
-    }
-  }
-
-  /**
-   * Cleanup resources
-   */
-  destroy() {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval)
-    }
-    this.store.clear()
+    fallbackStore.delete(clientId)
+    // Fire-and-forget Redis reset
+    redisCacheService.del(clientId).catch(() => {})
   }
 }
 
 export const rateLimiter = new RateLimiter()
 
 /**
- * Predefined rate limit configurations for different endpoints
+ * Predefined rate limit configurations for different endpoints.
  */
 export const RateLimitConfigs = {
-  // Strict limits for authentication endpoints
+  // Auth endpoints — strict to prevent brute force
   auth: {
     maxRequests: 60,
-    windowMs: 15 * 60 * 1000, // 5 requests per 15 minutes
+    windowMs: 15 * 60 * 1000,
   },
 
-  // Moderate limits for file uploads (legacy key)
+  // File upload (legacy key)
   upload: {
     maxRequests: 30,
-    windowMs: 60 * 60 * 1000, // 30 uploads per hour
+    windowMs: 60 * 60 * 1000,
   },
 
   // Student assignment upload create
   uploadStore: {
     maxRequests: 40,
-    windowMs: 60 * 60 * 1000, // 40 creates per hour
+    windowMs: 60 * 60 * 1000,
   },
 
-  // Student assignment upload update/edit should be less strict
+  // Student assignment upload update — less strict
   uploadUpdate: {
     maxRequests: 180,
-    windowMs: 60 * 60 * 1000, // 180 updates per hour
+    windowMs: 60 * 60 * 1000,
   },
 
-  // Moderate limits for API endpoints
+  // General API endpoints
   api: {
     maxRequests: 100,
-    windowMs: 15 * 60 * 1000, // 100 requests per 15 minutes
+    windowMs: 15 * 60 * 1000,
   },
 
-  // Stricter limits for dangerous operations
+  // Dangerous operations
   danger: {
     maxRequests: 10,
-    windowMs: 60 * 60 * 1000, // 10 requests per hour
+    windowMs: 60 * 60 * 1000,
   },
 
-  // Very strict for chatbot to prevent abuse
+  // Chatbot — strict to prevent abuse and AI cost overruns
   chatbot: {
     maxRequests: 40,
-    windowMs: 60 * 60 * 1000, // 40 requests per hour
+    windowMs: 60 * 60 * 1000,
   },
-}
-
+} satisfies Record<string, RateLimitConfig>

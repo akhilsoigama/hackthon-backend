@@ -6,8 +6,10 @@ import env from '#start/env'
 type RateLimitConfig = (typeof RateLimitConfigs)[keyof typeof RateLimitConfigs]
 
 /**
- * Rate limiting middleware
- * Limits requests per IP or per authenticated user
+ * Rate limiting middleware — Redis-backed, falls back to in-memory.
+ *
+ * OPTIMIZATION: No longer calls auth.authenticate() (which fired an extra DB query).
+ * The AuthMiddleware runs first and sets ctx.user — we read that directly.
  */
 export default class RateLimitMiddleware {
   async handle(
@@ -21,28 +23,30 @@ export default class RateLimitMiddleware {
         return next()
       }
 
-      // Get client identifier
       const ip = request.ip()
-      let userId: string | number | undefined
 
-      // Try to get authenticated user ID
+      // Read from ctx instead of calling auth.authenticate() again.
+      // AuthMiddleware already authenticated and stored the user on ctx.
+      let userId: string | number | undefined
       try {
-        const user = await auth.authenticate()
-        userId = user?.id
+        const ctxUser = (request.ctx as any)?.user ?? (request.ctx as any)?.authUser
+        userId = ctxUser?.id
+        // If ctx.user not populated yet (e.g. on /login route), attempt a lightweight check
+        if (!userId) {
+          const u = auth.user
+          userId = u?.id
+        }
       } catch {
-        // Not authenticated, use IP
+        // Not authenticated — use IP-based limiting
       }
 
-      // Construct client ID - prefer user ID if authenticated
       const clientId = rateLimiter.getClientId(ip, userId)
+      const config = options.config ?? RateLimitConfigs.api
 
-      // Use provided config or default API config
-      const config = options.config || RateLimitConfigs.api
+      // Use async Redis-backed check
+      const { allowed, remaining, resetTime } = await rateLimiter.checkAsync(clientId, config)
 
-      // Check rate limit
-      const { allowed, remaining, resetTime } = rateLimiter.check(clientId, config)
-
-      // Set rate limit headers
+      // Standard rate limit headers
       response.header('X-RateLimit-Limit', String(config.maxRequests))
       response.header('X-RateLimit-Remaining', String(remaining))
       response.header('X-RateLimit-Reset', String(Math.ceil(resetTime / 1000)))
@@ -50,8 +54,7 @@ export default class RateLimitMiddleware {
       if (!allowed) {
         const resetInSeconds = Math.ceil((resetTime - Date.now()) / 1000)
         const message =
-          options.message ||
-          `Too many requests. Please try again in ${resetInSeconds} seconds.`
+          options.message ?? `Too many requests. Please try again in ${resetInSeconds} seconds.`
 
         return response.status(429).json({
           success: false,
@@ -62,10 +65,9 @@ export default class RateLimitMiddleware {
 
       return next()
     } catch (error) {
-      // If there's an error in rate limiting logic, allow the request but log it
-      console.error('Rate limiting error:', error)
+      // Never block a request due to rate-limiter errors
+      console.error('[RATE_LIMIT] Error:', error)
       return next()
     }
   }
 }
-

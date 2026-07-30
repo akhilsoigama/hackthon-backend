@@ -14,9 +14,10 @@ server.errorHandler(() => import('#exceptions/handler'))
  * the request URL.
  */
 server.use([
+  () => import('#middleware/helmet_middleware'),              // Security headers — must be first
   () => import('#middleware/container_bindings_middleware'),
   () => import('#middleware/force_json_response_middleware'),
-  () => import('@adonisjs/cors/cors_middleware'), // CORS should be early in the chain
+  () => import('@adonisjs/cors/cors_middleware'),            // CORS after Helmet
 ])
 
 /**

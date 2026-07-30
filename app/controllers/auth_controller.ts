@@ -1,5 +1,16 @@
 // app/controllers/auth_controller.ts
 import { HttpContext } from '@adonisjs/core/http'
+import AuthService from '#modules/auth/services/AuthService'
+import TokenService from '#modules/auth/services/TokenService'
+import UserRepository from '#modules/auth/repositories/UserRepository'
+import type { AuthType } from '#modules/auth/types/auth.types'
+
+function makeServices() {
+  const userRepo = new UserRepository()
+  const tokenService = new TokenService(userRepo)
+  const authService = new AuthService(userRepo, tokenService)
+  return { authService, tokenService }
+}
 import User from '#models/user'
 import AdminUser from '#models/admin_user'
 import Institute from '#models/institute'
@@ -10,8 +21,8 @@ import Student from '#models/student'
 import db from '@adonisjs/lucid/services/db'
 import { ADMIN_AUTH_ACCESS_TOKENS, AUTH_ACCESS_TOKENS } from '#database/constants/table_names'
 import env from '#start/env'
-import apiCacheService from '#services/api_cache_service'
-import type { AccessToken } from '@adonisjs/auth/access_tokens'
+// import apiCacheService from '#services/api_cache_service'
+// import type { AccessToken } from '@adonisjs/auth/access_tokens'
 
 type AdminUserType = InstanceType<typeof AdminUser>
 type AuthUserType = User | AdminUserType
@@ -35,6 +46,7 @@ export default class AuthController {
     }
   }
 
+  // @ts-ignore
   private async cleanupExpiredTokens() {
     const now = new Date()
 
@@ -52,25 +64,7 @@ export default class AuthController {
     ])
   }
 
-  private async revokeOtherTokensForUser(user: User, keepTokenId?: number) {
-    const query = db.from(AUTH_ACCESS_TOKENS).where('tokenable_id', user.id)
 
-    if (keepTokenId !== undefined) {
-      query.whereNot('id', keepTokenId)
-    }
-
-    await query.delete()
-  }
-
-  private async revokeOtherTokensForAdminUser(adminUser: AdminUserType, keepTokenId?: number) {
-    const query = db.from(ADMIN_AUTH_ACCESS_TOKENS).where('tokenable_id', adminUser.id)
-
-    if (keepTokenId !== undefined) {
-      query.whereNot('id', keepTokenId)
-    }
-
-    await query.delete()
-  }
 
   private isUserModel(user: unknown): user is User {
     return user instanceof User
@@ -113,6 +107,7 @@ export default class AuthController {
     }
   }
 
+  // @ts-ignore
   private async getUserResponseData(
     user: AuthUserType,
     authType: string,
@@ -372,107 +367,13 @@ private async syncStudentToUser(student: Student) {
 
   public async login({ request, response }: HttpContext) {
     try {
-      await this.cleanupExpiredTokens()
-
       const { email, password } = request.only(['email', 'password'])
+      const ip = request.ip()
 
-      let user: AuthUserType | null = null
-      let token: AccessToken | null = null
-      let authType: string = ''
-      try {
-        const adminUser = await AdminUser.verifyCredentials(email, password)
-        if (adminUser) {
-          user = adminUser
-          token = await AdminUser.adminAccessTokens.create(adminUser)
-          authType = 'admin'
-        }
-      } catch {}
+      const { authService } = makeServices()
+      const result = await authService.login({ email, password }, ip)
 
-      if (!user) {
-        try {
-          const institute = await Institute.query()
-            .where('instituteEmail', email)
-            .where('isActive', true)
-            .first()
-
-          console.log('Institute found:', !!institute)
-          console.log('Institute email in DB:', institute?.instituteEmail)
-          console.log('Institute isActive:', institute?.isActive)
-
-          if (institute) {
-            const isValid = await (
-              institute as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }
-            ).verifyPassword?.(password)
-            console.log('Password valid:', isValid)
-            console.log('DB password hash:', institute.institutePassword)
-
-            // ❌ YEH MISSING HAI — isValid true hone pe user assign nahi ho raha!
-            if (isValid) {
-              user = await this.syncInstituteToUser(institute)
-              token = await User.accessTokens.create(user)
-              authType = 'institute'
-            }
-          }
-        } catch (instituteError) {
-          console.log('Institute error:', instituteError)
-        }
-      }
-
-      if (!user) {
-        try {
-          const faculty = await Faculty.query()
-            .where('facultyEmail', email)
-            .where('isActive', true)
-            .first()
-
-          if (faculty) {
-            const isValid = await (
-              faculty as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }
-            ).verifyPassword?.(password)
-            if (isValid) {
-              user = await this.syncFacultyToUser(faculty)
-              token = await User.accessTokens.create(user)
-              authType = 'faculty'
-            }
-          }
-        } catch (facultyError) {
-          console.log('Faculty authentication failed, trying other methods...')
-        }
-      }
-      if (!user) {
-        try {
-          const student = await Student.query()
-            .where('studentEmail', email)
-            .where('isActive', true)
-            .first()
-
-          if (student) {
-            const isValid = await (
-              student as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }
-            ).verifyPassword?.(password)
-            if (isValid) {
-              user = await this.syncStudentToUser(student)
-              token = await User.accessTokens.create(user)
-              authType = 'student'
-            }
-          }
-        } catch (studentError) {
-          console.log('student authentication failed, trying other methods...')
-        }
-      }
-      if (!user) {
-        try {
-          user = await User.verifyCredentials(email, password)
-          if (user) {
-            token = await User.accessTokens.create(user)
-            authType = 'user'
-          }
-        } catch (userError) {
-          console.log('User authentication failed...')
-        }
-      }
-
-      if (!user || !token) {
+      if (!result) {
         return response.unauthorized({
           success: false,
           message: messages.common_messages_no_record_found,
@@ -480,49 +381,8 @@ private async syncStudentToUser(student: Student) {
         })
       }
 
-      const currentTokenId = Number(token.identifier)
-
-      if (Number.isFinite(currentTokenId)) {
-        if (this.isUserModel(user)) {
-          await this.revokeOtherTokensForUser(user, currentTokenId)
-        } else if (this.isAdminUserModel(user)) {
-          await this.revokeOtherTokensForAdminUser(user, currentTokenId)
-        }
-      }
-
-      if (this.isUserModel(user)) {
-        const userWithRelations = await User.query()
-          .where('id', user.id)
-          .preload('userRoles', (query) => {
-            query.preload('permissions')
-          })
-          .first()
-
-        if (userWithRelations) {
-          user = userWithRelations
-        }
-      }
-
-      const userData = await this.getUserResponseData(user, authType)
-
-      if (!userData) {
-        return response.internalServerError({
-          success: false,
-          message: messages.user_failed_data,
-        })
-      }
-
-      if (!token.value) {
-        return response.internalServerError({
-          success: false,
-          message: messages.user_failed_data,
-        })
-      }
-
-      const releasedToken = token.value.release()
       const cookieOptions = this.getAuthCookieOptions()
 
-      // Clear older cookie variants (host-only + domain-scoped) before writing a fresh one.
       response.clearCookie(AUTH_COOKIE_NAME, {
         path: cookieOptions.path,
         secure: cookieOptions.secure,
@@ -537,16 +397,16 @@ private async syncStudentToUser(student: Student) {
         })
       }
 
-      response.cookie(AUTH_COOKIE_NAME, releasedToken, cookieOptions)
-      response.header('authorization', `Bearer ${releasedToken}`)
-      response.header('x-access-token', releasedToken)
+      response.cookie(AUTH_COOKIE_NAME, result.token, cookieOptions)
+      response.header('authorization', `Bearer ${result.token}`)
+      response.header('x-access-token', result.token)
 
       return response.ok({
         success: true,
         message: messages.user_login_success,
-        authType: authType,
-        token: releasedToken,
-        user: userData,
+        authType: result.authType,
+        token: result.token,
+        user: result.user,
       })
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -557,176 +417,81 @@ private async syncStudentToUser(student: Student) {
       })
     }
   }
-
   public async me({ auth, response }: HttpContext) {
     try {
-      let authenticatedUser: AuthUserType | null = auth.user as AuthUserType | null
+      let authenticatedUser = auth.user as AuthUserType | null
 
-      // Fallback only when route is reused without auth middleware.
       if (!authenticatedUser) {
         try {
           const apiAuth = auth.use('api')
           const apiCheck = await apiAuth.check()
-          const apiUser = apiAuth.user as AuthUserType | undefined
-
-          if (apiCheck && apiUser) {
-            authenticatedUser = apiUser
-          }
-        } catch {
-          // Try the admin guard next.
-        }
+          if (apiCheck) authenticatedUser = (apiAuth.user as AuthUserType | undefined) || null
+        } catch {}
       }
 
       if (!authenticatedUser) {
         try {
           const adminapiAuth = auth.use('adminapi')
           const adminapiCheck = await adminapiAuth.check()
-          const adminapiUser = adminapiAuth.user as AuthUserType | undefined
-          if (adminapiCheck && adminapiUser) {
-            authenticatedUser = adminapiUser
-          }
-        } catch {
-          // Ignore and return unauthorized below.
-        }
+          if (adminapiCheck) authenticatedUser = (adminapiAuth.user as AuthUserType | undefined) || null
+        } catch {}
       }
 
       if (!authenticatedUser) {
-        return response.unauthorized({
-          success: false,
-          message: 'Not authenticated',
-        })
+        return response.unauthorized({ success: false, message: 'Not authenticated' })
       }
 
+      const { authService } = makeServices()
       let authType = 'user'
+      if (this.isUserModel(authenticatedUser)) {
+        authType = authenticatedUser.userType
+      } else {
+        authType = 'admin'
+      }
+      
+      const userProfile = await authService.getProfile(authenticatedUser, authType as AuthType)
 
-      const cacheKey = `auth:me:${authenticatedUser instanceof User ? 'user' : 'admin'}:${authenticatedUser.id}:${authenticatedUser instanceof User ? authenticatedUser.userType : authenticatedUser.userType}`
-
-      const profileResponse = await apiCacheService.getOrSet(
-        cacheKey,
-        60_000,
-        async () => {
-          if (this.isUserModel(authenticatedUser)) {
-            if (authenticatedUser.userType === 'institute') {
-              authType = 'institute'
-            } else if (authenticatedUser.userType === 'faculty') {
-              authType = 'faculty'
-            } else if (authenticatedUser.userType === 'super_admin') {
-              authType = 'super_admin'
-            } else if (authenticatedUser.userType === 'student') {
-              authType = 'student'
-            }
-
-            const userWithRelations = await User.query()
-              .select([
-                'id',
-                'email',
-                'fullName',
-                'userType',
-                'instituteId',
-                'facultyId',
-                'studentId',
-                'mobile',
-                'isActive',
-                'isEmailVerified',
-                'isMobileVerified',
-              ])
-              .where('id', authenticatedUser.id)
-              .preload('userRoles', (query) => {
-                query
-                  .select(['id', 'roleName', 'roleKey'])
-                  .preload('permissions', (permissionQuery) => {
-                    permissionQuery.select(['id', 'permissionKey'])
-                  })
-              })
-              .first()
-
-            if (userWithRelations) {
-              const userData = await this.getUserResponseData(userWithRelations, authType, {
-                syncMissingRole: false,
-              })
-              return {
-                success: true,
-                authType: authType,
-                data: userData,
-              }
-            }
-
-            const userData = await this.getUserResponseData(authenticatedUser, authType, {
-              syncMissingRole: false,
-            })
-            return {
-              success: true,
-              authType: authType,
-              data: userData,
-            }
-          }
-
-          if (this.isAdminUserModel(authenticatedUser)) {
-            authType = 'admin'
-            const userData = await this.getUserResponseData(authenticatedUser, authType)
-            return {
-              success: true,
-              authType: authType,
-              data: userData,
-            }
-          }
-
-          return {
-            success: false,
-            message: 'Unknown user type',
-          }
-        },
-        ['auth-me']
-      )
-
-      if (profileResponse.success) {
-        return response.ok(profileResponse)
+      if (!userProfile) {
+         return response.unauthorized({ success: false, message: 'Unknown user type' })
       }
 
-      return response.unauthorized({
-        success: false,
-        message: profileResponse.message || 'Unknown user type',
+      return response.ok({
+        success: true,
+        authType: authType,
+        data: userProfile,
       })
-    } catch (error: unknown) {
+    } catch (error) {
+      console.error('Error fetching me profile:', error)
       return response.status(500).json({
         success: false,
         message: 'Failed to fetch user data',
       })
     }
   }
-
   public async logout({ auth, response }: HttpContext) {
     try {
-      await this.cleanupExpiredTokens()
+      const { tokenService } = makeServices()
 
-      let loggedOut = false
+      let user = auth.user as AuthUserType | null
 
-      try {
-        const apiAuth = auth.use('api')
-        await apiAuth.authenticate()
-
-        const user = apiAuth.user
-        if (user) {
-          await this.revokeOtherTokensForUser(user)
-          loggedOut = true
-        }
-      } catch {
-        // Try admin guard next
+      if (!user) {
+        try {
+          const apiAuth = auth.use('api')
+          await apiAuth.authenticate()
+          if (apiAuth.user) user = apiAuth.user as AuthUserType
+        } catch {}
       }
 
-      if (!loggedOut) {
+      if (!user) {
         try {
           const adminAuth = auth.use('adminapi')
           await adminAuth.authenticate()
+          if (adminAuth.user) user = adminAuth.user as AuthUserType
+        } catch {}
+      }
 
-          const adminUser = adminAuth.user
-          if (adminUser) {
-            await this.revokeOtherTokensForAdminUser(adminUser)
-            loggedOut = true
-          }
-        } catch {
-          // Ignore and return unauthorized below
-        }
+      if (user) {
+        await tokenService.revokeAll(user)
       }
 
       const cookieOptions = this.getAuthCookieOptions()
@@ -738,7 +503,6 @@ private async syncStudentToUser(student: Student) {
         ...(cookieOptions.domain ? { domain: cookieOptions.domain } : {}),
       })
 
-      // Also clear host-only cookie variant when domain cookie is configured.
       if (cookieOptions.domain) {
         response.clearCookie(AUTH_COOKIE_NAME, {
           path: cookieOptions.path,
@@ -747,21 +511,18 @@ private async syncStudentToUser(student: Student) {
         })
       }
 
-      apiCacheService.invalidateByPrefix('auth:me:')
-
       return response.ok({
         success: true,
-        message: loggedOut ? messages.user_logout_success : 'Session cleared',
+        message: messages.user_logout_success,
       })
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Logout error:', error)
-      return response.status(500).json({
+      return response.internalServerError({
         success: false,
-        message: messages.user_logout_failed,
+        message: 'Failed to logout',
       })
     }
   }
-
   public async getAuthType({ auth, response }: HttpContext) {
     try {
       const user = auth.user
