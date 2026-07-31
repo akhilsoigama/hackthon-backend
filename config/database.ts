@@ -12,7 +12,7 @@ const dbConfig = defineConfig({
         user: env.get('DB_USER'),
         password: env.get('DB_PASSWORD'),
         database: env.get('DB_DATABASE'),
-        ssl: env.get('DB_SSL', true) ? { rejectUnauthorized: false } : false,
+        // ssl: env.get('DB_SSL', true) ? { rejectUnauthorized: false } : false,
       },
       // ── Connection Pool ────────────────────────────────────────────────────
       // Tune via DB_POOL_MIN / DB_POOL_MAX environment variables.

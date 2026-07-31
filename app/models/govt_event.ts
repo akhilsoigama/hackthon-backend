@@ -76,7 +76,7 @@ export default class GovtEvent extends BaseModel {
   @column() declare eventDescription: string
   @column() declare eventDate: string
   @column() declare eventTime: string
-  @column() declare eventDuration: string
+  @column() declare eventDuration: number
   @column() declare eventBanner: string
   @column() declare eventLink: string
   @column() declare registrationLink: string
