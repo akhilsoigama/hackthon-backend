@@ -21,7 +21,13 @@ class RedisCacheService {
 
     try {
       this.connecting = true
-      this.client = createClient({ url: REDIS_URL }) as RedisClientType
+      this.client = createClient({
+        url: REDIS_URL,
+        socket: {
+          connectTimeout: 3000, // 3 seconds timeout
+          reconnectStrategy: false, // Fail fast on initial connection
+        },
+      }) as RedisClientType
 
       this.client.on('error', (err: Error) => {
         // Log but don't crash — fall through to no-op
