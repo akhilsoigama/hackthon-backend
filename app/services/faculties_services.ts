@@ -34,27 +34,9 @@ export default class FacultyController {
   }
 
   private async getAuthenticatedUser() {
-    try {
-      const apiAuth = this.ctx.auth.use('api')
-      const isApiAuth = await apiAuth.check()
-      if (isApiAuth && apiAuth.user) {
-        return apiAuth.user
-      }
-    } catch {
-      // Try admin guard next
-    }
-
-    try {
-      const adminAuth = this.ctx.auth.use('adminapi')
-      const isAdminAuth = await adminAuth.check()
-      if (isAdminAuth && adminAuth.user) {
-        return adminAuth.user
-      }
-    } catch {
-      // No authenticated user found
-    }
-
-    return null
+    // Read from ctx set by AuthMiddleware — avoids redundant DB token lookups
+    const ctx = this.ctx as any
+    return ctx.user ?? ctx.authUser ?? this.ctx.auth.user ?? null
   }
   private getAuthInstituteId(authUser: AuthUser) {
     if (!authUser || typeof authUser !== 'object') {
@@ -176,11 +158,19 @@ export default class FacultyController {
         }
       }
 
-      // Check email uniqueness in both Faculty and User models
-      const existingFaculty = await Faculty.query()
-        .where('facultyEmail', requestData.facultyEmail)
-        .apply((scopes) => scopes.softDeletes())
-        .first()
+      const validatedData = await createFacultyValidator.validate(requestData)
+      const authUser = await this.getAuthenticatedUser()
+      const authInstituteId = this.getAuthInstituteId(authUser)
+
+      // OPTIMIZATION: Run 3 independent validation queries in parallel
+      const [existingFaculty, existingUser, facultyRole] = await Promise.all([
+        Faculty.query()
+          .where('facultyEmail', requestData.facultyEmail)
+          .apply((scopes) => scopes.softDeletes())
+          .first(),
+        User.query().where('email', requestData.facultyEmail).first(),
+        Role.query().where('roleKey', 'faculty').first(),
+      ])
 
       if (existingFaculty) {
         return this.ctx.response.status(422).send({
@@ -189,8 +179,6 @@ export default class FacultyController {
         })
       }
 
-      const existingUser = await User.query().where('email', requestData.facultyEmail).first()
-
       if (existingUser) {
         return this.ctx.response.status(422).send({
           status: false,
@@ -198,10 +186,6 @@ export default class FacultyController {
         })
       }
 
-      const validatedData = await createFacultyValidator.validate(requestData)
-      const authUser = await this.getAuthenticatedUser()
-      const authInstituteId = this.getAuthInstituteId(authUser)
-      const facultyRole = await Role.query().where('roleKey', 'faculty').first()
       const plainPassword =  requestData.facultyPassword || generateCredentialPassword('FAC')
       if (!facultyRole) {
         return this.ctx.response.status(422).send({

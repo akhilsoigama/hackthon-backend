@@ -15,7 +15,7 @@ export default class extends BaseSchema {
       table.string('event_location').nullable()
       table.string('registration_link').nullable()
       table.string('event_fee').nullable()
-      table.string('event_duration').notNullable()
+      table.integer('event_duration').notNullable()
       table
         .integer('institute_id')
         .unsigned()

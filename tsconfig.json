@@ -5,8 +5,11 @@
     "outDir": "./build",
     "ignoreDeprecations": "5.0",
     "paths": {
-      "#models/": ["./app/models/"],
-      "#database/": ["./app/database/"],
+      "#models/*": ["./app/models/*"],
+      "#database/*": ["./database/*"],
+      "#shared/*": ["./app/shared/*"],
+      "#modules/*": ["./app/modules/*"],
+      "#infrastructure/*": ["./app/infrastructure/*"],
       "@ioc/*": ["./node_modules/@ioc/*"]
     },
     "types": ["node"]

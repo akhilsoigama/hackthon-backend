@@ -14,8 +14,8 @@ export default class extends BaseSchema {
 
       table.date('event_date')
       table.string('event_time')
-      table.string('event_duration')
-
+      table.integer('event_duration')
+      
       table.string('event_banner')
       table.string('event_link')
       table.string('registration_link')

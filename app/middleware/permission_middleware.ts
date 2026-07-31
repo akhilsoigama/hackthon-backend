@@ -2,6 +2,7 @@ import { PermissionKeys } from '#database/constants/permission'
 import PermissionsResolverService from '#services/permissions_resolver_service'
 import { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
+import auditLogger from '../infrastructure/logging/AuditLogger.js'
 
 type ExtendedPermissionKeys = PermissionKeys | string
 
@@ -198,18 +199,24 @@ export default class PermissionMiddleware {
         return next()
       }
 
+      // Log the denial for audit trail — but never expose permission details to the client
+      const actorId = typeof (user as Record<string, unknown>)?.id === 'number'
+        ? (user as Record<string, unknown>).id as number
+        : null
+      auditLogger.permissionDenied(
+        actorId,
+        validPermissions[0]?.toString() ?? 'unknown',
+        ctx.request.ip()
+      )
+
       return ctx.response.forbidden({
         success: false,
-        message: 'Insufficient permissions.',
-        required: validPermissions,
-        userHas: userPermissions,
+        message: 'Access denied.',
       })
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
+    } catch {
       return ctx.response.internalServerError({
         success: false,
         message: 'Permission check failed.',
-        error: errorMessage,
       })
     }
   }

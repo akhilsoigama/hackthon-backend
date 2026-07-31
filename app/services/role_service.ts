@@ -36,7 +36,6 @@ export default class RolesService {
       return {
         success: false,
         message: 'Error fetching roles',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
       }
     }
   }

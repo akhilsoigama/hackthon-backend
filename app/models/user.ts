@@ -111,7 +111,7 @@
           query.preload('permissions')
         })
         .first()
-
+        
       if (!user) return false
 
       if (user.userType === 'super_admin') {
