@@ -141,6 +141,12 @@ export default class extends BaseSeeder {
 
         // Events
         PermissionKeys.EVENTS_ACCESS,
+
+        // RAG Skill Learning
+        PermissionKeys.SKILL_LEARNING_ACCESS,
+        PermissionKeys.SKILL_RAG_ACCESS,
+        PermissionKeys.SKILL_RAG_COURSE_CREATE,
+        PermissionKeys.SKILL_RAG_COURSE_VIEW,
       ],
 
       faculty: [
@@ -235,6 +241,12 @@ export default class extends BaseSeeder {
         PermissionKeys.FACULTY_ANSWER_QNA_ACCESS,
         PermissionKeys.FACULTY_VIEW_QNA_ACCESS,
         PermissionKeys.FACULTY_UNANSWERED_QUESTIONS_QNA_VIEW,
+
+        // RAG Skill Learning
+        PermissionKeys.SKILL_LEARNING_ACCESS,
+        PermissionKeys.SKILL_RAG_ACCESS,
+        PermissionKeys.SKILL_RAG_COURSE_CREATE,
+        PermissionKeys.SKILL_RAG_COURSE_VIEW,
       ],
 
       student: [
@@ -308,6 +320,20 @@ export default class extends BaseSeeder {
 
         // Events
         PermissionKeys.EVENTS_ACCESS,
+
+        // RAG Skill Learning (view only for students)
+        PermissionKeys.SKILL_LEARNING_ACCESS,
+        PermissionKeys.SKILL_RAG_ACCESS,
+        PermissionKeys.SKILL_RAG_COURSE_VIEW,
+
+        // Skill categories (view only for students)
+        PermissionKeys.SKILL_SPOKEN_ENGLISH_VIEW,
+        PermissionKeys.SKILL_COMPUTER_VIEW,
+        PermissionKeys.SKILL_CODING_VIEW,
+        PermissionKeys.SKILL_DIGITAL_VIEW,
+        PermissionKeys.SKILL_CAREER_VIEW,
+        PermissionKeys.SKILL_SOFTSKILL_VIEW,
+        PermissionKeys.SKILL_GOVT_EXAM_VIEW,
       ],
     }
 
