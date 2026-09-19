@@ -52,16 +52,29 @@ router.get('/api/online-library/metadata/:identifier', [OnlineLibrariesControlle
 
 // RAG Skill Learning & Semantic Search Endpoints (both /api/rag and /rag prefixes)
 for (const prefix of ['/api/rag', '/rag']) {
-  router.post(`${prefix}/course`, [RagController, 'createCourse'])
-  router.post(`${prefix}/query`, [RagController, 'queryCourses'])
+  // Read-only routes — require authentication only
   router.get(`${prefix}/courses`, [RagController, 'listCourses'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
   router.get(`${prefix}/courses/:id`, [RagController, 'showCourse'])
-  router.put(`${prefix}/courses/:id`, [RagController, 'updateCourse'])
-  router.delete(`${prefix}/courses/:id`, [RagController, 'deleteCourse'])
-  router.post(`${prefix}/sync`, [RagController, 'syncLms'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+  router.post(`${prefix}/query`, [RagController, 'queryCourses'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
   router.get(`${prefix}/stats`, [RagController, 'stats'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
-  // generate-quiz requires authentication — move it into the auth group below
+  // Write routes — require authentication + SKILL_RAG_COURSE_CREATE permission
+  router.post(`${prefix}/course`, [RagController, 'createCourse'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
+  router.put(`${prefix}/courses/:id`, [RagController, 'updateCourse'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
+  router.delete(`${prefix}/courses/:id`, [RagController, 'deleteCourse'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
+  router.post(`${prefix}/sync`, [RagController, 'syncLms'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
 }
 
 // RAG generate-quiz: authenticated (students + faculty + admin all call this)
