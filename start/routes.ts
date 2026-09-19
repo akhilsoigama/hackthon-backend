@@ -18,6 +18,7 @@ const InstitutesController = () => import('#controllers/institutes_controller')
 const DepartmentsController = () => import('#controllers/departments_controller')
 const FacultyController = () => import('#controllers/faculties_controller')
 const ChatBotController = () => import('#controllers/chatBotController')
+const RagController = () => import('#controllers/rag_controller')
 const LectureUploadsController = () => import('#controllers/lacture_uploads_controller')
 const PingController = () => import('#controllers/ping_controller')
 const StudentController = () => import('#controllers/student_controller')
@@ -28,6 +29,7 @@ const QuizzesControllersController = () => import('#controllers/quizzes_controll
 const QuizAttemptController = () => import('#controllers/quiz_attempt_controller')
 const AssignmentUploadsController = () => import('#controllers/assignment_uploads_controller')
 import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
+import MaterialsController from '#controllers/materials_controller'
 const FacultyLeaveController = () => import('#controllers/faculty_leave_controller')
 const StudentQueriesController = () => import('#controllers/student_queries_controller')
 const InstituteEventWithGovtEventsController = () => import('#controllers/institute_event_with_govt_events_controller')
@@ -47,12 +49,39 @@ router.post('/sync/faculty', [AuthController, 'syncFaculty'])
 router.get('/ping', [PingController, 'handle'])
 router.get('/api/online-library/search', [OnlineLibrariesController, 'search'])
 router.get('/api/online-library/metadata/:identifier', [OnlineLibrariesController, 'metadata'])
+
+// RAG Skill Learning & Semantic Search Endpoints (both /api/rag and /rag prefixes)
+for (const prefix of ['/api/rag', '/rag']) {
+  router.post(`${prefix}/course`, [RagController, 'createCourse'])
+  router.post(`${prefix}/query`, [RagController, 'queryCourses'])
+  router.get(`${prefix}/courses`, [RagController, 'listCourses'])
+  router.get(`${prefix}/courses/:id`, [RagController, 'showCourse'])
+  router.put(`${prefix}/courses/:id`, [RagController, 'updateCourse'])
+  router.delete(`${prefix}/courses/:id`, [RagController, 'deleteCourse'])
+  router.post(`${prefix}/sync`, [RagController, 'syncLms'])
+  router.get(`${prefix}/stats`, [RagController, 'stats'])
+
+  // generate-quiz requires authentication — move it into the auth group below
+}
+
+// RAG generate-quiz: authenticated (students + faculty + admin all call this)
+for (const prefix of ['/api/rag', '/rag']) {
+  router
+    .post(`${prefix}/generate-quiz`, [RagController, 'generateQuiz'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+}
+
 router
   .group(() => {
     router
       .post('/chatbot', [ChatBotController, 'chat'])
       .use(middleware.rateLimit({ config: RateLimitConfigs.chatbot }))
       .use(middleware.permission([PermissionKeys.CHATBOT_ACCESS]))
+
+    router
+      .post('/rag/documents', [RagController, 'ingest'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use(middleware.permission([PermissionKeys.LECTURE_CREATE]))
 
     // Auth routes
     router
@@ -180,7 +209,17 @@ router
       .get('/student-queries/progress-report', [StudentQueriesController, 'progressReport'])
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
       .use(middleware.studentProgressPermission())
-    // Student Query Routes
+    // Student Query Routes & ID-wise Access Control
+    router.post('/api/studentQuery/sync', [StudentQueriesController, 'sync'])
+    router.post('/student-queries/sync', [StudentQueriesController, 'sync'])
+
+    router.get('/api/studentQuery', [StudentQueriesController, 'index'])
+    router.post('/api/studentQuery', [StudentQueriesController, 'store'])
+    router.get('/api/studentQuery/:id', [StudentQueriesController, 'show'])
+    router.put('/api/studentQuery/:id', [StudentQueriesController, 'update'])
+    router.patch('/api/studentQuery/:id', [StudentQueriesController, 'update'])
+    router.delete('/api/studentQuery/:id', [StudentQueriesController, 'destroy'])
+
     router
       .resource('student-queries', StudentQueriesController)
       .apiOnly()
@@ -188,6 +227,9 @@ router
       .use('*', middleware.permission([PermissionKeys.STUDENT_QUERY_ACCESS]))
 
     // Govt Routes
+    router
+      .post('/govtEvent/sync', [GovtEventsController, 'sync'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
     router
       .resource('govtEvent', GovtEventsController)
       .apiOnly()
@@ -219,6 +261,57 @@ router
       .use('show', middleware.permission([PermissionKeys.ASSIGNMENT_VIEW]))
       .use('index', middleware.permission([PermissionKeys.ASSIGNMENT_LIST]))
       .use('destroy', middleware.permission([PermissionKeys.ASSIGNMENT_DELETE]))
+
+    // ID-wise Assignment API routes
+    router
+      .get('/api/assignment/:id', [AssignmentsController, 'show'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_VIEW]))
+    router
+      .put('/api/assignment/:id', [AssignmentsController, 'update'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_UPDATE]))
+    router
+      .patch('/api/assignment/:id', [AssignmentsController, 'update'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_UPDATE]))
+    router
+      .delete('/api/assignment/:id', [AssignmentsController, 'destroy'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_DELETE]))
+
+    router
+      .get('/api/assignments/:id', [AssignmentsController, 'show'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_VIEW]))
+    router
+      .put('/api/assignments/:id', [AssignmentsController, 'update'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_UPDATE]))
+    router
+      .patch('/api/assignments/:id', [AssignmentsController, 'update'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_UPDATE]))
+    router
+      .delete('/api/assignments/:id', [AssignmentsController, 'destroy'])
+      .use(middleware.permission([PermissionKeys.ASSIGNMENT_DELETE]))
+
+    // Material Routes & ID-wise Access Control
+    router.post('/api/material/sync', [MaterialsController, 'sync'])
+    router.post('/api/materials/sync', [MaterialsController, 'sync'])
+
+    router.get('/api/material', [MaterialsController, 'index'])
+    router.post('/api/material', [MaterialsController, 'store'])
+    router.get('/api/material/:id', [MaterialsController, 'show'])
+    router.put('/api/material/:id', [MaterialsController, 'update'])
+    router.patch('/api/material/:id', [MaterialsController, 'update'])
+    router.delete('/api/material/:id', [MaterialsController, 'destroy'])
+
+    router.get('/api/materials', [MaterialsController, 'index'])
+    router.post('/api/materials', [MaterialsController, 'store'])
+    router.get('/api/materials/:id', [MaterialsController, 'show'])
+    router.put('/api/materials/:id', [MaterialsController, 'update'])
+    router.patch('/api/materials/:id', [MaterialsController, 'update'])
+    router.delete('/api/materials/:id', [MaterialsController, 'destroy'])
+
+    router
+      .resource('materials', MaterialsController)
+      .apiOnly()
+
+
 
     // Quiz Routes
     router

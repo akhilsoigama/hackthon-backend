@@ -21,6 +21,73 @@ export default class GovtEventServices {
         apiCacheService.invalidateByPrefix('institute-govt-events:list:')
     }
 
+    async sync() {
+        try {
+            this.setSecurityHeaders();
+            const requestData = this.ctx.request.all();
+            const tasks = requestData.tasks || [];
+            const user = this.ctx.auth?.user as any;
+
+            for (const task of tasks) {
+                if (task.action === 'CREATE') {
+                    // Overwrite instituteId with auth.user.instituteId if available
+                    const instituteId = user?.instituteId || task.instituteId;
+                    
+                    const govtEventData = {
+                        eventTitle: task.eventTitle,
+                        eventSlug: task.eventSlug,
+                        eventDescription: task.eventDescription,
+                        eventDate: task.eventDate,
+                        eventTime: task.eventTime,
+                        eventDuration: task.eventDuration,
+                        eventBanner: task.eventBanner,
+                        eventLink: task.eventLink,
+                        registrationLink: task.registrationLink,
+                        eventOrganizer: task.eventOrganizer,
+                        organizerLogo: task.organizerLogo,
+                        eventContact: task.eventContact,
+                        eventEmail: task.eventEmail,
+                        eventPhone: task.eventPhone,
+                        eventCategory: task.eventCategory,
+                        eventSubCategory: task.eventSubCategory,
+                        tags: task.tags,
+                        eventVenue: task.eventVenue,
+                        eventLocation: task.eventLocation,
+                        latitude: task.latitude,
+                        longitude: task.longitude,
+                        isOnline: task.isOnline,
+                        eventFee: task.eventFee,
+                        isFree: task.isFree,
+                        eventStatus: task.eventStatus,
+                        priority: task.priority,
+                        viewCount: task.viewCount,
+                        isActive: task.isActive ?? true,
+                        isFeatured: task.isFeatured ?? false,
+                        instituteId: instituteId,
+                        departmentId: task.departmentId,
+                        createdBy: task.createdBy || user?.id,
+                        updatedBy: user?.id,
+                    };
+                    await GovtEvent.create(govtEventData);
+                }
+            }
+
+            this.invalidateEventCaches();
+
+            return this.ctx.response.send({
+                status: true,
+                message: "Synced successfully",
+                data: null,
+            });
+        } catch (error) {
+            return this.ctx.response.status(500).send({
+                status: false,
+                message: "Sync failed",
+                error: errorHandler(error),
+            });
+        }
+    }
+
     async create() {
         try {
             this.setSecurityHeaders();
@@ -49,8 +116,10 @@ export default class GovtEventServices {
             }
 
             const validatedData = await createGovtEventValidator.validate(requestData);
+            const user = this.ctx.auth?.user as any;
             const govtEventData = {
                 ...validatedData,
+                instituteId: user?.instituteId || null,
                 isActive: validatedData.isActive ?? true,
             };
             
@@ -101,6 +170,15 @@ export default class GovtEventServices {
                 return this.ctx.response.status(404).send({
                     status: false,
                     message: messages.govt_event_not_found,
+                    data: null,
+                });
+            }
+
+            const user = this.ctx.auth?.user as any;
+            if (user?.instituteId && existingGovtEvent.instituteId && existingGovtEvent.instituteId !== user.instituteId) {
+                return this.ctx.response.status(403).send({
+                    status: false,
+                    message: "Forbidden",
                     data: null,
                 });
             }
@@ -182,6 +260,14 @@ export default class GovtEventServices {
                 .first();
                 
             if (govtEvent) {
+                const user = this.ctx.auth?.user as any;
+                if (user?.instituteId && govtEvent.instituteId && govtEvent.instituteId !== user.instituteId) {
+                    return this.ctx.response.status(403).send({
+                        status: false,
+                        message: "Forbidden",
+                        data: null,
+                    });
+                }
                 return this.ctx.response.send({
                     status: true,
                     message: messages.govt_event_fetched_successfully,
@@ -216,6 +302,15 @@ export default class GovtEventServices {
                     status: false,
                     message: messages.govt_event_not_found,
                     data: null
+                });
+            }
+
+            const user = this.ctx.auth?.user as any;
+            if (user?.instituteId && govtEvent.instituteId && govtEvent.instituteId !== user.instituteId) {
+                return this.ctx.response.status(403).send({
+                    status: false,
+                    message: "Forbidden",
+                    data: null,
                 });
             }
 

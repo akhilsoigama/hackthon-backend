@@ -100,6 +100,8 @@ export default class GovtEvent extends BaseModel {
   @column() declare viewCount: number
   @column() declare isActive: boolean
   @column() declare isFeatured: boolean
+  @column() declare instituteId: number | null
+  @column() declare departmentId: number | null
   @column() declare createdBy: number
   @column() declare updatedBy: number
 

@@ -27,6 +27,10 @@ export default class GovtEventsController {
         })
     }
 
+    async sync() {
+        return this.govtEventServices.sync();
+    }
+
     async store() {
         return this.govtEventServices.create();
     }
