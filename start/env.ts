@@ -51,5 +51,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   // ── Mail ─────────────────────────────────────────────────────────────────────
   SMTP_HOST: Env.schema.string(),
   SMTP_PORT: Env.schema.string(),
+
+  // RAG embeddings
+  EMBEDDING_API_KEY: Env.schema.string.optional(),
+  EMBEDDING_API_URL: Env.schema.string.optional(),
+  EMBEDDING_MODEL: Env.schema.string.optional(),
 })
 

@@ -26,5 +26,9 @@ export default class StudentQueriesController {
   async progressReport(ctx: HttpContext) {
     return new StudentProgressService(ctx).generateProgressReport()
   }
+
+  async sync(ctx: HttpContext) {
+    return new StudentQueryService(ctx).sync()
+  }
 }
 

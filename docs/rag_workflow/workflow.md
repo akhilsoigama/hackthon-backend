@@ -1,0 +1,118 @@
+# RAG System Integration Workflow for Skill Learning Module
+
+## 1. Overview
+This document outlines the complete working flow of integrating a Retrieval-Augmented Generation (RAG) system into the Skill Learning Module. The system handles course ingestion (custom uploads or YouTube links), metadata extraction and vector storage, automated quiz generation, summary generation per module, and score tracking for certification.
+
+## 2. Core Components
+*   **Input Interface:** Allows users/instructors to input either a custom course file (PDF, Video, Text) or a YouTube URL.
+*   **Processing Engine (RAG pipeline):** Extracts text, chunks it, generates embeddings, and interacts with the LLM (Large Language Model).
+*   **Vector Database (`pgvector`):** Stores course metadata and embeddings for semantic search and context retrieval.
+*   **Relational Database:** Stores user progress, quiz scores, and certificate eligibility.
+*   **Frontend UI:** Displays courses, modules, generated quizzes, and summaries.
+
+---
+
+## 3. Workflow 1: Course / Sub-Module Ingestion & Quiz Generation
+*This flow triggers whenever a new course or a new sub-module is added to the system.*
+
+### Step 3.1: Content Input
+1. The user selects the input type:
+   *   **Option A:** Upload a custom course file.
+   *   **Option B:** Provide a YouTube Link.
+2. The system receives the content and initiates the ingestion pipeline.
+
+### Step 3.2: Metadata Extraction & Vector Storage
+1. **Extraction:** 
+   *   If custom file: Extract text content and relevant metadata (title, author, topics).
+   *   If YouTube link: Fetch transcript, video title, and description.
+2. **Chunking:** Break the extracted text into manageable chunks.
+3. **Embedding:** Convert these text chunks into vector embeddings using an embedding model.
+4. **Storage:** Store the generated embeddings and metadata into the **`pgvector`** database.
+
+### Step 3.3: Automated Quiz Generation
+1. Once the metadata is successfully stored in `pgvector`, the RAG system retrieves the most relevant context from the newly added course/module.
+2. A prompt is sent to the LLM (with the retrieved context) instructing it to generate exactly **10 multiple-choice questions** based on the material.
+3. The generated quiz is saved to the relational database linked to the specific course/module.
+4. The frontend fetches and displays this 10-question quiz to the user when they reach the assessment section.
+
+---
+
+## 4. Workflow 2: Learning Phase & Summary Generation
+*This flow triggers when a user finishes learning a specific module or sub-module.*
+
+### Step 4.1: Module Completion
+1. The user watches the video or reads the content of a module and marks it as "Completed".
+2. An event is triggered to the RAG system indicating module completion.
+
+### Step 4.2: Context Retrieval & Summary Generation
+1. The RAG system queries `pgvector` for the core concepts and metadata associated with that specific module.
+2. The LLM generates a concise, **100-200 word summary** of the module.
+3. The summary is instantly returned to the frontend and displayed to the user as a quick recap of what they just learned.
+
+---
+
+## 5. Workflow 3: Assessment, Scoring, & Certification
+*This flow triggers when a user attempts and submits the generated quiz.*
+
+### Step 5.1: Quiz Submission
+1. The user attempts the 10-question quiz on the frontend and clicks "Submit".
+2. The frontend sends the user's answers to the backend.
+
+### Step 5.2: Scoring & Database Storage
+1. The backend evaluates the submitted answers against the correct answers generated earlier by the RAG system.
+2. A final score is calculated (e.g., 8/10).
+3. This score, along with the user ID and course ID, is permanently stored in the standard relational database.
+
+### Step 5.3: Certificate Generation
+1. The system checks if the user has completed all modules and submitted all quizzes for the course.
+2. It calculates the cumulative score.
+3. If the user meets the passing criteria, the system automatically triggers the Certificate Generation module.
+4. A certificate is created, stored, and made available for the user to download.
+
+---
+
+## 6. API Integration & Routing
+*Defining the necessary RESTful endpoints for the RAG system.*
+
+### 6.1 Course & Module Management (Instructor/Admin)
+*   **`POST /api/v1/courses`**
+    *   **Description:** Create a new course.
+    *   **Body:** `{ title, description, instructor_id }`
+    *   **Auth:** Bearer Token (Role: Instructor/Admin)
+*   **`POST /api/v1/courses/:courseId/modules`**
+    *   **Description:** Upload a sub-module (File or YouTube link). *Triggers async RAG pipeline (pgvector ingestion & quiz generation).*
+    *   **Body:** `{ type: "file" | "youtube", content_url, title }`
+    *   **Auth:** Bearer Token (Role: Instructor/Admin)
+
+### 6.2 Learning & RAG Endpoints (Student)
+*   **`GET /api/v1/modules/:moduleId/quiz`**
+    *   **Description:** Fetch the 10-question quiz generated by RAG for a specific module.
+    *   **Auth:** Bearer Token (Role: Student)
+*   **`POST /api/v1/modules/:moduleId/quiz/submit`**
+    *   **Description:** Submit quiz answers for evaluation.
+    *   **Body:** `{ answers: [{ question_id, selected_option }] }`
+    *   **Auth:** Bearer Token (Role: Student)
+*   **`POST /api/v1/modules/:moduleId/complete`**
+    *   **Description:** Mark a module as complete. *Triggers RAG to generate the 100-200 word summary.*
+    *   **Auth:** Bearer Token (Role: Student)
+*   **`GET /api/v1/modules/:moduleId/summary`**
+    *   **Description:** Fetch the RAG-generated summary for the completed module.
+    *   **Auth:** Bearer Token (Role: Student)
+
+### 6.3 Certificate & Progress
+*   **`GET /api/v1/courses/:courseId/progress`**
+    *   **Description:** Get user's progress and quiz scores for a course.
+    *   **Auth:** Bearer Token (Role: Student)
+*   **`POST /api/v1/courses/:courseId/certificate`**
+    *   **Description:** Trigger certificate generation if passing criteria are met.
+    *   **Auth:** Bearer Token (Role: Student)
+
+---
+
+## 7. Security Best Practices
+*   **Authentication & Authorization (RBAC):** Use JWT (JSON Web Tokens) for authenticating requests. Ensure strict Role-Based Access Control. Only `Instructor/Admin` roles can upload courses and trigger pgvector ingestion. `Student` roles can only read content and submit quizzes.
+*   **Input Validation & Sanitization:** Use validation middleware (like Zod or AdonisJS validators) for all incoming API requests to ensure YouTube URLs are valid and uploaded files are of allowed formats/sizes.
+*   **Rate Limiting (DDoS & Cost Protection):** Apply rate limiting (e.g., using Redis) specifically on resource-heavy endpoints (module uploads, quiz generation, summary generation) to prevent abuse and control LLM API costs.
+*   **Asynchronous Processing:** Since RAG chunking, embedding, and LLM calls take time, these should be handled asynchronously via background queues (like BullMQ or AdonisJS queues). The API should return a `202 Accepted` status while processing happens in the background.
+*   **Prompt Injection Protection:** Sanitize user-uploaded content (especially text from files) before sending it to the LLM as context, ensuring it cannot execute prompt injection attacks to alter the quiz or summary output.
+*   **Database Security:** Ensure parameterized queries or standard ORM functions are used when querying relational data or `pgvector` to prevent SQL Injection.

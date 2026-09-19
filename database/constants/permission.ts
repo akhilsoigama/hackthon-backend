@@ -150,6 +150,11 @@ export enum PermissionKeys {
   SKILL_SOFTSKILL_VIEW="skill_softskill_view",
   SKILL_GOVT_EXAM_VIEW="skill_govt_exam_view",
   SKILL_CERTIFICATE_VIEW="skill_certificate_view",
+
+  // ========== RAG SKILL MODULE ==========
+  SKILL_RAG_ACCESS = "skill_rag_access",
+  SKILL_RAG_COURSE_CREATE = "skill_rag_course_create",
+  SKILL_RAG_COURSE_VIEW = "skill_rag_course_view",
 }
 export const PermissionModules = {
   CORE: {
@@ -267,6 +272,10 @@ export const PermissionModules = {
       PermissionKeys.SKILL_SOFTSKILL_VIEW,
       PermissionKeys.SKILL_GOVT_EXAM_VIEW,
       PermissionKeys.SKILL_CERTIFICATE_VIEW,
+      // RAG
+      PermissionKeys.SKILL_RAG_ACCESS,
+      PermissionKeys.SKILL_RAG_COURSE_CREATE,
+      PermissionKeys.SKILL_RAG_COURSE_VIEW,
     ],
   },
   DASHBOARD: {
