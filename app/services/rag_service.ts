@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import RagCourse from '#models/rag_course'
 import env from '#start/env'
 
 export type RagMatch = {
@@ -122,15 +123,17 @@ export default class RagService {
     const videoUrl = this.cleanVideoUrl(course.videoUrl)
     if (!videoUrl) throw new Error('Course videoUrl is required')
 
-    const tags = Array.isArray(course.tags) ? course.tags.map((t) => String(t).trim()).filter(Boolean) : []
+    const tags = Array.isArray(course.tags)
+      ? course.tags.map((t) => String(t).trim()).filter(Boolean)
+      : []
     const rawSubModules = Array.isArray(course.subModules) ? course.subModules : []
     const subModules = rawSubModules.map((sm) => ({
       ...sm,
       videos: Array.isArray(sm.videos)
         ? sm.videos.map((v) => ({
-          ...v,
-          videoUrl: this.cleanVideoUrl(v.videoUrl),
-        }))
+            ...v,
+            videoUrl: this.cleanVideoUrl(v.videoUrl),
+          }))
         : [],
     }))
     const instituteId = course.instituteId ?? user?.instituteId ?? null
@@ -147,26 +150,29 @@ export default class RagService {
       await trx.rawQuery(`SET LOCAL statement_timeout = '${this.databaseTimeoutMs}ms'`)
 
       // Insert course record into rag_courses
-      const inserted = await trx
-        .table('rag_courses')
-        .insert({
+      const newCourse = await RagCourse.create(
+        {
           title,
           category,
-          sub_category: course.subCategory?.trim() || null,
+          subCategory: course.subCategory?.trim() || null,
           description: course.description?.trim() || '',
-          tags: JSON.stringify(tags),
-          video_type: course.videoType ?? 'youtube',
-          video_url: videoUrl,
-          sub_modules: JSON.stringify(subModules),
-          institute_id: instituteId,
-          created_by: createdBy,
-        })
-        .returning('id')
-
-      courseId = inserted[0]?.id ?? inserted[0]
+          tags,
+          videoType: course.videoType ?? 'youtube',
+          videoUrl,
+          subModules,
+          instituteId,
+          createdBy,
+        },
+        { client: trx }
+      )
+      courseId = newCourse.id
 
       // Build hierarchical chunks for vector indexing
-      const chunksToIndex: Array<{ title: string; content: string; metadata: Record<string, unknown> }> = []
+      const chunksToIndex: Array<{
+        title: string
+        content: string
+        metadata: Record<string, unknown>
+      }> = []
 
       // 1. Course overview chunk
       const overviewContent = [
@@ -265,7 +271,7 @@ export default class RagService {
     try {
       await trx.rawQuery(`SET LOCAL statement_timeout = '${this.databaseTimeoutMs}ms'`)
 
-      let selectQuery = trx.from('rag_courses').where('id', courseId)
+      let selectQuery = RagCourse.query({ client: trx }).where('id', courseId)
       if (user?.instituteId !== undefined && user?.instituteId !== null) {
         selectQuery = selectQuery.where('institute_id', user.instituteId)
       }
@@ -276,27 +282,36 @@ export default class RagService {
 
       const title = course.title !== undefined ? course.title.trim() : existing.title
       const category = course.category !== undefined ? course.category.trim() : existing.category
-      const subCategory = course.subCategory !== undefined ? course.subCategory?.trim() : existing.sub_category
-      const description = course.description !== undefined ? course.description.trim() : existing.description
-      const tags = course.tags !== undefined ? (Array.isArray(course.tags) ? course.tags : []) : (existing.tags || [])
-      const videoType = course.videoType !== undefined ? course.videoType : existing.video_type
-      const videoUrl = course.videoUrl !== undefined ? this.cleanVideoUrl(course.videoUrl) : existing.video_url
-      const subModules = course.subModules !== undefined ? (Array.isArray(course.subModules) ? course.subModules : []) : (existing.sub_modules || [])
+      const subCategory =
+        course.subCategory !== undefined ? course.subCategory?.trim() : existing.subCategory
+      const description =
+        course.description !== undefined ? course.description.trim() : existing.description
+      const tags =
+        course.tags !== undefined
+          ? Array.isArray(course.tags)
+            ? course.tags
+            : []
+          : existing.tags || []
+      const videoType = course.videoType !== undefined ? course.videoType : existing.videoType
+      const videoUrl =
+        course.videoUrl !== undefined ? this.cleanVideoUrl(course.videoUrl) : existing.videoUrl
+      const subModules =
+        course.subModules !== undefined
+          ? Array.isArray(course.subModules)
+            ? course.subModules
+            : []
+          : existing.subModules || []
 
-      await trx
-        .from('rag_courses')
-        .where('id', courseId)
-        .update({
-          title,
-          category,
-          sub_category: subCategory || null,
-          description,
-          tags: JSON.stringify(tags),
-          video_type: videoType,
-          video_url: videoUrl,
-          sub_modules: JSON.stringify(subModules),
-          updated_at: new Date(),
-        })
+      existing.useTransaction(trx)
+      existing.title = title
+      existing.category = category
+      existing.subCategory = subCategory || null
+      existing.description = description
+      existing.tags = tags
+      existing.videoType = videoType
+      existing.videoUrl = videoUrl
+      existing.subModules = subModules
+      await existing.save()
 
       // Re-index vector chunks
       const chunksToIndex: Array<{
@@ -354,7 +369,7 @@ export default class RagService {
         await trx.table('rag_documents').insert({
           source_type: 'course',
           source_id: courseId,
-          institute_id: existing.institute_id,
+          institute_id: existing.instituteId,
           title: chunkItem.title,
           content: chunkItem.content,
           chunk_index: index,
@@ -372,7 +387,7 @@ export default class RagService {
         subCategory: subCategory || undefined,
         description,
         tags,
-        videoType,
+        videoType: (videoType as 'youtube' | 'uploaded') || 'youtube',
         videoUrl,
         subModules,
         relevanceScore: 1.0,
@@ -403,7 +418,7 @@ export default class RagService {
 
     // If query is empty, return recent courses ordered by creation date
     if (!query) {
-      let qb = db.from('rag_courses').select('*')
+      let qb = RagCourse.query()
       if (category) {
         qb = qb.whereILike('category', category)
       }
@@ -485,10 +500,7 @@ export default class RagService {
     }
 
     // Fetch full course details for candidates
-    const courses = await db
-      .from('rag_courses')
-      .whereIn('id', Array.from(candidateIds))
-      .select('*')
+    const courses = await db.from('rag_courses').whereIn('id', Array.from(candidateIds)).select('*')
 
     const scoredCourses: Array<{ row: Record<string, unknown>; score: number }> = []
 
@@ -520,11 +532,15 @@ export default class RagService {
       const lexScore = hasLexical ? 0.9 : 0.0
 
       // Exact title match bonus
-      const titleBonus =
-        String(courseRow.title).toLowerCase().includes(query.toLowerCase()) ? 0.15 : 0.0
+      const titleBonus = String(courseRow.title).toLowerCase().includes(query.toLowerCase())
+        ? 0.15
+        : 0.0
 
       // Weighted score
-      const combinedScore = Math.min(1.0, Math.max(0.1, 0.65 * vecScore + 0.35 * lexScore + titleBonus))
+      const combinedScore = Math.min(
+        1.0,
+        Math.max(0.1, 0.65 * vecScore + 0.35 * lexScore + titleBonus)
+      )
 
       scoredCourses.push({
         row: courseRow,
@@ -601,7 +617,7 @@ export default class RagService {
     const courseId = Number(id)
     if (Number.isNaN(courseId)) return null
 
-    const row = await db.from('rag_courses').where('id', courseId).first()
+    const row = await RagCourse.find(courseId)
     if (!row) return null
     return this.mapCourseRowToResult(row)
   }
@@ -625,14 +641,15 @@ export default class RagService {
     try {
       await trx.rawQuery(`SET LOCAL statement_timeout = '${this.databaseTimeoutMs}ms'`)
 
-      let courseQuery = trx.from('rag_courses').where('id', courseId)
+      let courseQuery = RagCourse.query({ client: trx }).where('id', courseId)
       if (instituteId !== undefined && instituteId !== null) {
         courseQuery = courseQuery.where('institute_id', instituteId)
       }
-      const deletedCount = await courseQuery.delete()
-      if (!deletedCount) {
+      const courseToDelete = await courseQuery.first()
+      if (!courseToDelete) {
         throw new Error('Course not found or access denied')
       }
+      await courseToDelete.useTransaction(trx).delete()
 
       await trx
         .from('rag_documents')
@@ -651,7 +668,11 @@ export default class RagService {
   /**
    * Backward compatible retrieval for chatbot context
    */
-  public async retrieve(query: string, instituteId?: number | null, limit = 5): Promise<RagMatch[]> {
+  public async retrieve(
+    query: string,
+    instituteId?: number | null,
+    limit = 5
+  ): Promise<RagMatch[]> {
     if (!query.trim()) return []
 
     try {
@@ -834,14 +855,14 @@ export default class RagService {
 
     const requestBody = isGemini
       ? {
-        model: `models/${model}`,
-        content: { parts: [{ text }] },
-        outputDimensionality: this.embeddingDimensions,
-      }
+          model: `models/${model}`,
+          content: { parts: [{ text }] },
+          outputDimensionality: this.embeddingDimensions,
+        }
       : {
-        model,
-        input: text,
-      }
+          model,
+          input: text,
+        }
 
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -928,44 +949,56 @@ export default class RagService {
     this.embeddingCache.set(key, vector)
   }
 
-  private mapCourseRowToResult(row: Record<string, unknown>, relevanceScore?: number): CourseResult {
+  private mapCourseRowToResult(
+    row: Record<string, unknown> | RagCourse,
+    relevanceScore?: number
+  ): CourseResult {
+    const raw: any = row instanceof RagCourse ? row.serialize() : row
     let tags: string[] = []
-    if (typeof row.tags === 'string') {
+    if (typeof raw.tags === 'string') {
       try {
-        tags = JSON.parse(row.tags)
+        tags = JSON.parse(raw.tags)
       } catch {
         tags = []
       }
-    } else if (Array.isArray(row.tags)) {
-      tags = row.tags
+    } else if (Array.isArray(raw.tags)) {
+      tags = raw.tags
     }
 
     let subModules: CourseSubModule[] = []
-    if (typeof row.sub_modules === 'string') {
+    const subModulesRaw = raw.sub_modules ?? raw.subModules
+    if (typeof subModulesRaw === 'string') {
       try {
-        subModules = JSON.parse(row.sub_modules)
+        subModules = JSON.parse(subModulesRaw)
       } catch {
         subModules = []
       }
-    } else if (Array.isArray(row.sub_modules)) {
-      subModules = row.sub_modules as CourseSubModule[]
+    } else if (Array.isArray(subModulesRaw)) {
+      subModules = subModulesRaw as CourseSubModule[]
     }
 
     return {
-      id: String(row.id),
-      title: String(row.title || ''),
-      category: String(row.category || ''),
-      subCategory: row.sub_category ? String(row.sub_category) : undefined,
-      description: String(row.description || ''),
+      id: String(raw.id),
+      title: String(raw.title || ''),
+      category: String(raw.category || ''),
+      subCategory:
+        raw.sub_category || raw.subCategory
+          ? String(raw.sub_category || raw.subCategory)
+          : undefined,
+      description: String(raw.description || ''),
       tags,
-      videoType: (row.video_type as 'youtube' | 'uploaded') || 'youtube',
-      videoUrl: String(row.video_url || ''),
+      videoType: ((raw.video_type || raw.videoType) as 'youtube' | 'uploaded') || 'youtube',
+      videoUrl: String(raw.video_url || raw.videoUrl || ''),
       subModules,
       relevanceScore,
     }
   }
 
-  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    message: string
+  ): Promise<T> {
     let timeout: ReturnType<typeof setTimeout> | undefined
 
     try {
@@ -987,7 +1020,10 @@ export default class RagService {
     const overlap = 40
 
     for (let start = 0; start < words.length; start += chunkSize - overlap) {
-      const chunk = words.slice(start, start + chunkSize).join(' ').trim()
+      const chunk = words
+        .slice(start, start + chunkSize)
+        .join(' ')
+        .trim()
       if (chunk) chunks.push(chunk)
     }
     return chunks
@@ -1052,13 +1088,17 @@ export default class RagService {
     if (rawVideoUrl) {
       try {
         const cleanUrl = this.cleanVideoUrl(rawVideoUrl)
-        const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`)
+        const oembedRes = await fetch(
+          `https://www.youtube.com/oembed?url=${encodeURIComponent(cleanUrl)}&format=json`
+        )
         if (oembedRes.ok) {
           const data = (await oembedRes.json()) as any
           videoMetadata = {
             title: data.title || '',
             author: data.author_name || '',
-            thumbnailUrl: data.thumbnail_url || `https://i.ytimg.com/vi/${this.cleanVideoUrl(rawVideoUrl).split('v=')[1]}/hqdefault.jpg`,
+            thumbnailUrl:
+              data.thumbnail_url ||
+              `https://i.ytimg.com/vi/${this.cleanVideoUrl(rawVideoUrl).split('v=')[1]}/hqdefault.jpg`,
           }
         }
       } catch {
@@ -1078,7 +1118,10 @@ export default class RagService {
         courseDesc = courseDesc || courseRow.description
         courseCategory = courseCategory || courseRow.category
         if (!subModules.length && courseRow.sub_modules) {
-          subModules = typeof courseRow.sub_modules === 'string' ? JSON.parse(courseRow.sub_modules) : courseRow.sub_modules
+          subModules =
+            typeof courseRow.sub_modules === 'string'
+              ? JSON.parse(courseRow.sub_modules)
+              : courseRow.sub_modules
         }
       }
     }
@@ -1086,7 +1129,11 @@ export default class RagService {
     let ragChunksText = ''
     if (params.courseId) {
       try {
-        const docs = await db.from('rag_documents').where('source_type', 'course').where('source_id', Number(params.courseId)).limit(5)
+        const docs = await db
+          .from('rag_documents')
+          .where('source_type', 'course')
+          .where('source_id', Number(params.courseId))
+          .limit(5)
         ragChunksText = docs.map((d) => d.content).join('\n')
       } catch {
         // ignore
@@ -1146,23 +1193,23 @@ Generate exactly ${params.numQuestions || 10} distinct, real subject-matter mult
           ],
           max_tokens: 4000,
           temperature: 0.2,
-          response_format: { type: 'json_object' }
+          response_format: { type: 'json_object' },
         })
 
         const rawContent = completion.choices[0]?.message?.content || ''
         try {
           // Find the first { and last } to extract JSON in case of extra prose
-          const startIndex = rawContent.indexOf('{');
-          const endIndex = rawContent.lastIndexOf('}');
+          const startIndex = rawContent.indexOf('{')
+          const endIndex = rawContent.lastIndexOf('}')
           if (startIndex !== -1 && endIndex !== -1) {
-            const jsonStr = rawContent.substring(startIndex, endIndex + 1);
-            const parsed = JSON.parse(jsonStr);
+            const jsonStr = rawContent.substring(startIndex, endIndex + 1)
+            const parsed = JSON.parse(jsonStr)
             if (parsed.questions && Array.isArray(parsed.questions)) {
-              questions = parsed.questions;
+              questions = parsed.questions
             }
           }
         } catch (parseError) {
-          console.error('Failed to parse LLM JSON:', rawContent, parseError);
+          console.error('Failed to parse LLM JSON:', rawContent, parseError)
         }
       } catch (e) {
         console.error('LLM Quiz generation failed, fallback to contextual RAG quiz generator:', e)

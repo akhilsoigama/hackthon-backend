@@ -15,7 +15,6 @@ export default class extends BaseSchema {
       table.date('event_date')
       table.string('event_time')
       table.integer('event_duration')
-      
       table.string('event_banner')
       table.string('event_link')
       table.string('registration_link')
@@ -35,9 +34,6 @@ export default class extends BaseSchema {
       table.string('event_venue')
       table.string('event_location')
 
-      table.decimal('latitude', 10, 7)
-      table.decimal('longitude', 10, 7)
-
       table.boolean('is_online').defaultTo(false)
 
       table.string('event_fee')
@@ -56,6 +52,21 @@ export default class extends BaseSchema {
 
       table.integer('created_by').unsigned()
       table.integer('updated_by').unsigned()
+
+      table
+        .integer('institute_id')
+        .unsigned()
+        .nullable()
+        .references('id')
+        .inTable('institutes')
+        .onDelete('CASCADE')
+      table
+        .integer('department_id')
+        .unsigned()
+        .nullable()
+        .references('id')
+        .inTable('departments')
+        .onDelete('CASCADE')
 
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })

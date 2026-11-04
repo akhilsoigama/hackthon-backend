@@ -17,7 +17,7 @@ export default class extends BaseSchema {
         table.boolean('is_email_verified').notNullable().defaultTo(false)
         table.boolean('is_mobile_verified').notNullable().defaultTo(false)
         table.boolean('is_active').notNullable().defaultTo(true)
-        table.boolean('is_admin').notNullable().defaultTo(false) // ✅ add this
+        table.boolean('is_admin').nullable().defaultTo(false) // ✅ add this
         table.timestamp('created_at', { useTz: true }).defaultTo(this.now())
         table.timestamp('updated_at', { useTz: true }).defaultTo(this.now())
       })

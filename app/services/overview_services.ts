@@ -550,6 +550,197 @@ export default class OverviewServices {
   }
 
   /**
+   * Super Admin Dashboard with Growth — Redis cached for 5 minutes.
+   */
+  async getSuperAdminOverviewWithGrowth() {
+    const cacheKey = `overview:super_admin:growth`
+
+    const cached = await redisCacheService.getOrSet(
+      cacheKey,
+      OVERVIEW_CACHE_TTL_MS,
+      async () => {
+        const result = await db.rawQuery(
+          `
+          WITH current_data AS (
+            SELECT
+              COUNT(*) FILTER (WHERE table_name = 'institutes') AS total_institutes,
+              COUNT(*) FILTER (WHERE table_name = 'faculties') AS total_faculties,
+              COUNT(*) FILTER (WHERE table_name = 'students') AS total_students,
+              COUNT(*) FILTER (WHERE table_name = 'departments') AS total_departments,
+              COUNT(*) FILTER (WHERE table_name = 'govt_events') AS total_govt_events,
+              COUNT(*) FILTER (WHERE table_name = 'institute_events') AS total_institute_events,
+              COUNT(*) FILTER (WHERE table_name IN ('rag_courses', 'materials')) AS total_courses
+            FROM (
+              SELECT 'institutes' AS table_name, created_at FROM institutes WHERE deleted_at IS NULL
+              UNION ALL
+              SELECT 'faculties' AS table_name, created_at FROM faculties WHERE deleted_at IS NULL
+              UNION ALL
+              SELECT 'students' AS table_name, created_at FROM students WHERE deleted_at IS NULL
+              UNION ALL
+              SELECT 'departments' AS table_name, created_at FROM departments WHERE deleted_at IS NULL
+              UNION ALL
+              SELECT 'govt_events' AS table_name, created_at FROM govt_events WHERE deleted_at IS NULL
+              UNION ALL
+              SELECT 'institute_events' AS table_name, created_at FROM institute_events WHERE deleted_at IS NULL
+              UNION ALL
+              SELECT 'rag_courses' AS table_name, created_at FROM rag_courses
+              UNION ALL
+              SELECT 'materials' AS table_name, created_at FROM materials WHERE deleted_at IS NULL
+            ) all_records
+          ),
+          previous_data AS (
+            SELECT
+              COUNT(*) FILTER (WHERE table_name = 'institutes') AS prev_institutes,
+              COUNT(*) FILTER (WHERE table_name = 'faculties') AS prev_faculties,
+              COUNT(*) FILTER (WHERE table_name = 'students') AS prev_students,
+              COUNT(*) FILTER (WHERE table_name = 'departments') AS prev_departments,
+              COUNT(*) FILTER (WHERE table_name = 'govt_events') AS prev_govt_events,
+              COUNT(*) FILTER (WHERE table_name = 'institute_events') AS prev_institute_events,
+              COUNT(*) FILTER (WHERE table_name IN ('rag_courses', 'materials')) AS prev_courses
+            FROM (
+              SELECT 'institutes' AS table_name, created_at FROM institutes WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'faculties' AS table_name, created_at FROM faculties WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'students' AS table_name, created_at FROM students WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'departments' AS table_name, created_at FROM departments WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'govt_events' AS table_name, created_at FROM govt_events WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'institute_events' AS table_name, created_at FROM institute_events WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'rag_courses' AS table_name, created_at FROM rag_courses WHERE created_at < DATE_TRUNC('month', NOW())
+              UNION ALL
+              SELECT 'materials' AS table_name, created_at FROM materials WHERE deleted_at IS NULL AND created_at < DATE_TRUNC('month', NOW())
+            ) all_records
+          )
+          SELECT
+            (SELECT total_institutes FROM current_data) AS institutes,
+            (SELECT total_faculties FROM current_data) AS faculties,
+            (SELECT total_students FROM current_data) AS students,
+            (SELECT total_departments FROM current_data) AS departments,
+            (SELECT total_govt_events FROM current_data) AS govt_events,
+            (SELECT total_institute_events FROM current_data) AS institute_events,
+            (SELECT total_courses FROM current_data) AS courses,
+            (SELECT prev_institutes FROM previous_data) AS prev_institutes,
+            (SELECT prev_faculties FROM previous_data) AS prev_faculties,
+            (SELECT prev_students FROM previous_data) AS prev_students,
+            (SELECT prev_departments FROM previous_data) AS prev_departments,
+            (SELECT prev_govt_events FROM previous_data) AS prev_govt_events,
+            (SELECT prev_institute_events FROM previous_data) AS prev_institute_events,
+            (SELECT prev_courses FROM previous_data) AS prev_courses
+          `
+        )
+
+        const data = result.rows[0]
+        const ci = Number(data?.institutes) || 0
+        const cf = Number(data?.faculties) || 0
+        const cs = Number(data?.students) || 0
+        const cd = Number(data?.departments) || 0
+        const cge = Number(data?.govt_events) || 0
+        const cie = Number(data?.institute_events) || 0
+        const ce = cge + cie
+        const cc = Number(data?.courses) || 0
+
+        const pi = Number(data?.prev_institutes) || 0
+        const pf = Number(data?.prev_faculties) || 0
+        const ps = Number(data?.prev_students) || 0
+        const pd = Number(data?.prev_departments) || 0
+        const pge = Number(data?.prev_govt_events) || 0
+        const pie = Number(data?.prev_institute_events) || 0
+        const pe = pge + pie
+        const pc = Number(data?.prev_courses) || 0
+
+        return {
+          status: true,
+          message: 'Super admin overview with growth fetched successfully',
+          data: {
+            current: {
+              period: this.getCurrentPeriodName(),
+              totalInstitutes: ci,
+              totalFaculties: cf,
+              totalStudents: cs,
+              totalDepartments: cd,
+              totalEvents: ce,
+              totalCourses: cc,
+            },
+            previous: {
+              period: this.getPreviousPeriodName(),
+              totalInstitutes: pi,
+              totalFaculties: pf,
+              totalStudents: ps,
+              totalDepartments: pd,
+              totalEvents: pe,
+              totalCourses: pc,
+            },
+            growth: {
+              institutes: this.calculateGrowthPercent(ci, pi),
+              faculties: this.calculateGrowthPercent(cf, pf),
+              students: this.calculateGrowthPercent(cs, ps),
+              departments: this.calculateGrowthPercent(cd, pd),
+              events: this.calculateGrowthPercent(ce, pe),
+              courses: this.calculateGrowthPercent(cc, pc),
+            },
+            periods: {
+              current: this.getCurrentPeriodName(),
+              previous: this.getPreviousPeriodName(),
+            },
+          },
+        }
+      }
+    )
+
+    return cached
+  }
+
+  /**
+   * Super Admin Overview without growth — Redis cached for 5 minutes.
+   */
+  async getSuperAdminOverview() {
+    const cacheKey = `overview:super_admin:simple`
+
+    const cached = await redisCacheService.getOrSet(
+      cacheKey,
+      OVERVIEW_CACHE_TTL_MS,
+      async () => {
+        const result = await db.rawQuery(
+          `
+          SELECT
+            (SELECT COUNT(*) FROM institutes WHERE deleted_at IS NULL) AS institutes,
+            (SELECT COUNT(*) FROM faculties WHERE deleted_at IS NULL) AS faculties,
+            (SELECT COUNT(*) FROM students WHERE deleted_at IS NULL) AS students,
+            (SELECT COUNT(*) FROM departments WHERE deleted_at IS NULL) AS departments,
+            (SELECT COUNT(*) FROM govt_events WHERE deleted_at IS NULL) AS govt_events,
+            (SELECT COUNT(*) FROM institute_events WHERE deleted_at IS NULL) AS institute_events,
+            ((SELECT COUNT(*) FROM rag_courses) + (SELECT COUNT(*) FROM materials WHERE deleted_at IS NULL)) AS courses
+          `
+        )
+
+        const overview = result.rows[0]
+        const ge = Number(overview?.govt_events) || 0
+        const ie = Number(overview?.institute_events) || 0
+
+        return {
+          status: true,
+          message: 'Super admin overview fetched successfully',
+          data: {
+            role: 'SuperAdmin',
+            totalInstitutes: Number(overview?.institutes) || 0,
+            totalFaculties: Number(overview?.faculties) || 0,
+            totalStudents: Number(overview?.students) || 0,
+            totalDepartments: Number(overview?.departments) || 0,
+            totalEvents: ge + ie,
+            totalCourses: Number(overview?.courses) || 0,
+          },
+        }
+      }
+    )
+
+    return cached
+  }
+
+  /**
    * Main Overview Method — routes to the right handler based on userType.
    */
   async getOverview() {
@@ -560,15 +751,34 @@ export default class OverviewServices {
     }
 
     const includeGrowth = this.ctx.request.qs().includeGrowth === 'true'
-    const userType = (authUser as any).userType as string
+    const requestedUserType = (this.ctx.request.input('userType') ?? this.ctx.request.qs().userType) as string | undefined
+    const authUserType = ((authUser as any).userType ?? (authUser as any).authType) as string | undefined
 
-    switch (userType?.toLowerCase()) {
+    let effectiveUserType = authUserType
+
+    // If super admin specifically requested an institute/faculty/student overview with an ID, allow it:
+    if (['super_admin', 'admin', 'superadmin'].includes(authUserType?.toLowerCase() || '')) {
+      if (
+        requestedUserType &&
+        ['institute', 'faculty', 'student'].includes(requestedUserType.toLowerCase())
+      ) {
+        effectiveUserType = requestedUserType
+      }
+    } else if (requestedUserType) {
+      effectiveUserType = requestedUserType
+    }
+
+    switch (effectiveUserType?.toLowerCase()) {
       case 'institute':
         return includeGrowth ? this.getInstituteOverviewWithGrowth() : this.getInstituteOverview()
       case 'faculty':
         return includeGrowth ? this.getFacultyOverviewWithGrowth() : this.getFacultyOverview()
       case 'student':
         return includeGrowth ? this.getStudentOverviewWithGrowth() : this.getStudentOverview()
+      case 'super_admin':
+      case 'admin':
+      case 'superadmin':
+        return includeGrowth ? this.getSuperAdminOverviewWithGrowth() : this.getSuperAdminOverview()
       default:
         return this.ctx.response.status(403).send({ status: false, message: 'Invalid user role' })
     }

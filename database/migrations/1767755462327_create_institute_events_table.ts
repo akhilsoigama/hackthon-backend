@@ -32,8 +32,8 @@ export default class extends BaseSchema {
       table.string('event_category').notNullable()
       table.string('event_sub_category').notNullable()
       table.string('tags').nullable()
-      table.decimal('latitude', 10, 7)
-      table.decimal('longitude', 10, 7)
+
+
       table.integer('priority').defaultTo(0)
       table.integer('view_count').defaultTo(0)
       table.string('event_contact').notNullable()
