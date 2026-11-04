@@ -4,36 +4,24 @@ export default class CreateRagCoursesTable extends BaseSchema {
   protected tableName = 'rag_courses'
 
   public async up() {
-    await this.db.rawQuery(
-      `CREATE TABLE IF NOT EXISTS ${this.tableName} (
-        id serial PRIMARY KEY,
-        title varchar(255) NOT NULL,
-        category varchar(100) NOT NULL,
-        sub_category varchar(100),
-        description text NOT NULL,
-        tags jsonb DEFAULT '[]'::jsonb,
-        video_type varchar(50) DEFAULT 'youtube',
-        video_url varchar(1000) NOT NULL,
-        sub_modules jsonb DEFAULT '[]'::jsonb,
-        institute_id integer,
-        created_by integer,
-        created_at timestamptz DEFAULT CURRENT_TIMESTAMP,
-        updated_at timestamptz DEFAULT CURRENT_TIMESTAMP
-      )`
-    )
-
-    await this.db.rawQuery(
-      `CREATE INDEX IF NOT EXISTS rag_courses_category_idx ON ${this.tableName} (category)`
-    )
-    await this.db.rawQuery(
-      `CREATE INDEX IF NOT EXISTS rag_courses_institute_idx ON ${this.tableName} (institute_id)`
-    )
-    await this.db.rawQuery(
-      `CREATE INDEX IF NOT EXISTS rag_courses_created_at_idx ON ${this.tableName} (created_at DESC)`
-    )
+    this.schema.createTable(this.tableName, (table) => {
+      table.increments('id').primary()
+      table.string('title', 255).notNullable()
+      table.string('category', 100).notNullable().index()
+      table.string('sub_category', 100).nullable()
+      table.text('description').notNullable()
+      table.jsonb('tags').defaultTo('[]')
+      table.string('video_type', 50).defaultTo('youtube')
+      table.string('video_url', 1000).notNullable()
+      table.jsonb('sub_modules').defaultTo('[]')
+      table.integer('institute_id').unsigned().nullable().index()
+      table.integer('created_by').unsigned().nullable()
+      table.timestamp('created_at', { useTz: true }).defaultTo(this.now()).index()
+      table.timestamp('updated_at', { useTz: true }).defaultTo(this.now())
+    })
   }
 
   public async down() {
-    await this.schema.dropTable(this.tableName)
+    this.schema.dropTable(this.tableName)
   }
 }

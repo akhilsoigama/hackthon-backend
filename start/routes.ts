@@ -167,6 +167,10 @@ router
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
       .use(middleware.permission([PermissionKeys.DASHBOARD_OVERVIEW_VIEW]))
     router
+      .get('/overview', [InstitutesController, 'progressReport'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+      .use(middleware.permission([PermissionKeys.DASHBOARD_OVERVIEW_VIEW]))
+    router
       .resource('institutes', InstitutesController)
       .apiOnly()
       .use('*', middleware.auth({ guards: ['adminapi', 'api'] }))
