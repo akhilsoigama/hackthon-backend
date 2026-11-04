@@ -53,8 +53,8 @@ export default class GovtEventServices {
                         tags: task.tags,
                         eventVenue: task.eventVenue,
                         eventLocation: task.eventLocation,
-                        latitude: task.latitude,
-                        longitude: task.longitude,
+
+
                         isOnline: task.isOnline,
                         eventFee: task.eventFee,
                         isFree: task.isFree,
@@ -115,6 +115,57 @@ export default class GovtEventServices {
                 });
             }
 
+            
+            // Strict Fee validation
+            if (requestData.isFree === false || requestData.isFree === 'false') {
+                if (!requestData.eventFee || String(requestData.eventFee).trim() === '') {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event fee is required for paid events',
+                    });
+                }
+                const feeStr = String(requestData.eventFee).trim();
+                if (feeStr.includes('-')) {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event fee cannot be negative',
+                    });
+                }
+                const feeNum = Number(feeStr.replace(/[^0-9.]/g, ''));
+                if (Number.isNaN(feeNum) || feeNum <= 0) {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event fee must be a valid positive amount greater than 0',
+                    });
+                }
+                requestData.eventFee = feeNum.toString();
+            } else {
+                requestData.eventFee = null;
+            }
+
+            // Strict Date & Time validation for upcoming events
+            if (requestData.eventDate) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const dateStr = String(requestData.eventDate).slice(0, 10);
+                if (requestData.eventStatus === 'upcoming' && dateStr < todayStr) {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event date cannot be in the past for upcoming events',
+                    });
+                }
+                if (requestData.eventStatus === 'upcoming' && dateStr === todayStr && requestData.eventTime) {
+                    const now = new Date();
+                    const currentMins = now.getHours() * 60 + now.getMinutes();
+                    const [h, m] = String(requestData.eventTime).split(':').map(Number);
+                    if (!Number.isNaN(h) && (h * 60 + (m || 0)) < currentMins) {
+                        return this.ctx.response.status(422).send({
+                            status: false,
+                            message: "Event time cannot be in the past for today's event",
+                        });
+                    }
+                }
+            }
+
             const validatedData = await createGovtEventValidator.validate(requestData);
             const user = this.ctx.auth?.user as any;
             const govtEventData = {
@@ -161,6 +212,57 @@ export default class GovtEventServices {
 
             if (requestData.eventMobile) {
                 requestData.eventMobile = requestData.eventMobile.toString().replace(/\D/g, '');
+            }
+
+            
+            // Strict Fee validation
+            if (requestData.isFree === false || requestData.isFree === 'false') {
+                if (!requestData.eventFee || String(requestData.eventFee).trim() === '') {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event fee is required for paid events',
+                    });
+                }
+                const feeStr = String(requestData.eventFee).trim();
+                if (feeStr.includes('-')) {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event fee cannot be negative',
+                    });
+                }
+                const feeNum = Number(feeStr.replace(/[^0-9.]/g, ''));
+                if (Number.isNaN(feeNum) || feeNum <= 0) {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event fee must be a valid positive amount greater than 0',
+                    });
+                }
+                requestData.eventFee = feeNum.toString();
+            } else {
+                requestData.eventFee = null;
+            }
+
+            // Strict Date & Time validation for upcoming events
+            if (requestData.eventDate) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const dateStr = String(requestData.eventDate).slice(0, 10);
+                if (requestData.eventStatus === 'upcoming' && dateStr < todayStr) {
+                    return this.ctx.response.status(422).send({
+                        status: false,
+                        message: 'Event date cannot be in the past for upcoming events',
+                    });
+                }
+                if (requestData.eventStatus === 'upcoming' && dateStr === todayStr && requestData.eventTime) {
+                    const now = new Date();
+                    const currentMins = now.getHours() * 60 + now.getMinutes();
+                    const [h, m] = String(requestData.eventTime).split(':').map(Number);
+                    if (!Number.isNaN(h) && (h * 60 + (m || 0)) < currentMins) {
+                        return this.ctx.response.status(422).send({
+                            status: false,
+                            message: "Event time cannot be in the past for today's event",
+                        });
+                    }
+                }
             }
 
             const validatedData = await updateGovtEventValidator.validate(requestData);

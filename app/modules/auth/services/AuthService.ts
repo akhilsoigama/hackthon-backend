@@ -41,7 +41,8 @@ export default class AuthService {
    * 5. Direct User table credentials
    */
   async login(payload: LoginPayload, ip: string | null): Promise<LoginResponse | null> {
-    await this.tokenService.cleanupExpired()
+    // Non-blocking background cleanup — avoid delaying the login HTTP response
+    this.tokenService.cleanupExpired().catch(() => {})
 
     const { email, password } = payload
     let resolvedUser: UserModel | AdminUserType | null = null
@@ -189,6 +190,11 @@ export default class AuthService {
 
     const userProfile = await this.buildUserProfile(resolvedUser, authType)
     if (!userProfile || !token.value) return null
+
+    // Pre-populate profile cache so subsequent /profile requests hit RAM immediately
+    const isAdmin = resolvedUser instanceof AdminUser
+    const cacheKey = `auth:me:${isAdmin ? 'admin' : 'user'}:${resolvedUser.id}:${resolvedUser.userType}`
+    redisCacheService.set(cacheKey, userProfile, 60_000, ['auth-me']).catch(() => {})
 
     auditLogger.loginSuccess(resolvedUser.id, authType, ip)
 

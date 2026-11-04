@@ -23,16 +23,19 @@ export default class AssignmentUpload extends BaseModel {
   declare studentId: number
 
   @column()
-  declare facultyId: number
+  declare facultyId: number | null
 
   @column()
-  declare instituteId: number
+  declare instituteId: number | null
 
   @column()
   declare marks: number | null
 
   @column()
-  declare grad: string
+  declare grad: string | null
+
+  @column()
+  declare grade: string | null
 
   @column()
   declare assignmentFile: string
@@ -41,10 +44,10 @@ export default class AssignmentUpload extends BaseModel {
   declare isSubmitted: boolean
 
   @column()
-  declare departmentId: number
+  declare departmentId: number | null
 
   @column()
-  declare isGradedByFaculty: boolean
+  declare isGradedByFaculty: boolean | null
 
   @column()
   declare isGraded: boolean

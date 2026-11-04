@@ -1,7 +1,12 @@
 import { defineConfig } from '@adonisjs/cors'
 import env from '#start/env'
 
-const defaultOrigins = ['https://www.ruralspark.me']
+const defaultOrigins = [
+  'https://www.ruralspark.me',
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'http://localhost:3000',
+]
 
 const origins = env
   .get('CORS_ORIGINS')

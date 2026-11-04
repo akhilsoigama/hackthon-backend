@@ -90,10 +90,10 @@ export default class GovtEvent extends BaseModel {
   @column() declare tags: string
   @column() declare eventVenue: string
   @column() declare eventLocation: string
-  @column() declare latitude: string
-  @column() declare longitude: string
+
+
   @column() declare isOnline: boolean
-  @column() declare eventFee: string
+  @column() declare eventFee: string | null
   @column() declare isFree: boolean
   @column() declare eventStatus: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
   @column() declare priority: number

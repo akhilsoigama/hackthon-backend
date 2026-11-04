@@ -6,6 +6,7 @@ import { createQuizzezValidator, updateQuizzezValidator } from '#validators/quiz
 import Quizzes from '#models/quizzes'
 import { DateTime } from 'luxon'
 import messages from '#database/constants/messages'
+import apiCacheService from './api_cache_service.js'
 
 type QuestionType = 'mcq' | 'true/false'
 
@@ -137,6 +138,8 @@ export default class QuizzesService {
       }
 
       await trx.commit()
+      apiCacheService.invalidateByPrefix('quizzes:')
+
       return {
         status: true,
         message: messages.quiz_created_successfully,
@@ -151,47 +154,60 @@ export default class QuizzesService {
       }
     }
   }
+
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      let query = Quizzes.query()
-        .select([
-          'id',
-          'quiz_title',
-          'quiz_description',
-          'quiz_banner',
-          'subject',
-          'std',
-          'institute_id',
-          'faculty_id',
-          'department_id',
-          'due_date',
-          'marks',
-          'attempt_limit',
-          'is_active',
-          'created_at',
-          'updated_at',
-        ])
-        .preload('questions', (questionQuery) => {
-          questionQuery.select(['id'])
-        })
-        .apply((scopes) => scopes.softDeletes())
-      if (searchFor === 'create') {
-        query = query.where('is_active', true)
-      }
-      const quizzes = await query
-      if (quizzes && quizzes.length > 0) {
-        return {
-          status: true,
-          message: messages.quiz_fetched_successfully,
-          data: quizzes,
-        }
-      } else {
-        return {
-          status: false,
-          message: messages.quiz_not_found,
-          data: [],
-        }
-      }
+      const cacheKey = `quizzes:list:${JSON.stringify({ searchFor: searchFor || null })}`
+
+      return await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          let query = Quizzes.query()
+            .select([
+              'id',
+              'quiz_title',
+              'quiz_description',
+              'quiz_banner',
+              'subject',
+              'std',
+              'institute_id',
+              'faculty_id',
+              'department_id',
+              'due_date',
+              'marks',
+              'attempt_limit',
+              'is_active',
+              'created_at',
+              'updated_at',
+            ])
+            .preload('questions', (questionQuery) => {
+              questionQuery.select(['id'])
+            })
+            .apply((scopes) => scopes.softDeletes())
+
+          if (searchFor === 'create') {
+            query = query.where('is_active', true)
+          }
+
+          const quizzes = await query
+
+          if (quizzes && quizzes.length > 0) {
+            return {
+              status: true,
+              message: messages.quiz_fetched_successfully,
+              data: quizzes,
+            }
+          } else {
+            return {
+              status: false,
+              message: messages.quiz_not_found,
+              data: [],
+            }
+          }
+        },
+        ['quizzes']
+      )
     } catch (error) {
       return {
         status: false,
@@ -200,40 +216,51 @@ export default class QuizzesService {
       }
     }
   }
+
   async findOne() {
     try {
       const id = this.ctx.request.param('id')
-      const quiz = await Quizzes.query()
-        .where('id', id)
-        .whereNull('deleted_at')
-        .preload('department', (departmentQuery) => {
-          departmentQuery.select(['id', 'departmentName'])
-        })
-        .preload('questions', (questionQuery) => {
-          questionQuery.preload('options', (optionQuery) => {
-            optionQuery.select(['id', 'optionText', 'isCorrect'])
-          })
-        })
-        .preload('faculty', (facultyQuery) => {
-          facultyQuery.select(['id', 'facultyName', 'facultyEmail'])
-        })
-        .preload('institute', (instituteQuery) => {
-          instituteQuery.select(['id', 'instituteName'])
-        })
-        .first()
-      if (quiz) {
-        return {
-          status: true,
-          message: messages.quiz_fetched_successfully,
-          data: quiz,
-        }
-      } else {
-        return {
-          status: false,
-          message: messages.quiz_not_found,
-          data: null,
-        }
-      }
+      const cacheKey = `quizzes:one:${id}`
+
+      return await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          const quiz = await Quizzes.query()
+            .where('id', id)
+            .whereNull('deleted_at')
+            .preload('department', (departmentQuery) => {
+              departmentQuery.select(['id', 'departmentName'])
+            })
+            .preload('questions', (questionQuery) => {
+              questionQuery.preload('options', (optionQuery) => {
+                optionQuery.select(['id', 'optionText', 'isCorrect'])
+              })
+            })
+            .preload('faculty', (facultyQuery) => {
+              facultyQuery.select(['id', 'facultyName', 'facultyEmail'])
+            })
+            .preload('institute', (instituteQuery) => {
+              instituteQuery.select(['id', 'instituteName'])
+            })
+            .first()
+
+          if (quiz) {
+            return {
+              status: true,
+              message: messages.quiz_fetched_successfully,
+              data: quiz,
+            }
+          } else {
+            return {
+              status: false,
+              message: messages.quiz_not_found,
+              data: null,
+            }
+          }
+        },
+        [`quizzes-${id}`]
+      )
     } catch (error) {
       return {
         status: false,
@@ -242,6 +269,7 @@ export default class QuizzesService {
       }
     }
   }
+
   async update() {
     const trx = await db.transaction()
 
@@ -376,6 +404,7 @@ export default class QuizzesService {
       }
 
       await trx.commit()
+      apiCacheService.invalidateByPrefix('quizzes:')
 
       return {
         status: true,
@@ -405,6 +434,8 @@ export default class QuizzesService {
         }
       }
       await quiz.delete()
+      apiCacheService.invalidateByPrefix('quizzes:')
+
       return {
         status: true,
         message: messages.common_messages_record_deleted,
@@ -419,4 +450,3 @@ export default class QuizzesService {
     }
   }
 }
-

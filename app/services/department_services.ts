@@ -5,52 +5,71 @@ import { createDepartmentValidator, updateDepartmentValidator } from '#validator
 import { inject } from '@adonisjs/core'
 import { errorHandler } from '../helper/error_handler.js'
 import { HttpContext } from '@adonisjs/core/http'
+import apiCacheService from './api_cache_service.js'
+
 @inject()
 export default class DepartmentServices {
   constructor(protected ctx: HttpContext) {}
+
+  private getAuthenticatedUser() {
+    const ctx = this.ctx as any
+    return ctx.user ?? ctx.authUser ?? this.ctx.auth.user ?? null
+  }
+
   async findAll({ searchFor }: { searchFor?: string | null }) {
     try {
       const { withDeleted, instituteId } = this.ctx.request.qs()
-      let query = Department.query()
-        .apply((scopes) => scopes.softDeletes())
-        .preload('institute')
-      let authUser = null
-      try {
-        authUser = await this.ctx.auth.authenticate()
-      } catch (authError) {
-        authUser = null
-      }
+      const authUser = this.getAuthenticatedUser()
 
-      if (authUser?.userType === 'institute') {
-        if (!authUser.instituteId) {
-          return this.ctx.response.status(400).json({
-            status: false,
-            message: 'Institute not associated with this user.',
-            data: null,
-          })
-        }
-        query = query.where('institute_id', authUser.instituteId)
-      } else if (instituteId) {
-        query = query.where('institute_id', Number(instituteId))
-      }
+      const cacheKey = `departments:list:${JSON.stringify({
+        searchFor: searchFor || null,
+        withDeleted: withDeleted === 'true',
+        instituteId: instituteId ?? null,
+        authUserId: authUser?.id ?? null,
+        authUserType: authUser?.userType ?? null,
+      })}`
 
-      if (!withDeleted || withDeleted === 'false') {
-        query = query.apply((scopes) => scopes.softDeletes())
-      }
+      return await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          let query = Department.query()
+            .apply((scopes) => scopes.softDeletes())
+            .preload('institute')
 
-      if (searchFor === 'create') {
-        query = query.where('isActive', true)
-      }
-      const departments = await query
+          if (authUser?.userType === 'institute') {
+            if (!authUser.instituteId) {
+              return {
+                status: false,
+                message: 'Institute not associated with this user.',
+                data: null,
+              }
+            }
+            query = query.where('institute_id', authUser.instituteId)
+          } else if (instituteId) {
+            query = query.where('institute_id', Number(instituteId))
+          }
 
-      return {
-        status: true,
-        message:
-          departments.length > 0
-            ? messages.department_fetched_successfully
-            : messages.department_not_found,
-        data: departments,
-      }
+          if (!withDeleted || withDeleted === 'false') {
+            query = query.apply((scopes) => scopes.softDeletes())
+          }
+
+          if (searchFor === 'create') {
+            query = query.where('isActive', true)
+          }
+          const departments = await query
+
+          return {
+            status: true,
+            message:
+              departments.length > 0
+                ? messages.department_fetched_successfully
+                : messages.department_not_found,
+            data: departments,
+          }
+        },
+        ['departments']
+      )
     } catch (error) {
       return {
         status: false,
@@ -78,6 +97,7 @@ export default class DepartmentServices {
       }
 
       const department = await Department.create(validatedData)
+      apiCacheService.invalidateByPrefix('departments:')
 
       return {
         status: true,
@@ -94,21 +114,30 @@ export default class DepartmentServices {
     }
   }
 
-  // ✅ SIMPLIFIED: Accept ID directly
+  // ✅ SIMPLIFIED: Accept ID directly with caching
   async findOne() {
     try {
       const id = this.ctx.request.param('id')
-      const department = await Department.query()
-        .where('id', id)
-        .apply((scope) => scope.softDeletes())
-        .preload('institute')
-        .firstOrFail()
+      const cacheKey = `departments:one:${id}`
 
-      return {
-        status: true,
-        message: messages.department_fetched_successfully,
-        data: department,
-      }
+      return await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          const department = await Department.query()
+            .where('id', id)
+            .apply((scope) => scope.softDeletes())
+            .preload('institute')
+            .firstOrFail()
+
+          return {
+            status: true,
+            message: messages.department_fetched_successfully,
+            data: department,
+          }
+        },
+        [`departments-${id}`]
+      )
     } catch (error) {
       return {
         status: false,
@@ -145,6 +174,7 @@ export default class DepartmentServices {
       const departmentData = await Department.findOrFail(id)
       departmentData.merge(validatedData)
       await departmentData.save()
+      apiCacheService.invalidateByPrefix('departments:')
 
       return {
         status: true,
@@ -165,6 +195,7 @@ export default class DepartmentServices {
       const id = this.ctx.request.param('id')
       const department = await Department.findOrFail(id)
       await department.delete()
+      apiCacheService.invalidateByPrefix('departments:')
 
       return {
         status: true,
@@ -180,4 +211,3 @@ export default class DepartmentServices {
     }
   }
 }
-

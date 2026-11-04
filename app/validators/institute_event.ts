@@ -10,13 +10,13 @@ export const createInstituteEventValidator = vine.compile(
         eventVenue: vine.string().trim().minLength(3),
         eventLocation: vine.string().trim().minLength(3).optional(),
         registrationLink: vine.string().trim().minLength(2).maxLength(100).optional(),
-        eventFee: vine.string().trim().minLength(1).optional(),
+        eventFee: vine.string().trim().regex(/^\d+(\.\d{1,2})?$/).nullable().optional(),
         eventDuration: vine.number().positive(),
-        eventDate: vine.date(),
-        latitude: vine.string().trim().minLength(2).maxLength(100).optional(),
-        longitude: vine.string().trim().minLength(2).maxLength(100).optional(),
-        eventStartTime: vine.string().trim().minLength(3),
-        eventEndTime: vine.string().trim().minLength(3),
+        eventDate: vine.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
+
+
+        eventStartTime: vine.string().trim().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/), // HH:MM
+        eventEndTime: vine.string().trim().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/), // HH:MM
         eventBanner: vine.string().trim().minLength(3),
         eventCategory: vine.string().trim().minLength(3),
         eventSubCategory: vine.string().trim().minLength(3),
@@ -47,13 +47,13 @@ export const updateInstituteEventValidator = vine.compile(
         eventVenue: vine.string().trim().minLength(3).optional(),
         eventLocation: vine.string().trim().minLength(3).optional(),
         registrationLink: vine.string().trim().minLength(2).maxLength(100).optional(),
-        eventFee: vine.string().trim().minLength(1).optional(),
+        eventFee: vine.string().trim().regex(/^\d+(\.\d{1,2})?$/).nullable().optional(),
         eventDuration: vine.number().positive(), 
-        eventDate: vine.date().optional(),
-        latitude: vine.string().trim().minLength(2).maxLength(100).optional(),
-        longitude: vine.string().trim().minLength(2).maxLength(100).optional(),
-        eventStartTime: vine.string().trim().minLength(3).optional(),
-        eventEndTime: vine.string().trim().minLength(3).optional(),
+        eventDate: vine.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+
+
+        eventStartTime: vine.string().trim().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional(),
+        eventEndTime: vine.string().trim().regex(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).optional(),
         eventBanner: vine.string().trim().minLength(3).optional(),
         eventCategory: vine.string().trim().minLength(3).optional(),
         eventSubCategory: vine.string().trim().minLength(3).optional(),

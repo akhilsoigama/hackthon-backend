@@ -11,7 +11,7 @@ export default class AssignmentUploadService {
 
   private async getAuthenticatedUser() {
     try {
-      return await this.ctx.auth.authenticate()
+      const ctx = this.ctx as any; return ctx.user ?? ctx.authUser ?? this.ctx.auth.user ?? null
     } catch {
       return null
     }
@@ -113,6 +113,11 @@ async create() {
       }
 
       requestData.studentId = authUser.studentId
+      if (requestData.grad && !requestData.grade) requestData.grade = requestData.grad
+      if (requestData.grade && !requestData.grad) requestData.grad = requestData.grade
+      if (requestData.isGradedByFaculty !== undefined && requestData.isGraded === undefined) {
+        requestData.isGraded = requestData.isGradedByFaculty
+      }
     }
 
     const requiredFields = ['assignmentId', 'studentId', 'assignmentFile', 'isActive']
@@ -223,6 +228,11 @@ async create() {
 
       const requestData = this.ctx.request.all()
       const validatedData = await assignmentUploadUpdateValidator.validate(requestData)
+      if (validatedData.grad && !validatedData.grade) validatedData.grade = validatedData.grad
+      if (validatedData.grade && !validatedData.grad) validatedData.grad = validatedData.grade
+      if (validatedData.isGradedByFaculty !== undefined && validatedData.isGraded === undefined) {
+        validatedData.isGraded = validatedData.isGradedByFaculty
+      }
       const assignmentUpload = await AssignmentUpload.query()
         .where('id', Number(id))
         .apply((scope) => scope.softDeletes())
