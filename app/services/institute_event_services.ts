@@ -77,9 +77,81 @@ export default class InstituteEventService {
           message: messages.institute_event_already_exists,
         })
       }
+      
+      // Strict Fee validation
+      if (requestData.isFree === false || requestData.isFree === 'false') {
+        if (!requestData.eventFee || String(requestData.eventFee).trim() === '') {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event fee is required for paid events',
+          })
+        }
+        const feeStr = String(requestData.eventFee).trim()
+        if (feeStr.includes('-')) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event fee cannot be negative',
+          })
+        }
+        const feeNum = Number(feeStr.replace(/[^0-9.]/g, ''))
+        if (Number.isNaN(feeNum) || feeNum <= 0) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event fee must be a valid positive amount greater than 0',
+          })
+        }
+        requestData.eventFee = feeNum.toString()
+      } else {
+        requestData.eventFee = null
+      }
+
+      // Strict Date validation
+      if (requestData.eventDate) {
+        const todayStr = new Date().toISOString().split('T')[0]
+        const dateStr = String(requestData.eventDate).slice(0, 10)
+        if (requestData.eventStatus === 'upcoming' && dateStr < todayStr) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event date cannot be in the past for upcoming events',
+          })
+        }
+      }
+
+      // Strict Start & End Time validation
+      if (requestData.eventStartTime && requestData.eventEndTime) {
+        const [sH, sM] = String(requestData.eventStartTime).split(':').map(Number)
+        const [eH, eM] = String(requestData.eventEndTime).split(':').map(Number)
+        if (!Number.isNaN(sH) && !Number.isNaN(eH)) {
+          const startMins = sH * 60 + (sM || 0)
+          const endMins = eH * 60 + (eM || 0)
+          if (endMins <= startMins) {
+            return this.ctx.response.status(422).send({
+              status: false,
+              message: 'End time must be strictly after start time',
+            })
+          }
+        }
+        if (requestData.eventStatus === 'upcoming' && requestData.eventDate) {
+          const todayStr = new Date().toISOString().split('T')[0]
+          const dateStr = String(requestData.eventDate).slice(0, 10)
+          if (dateStr === todayStr) {
+            const now = new Date()
+            const currentMins = now.getHours() * 60 + now.getMinutes()
+            const [sH, sM] = String(requestData.eventStartTime).split(':').map(Number)
+            if (!Number.isNaN(sH) && (sH * 60 + (sM || 0)) < currentMins) {
+              return this.ctx.response.status(422).send({
+                status: false,
+                message: "Start time cannot be in the past for today's event",
+              })
+            }
+          }
+        }
+      }
+
       const validate = await createInstituteEventValidator.validate(requestData)
-      const instituteEventData = {
+      const instituteEventData: any = {
         ...validate,
+        eventDate: validate.eventDate ? new Date(validate.eventDate) : undefined,
         isActive: validate?.isActive ?? true,
       }
       const instituteEvent = await InstituteEvent.create(instituteEventData)
@@ -116,8 +188,83 @@ export default class InstituteEventService {
           message: messages.institute_event_not_found,
         })
       }
+      
+      // Strict Fee validation
+      if (requestData.isFree === false || requestData.isFree === 'false') {
+        if (!requestData.eventFee || String(requestData.eventFee).trim() === '') {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event fee is required for paid events',
+          })
+        }
+        const feeStr = String(requestData.eventFee).trim()
+        if (feeStr.includes('-')) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event fee cannot be negative',
+          })
+        }
+        const feeNum = Number(feeStr.replace(/[^0-9.]/g, ''))
+        if (Number.isNaN(feeNum) || feeNum <= 0) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event fee must be a valid positive amount greater than 0',
+          })
+        }
+        requestData.eventFee = feeNum.toString()
+      } else {
+        requestData.eventFee = null
+      }
+
+      // Strict Date validation
+      if (requestData.eventDate) {
+        const todayStr = new Date().toISOString().split('T')[0]
+        const dateStr = String(requestData.eventDate).slice(0, 10)
+        if (requestData.eventStatus === 'upcoming' && dateStr < todayStr) {
+          return this.ctx.response.status(422).send({
+            status: false,
+            message: 'Event date cannot be in the past for upcoming events',
+          })
+        }
+      }
+
+      // Strict Start & End Time validation
+      if (requestData.eventStartTime && requestData.eventEndTime) {
+        const [sH, sM] = String(requestData.eventStartTime).split(':').map(Number)
+        const [eH, eM] = String(requestData.eventEndTime).split(':').map(Number)
+        if (!Number.isNaN(sH) && !Number.isNaN(eH)) {
+          const startMins = sH * 60 + (sM || 0)
+          const endMins = eH * 60 + (eM || 0)
+          if (endMins <= startMins) {
+            return this.ctx.response.status(422).send({
+              status: false,
+              message: 'End time must be strictly after start time',
+            })
+          }
+        }
+        if (requestData.eventStatus === 'upcoming' && requestData.eventDate) {
+          const todayStr = new Date().toISOString().split('T')[0]
+          const dateStr = String(requestData.eventDate).slice(0, 10)
+          if (dateStr === todayStr) {
+            const now = new Date()
+            const currentMins = now.getHours() * 60 + now.getMinutes()
+            const [sH, sM] = String(requestData.eventStartTime).split(':').map(Number)
+            if (!Number.isNaN(sH) && (sH * 60 + (sM || 0)) < currentMins) {
+              return this.ctx.response.status(422).send({
+                status: false,
+                message: "Start time cannot be in the past for today's event",
+              })
+            }
+          }
+        }
+      }
+
       const validatedData = await updateInstituteEventValidator.validate(requestData)
-      instituteEvent.merge(validatedData)
+      const dataToMerge: any = { ...validatedData }
+      if (validatedData.eventDate) {
+        dataToMerge.eventDate = new Date(validatedData.eventDate)
+      }
+      instituteEvent.merge(dataToMerge)
       await instituteEvent.save()
       this.invalidateEventCaches()
       return {

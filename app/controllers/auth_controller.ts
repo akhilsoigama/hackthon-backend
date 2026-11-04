@@ -21,7 +21,7 @@ import Student from '#models/student'
 import db from '@adonisjs/lucid/services/db'
 import { ADMIN_AUTH_ACCESS_TOKENS, AUTH_ACCESS_TOKENS } from '#database/constants/table_names'
 import env from '#start/env'
-// import apiCacheService from '#services/api_cache_service'
+import apiCacheService from '#services/api_cache_service'
 // import type { AccessToken } from '@adonisjs/auth/access_tokens'
 
 type AdminUserType = InstanceType<typeof AdminUser>
@@ -64,8 +64,6 @@ export default class AuthController {
     ])
   }
 
-
-
   private isUserModel(user: unknown): user is User {
     return user instanceof User
   }
@@ -76,7 +74,26 @@ export default class AuthController {
 
   public async testDB({ response }: HttpContext) {
     try {
-      const user = await AdminUser.findBy('email', 'super@admin.com')
+      const user = await db
+        .from(AdminUser.table)
+        .where('email', 'super@admin.com')
+        .select([
+          'id',
+          'user_type',
+          'full_name',
+          'email',
+          'mobile',
+          'institute_id',
+          'faculty_id',
+          'is_email_verified',
+          'is_mobile_verified',
+          'is_active',
+          'is_admin',
+          'created_at',
+          'updated_at',
+        ])
+        .first()
+
       return response.json({
         success: true,
         userExists: !!user,
@@ -103,7 +120,7 @@ export default class AuthController {
         await user.related('userRoles').attach([role.id])
       }
     } catch (error) {
-      console.error('❌ Error assigning role to user:', error)
+      console.error('âŒ Error assigning role to user:', error)
     }
   }
 
@@ -249,122 +266,88 @@ export default class AuthController {
 
   private async syncInstituteToUser(institute: Institute) {
     try {
-      // Deleted users bhi dhundo — whereNull hatao
-      let user = await User.query()
-        .where('email', institute.instituteEmail)
-        .where('userType', 'institute')
-        .first()
-
-      if (user) {
-        // Agar deleted tha toh restore karo
-        await db.rawQuery(
-          `UPDATE users SET 
-          full_name = ?,
-          mobile = ?,
-          institute_id = ?,
-          is_active = ?,
-          password = ?,
-          deleted_at = NULL,
-          updated_at = NOW()
-         WHERE id = ?`,
-          [
-            institute.instituteName,
-            institute.institutePhone || '0000000000',
-            institute.id,
-            institute.isActive,
-            institute.institutePassword,
-            user.id,
-          ]
-        )
-
-        user = await User.findOrFail(user.id)
-      } else {
-        await db.rawQuery(
-          `INSERT INTO users (full_name, email, password, user_type, institute_id, mobile, is_active, is_email_verified, is_mobile_verified, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [
-            institute.instituteName,
-            institute.instituteEmail,
-            institute.institutePassword,
-            'institute',
-            institute.id,
-            institute.institutePhone || '0000000000',
-            institute.isActive,
-            false,
-            false,
-          ]
-        )
-
-        user = await User.query()
-          .where('email', institute.instituteEmail)
-          .where('userType', 'institute')
-          .firstOrFail()
-      }
+      const user = await User.updateOrCreate(
+        {
+          email: institute.instituteEmail,
+          userType: 'institute',
+        },
+        {
+          fullName: institute.instituteName,
+          mobile: institute.institutePhone || '0000000000',
+          instituteId: institute.id,
+          isActive: institute.isActive,
+          password: institute.institutePassword,
+          isEmailVerified: false,
+          isMobileVerified: false,
+        }
+      )
 
       return user
     } catch (error) {
-      console.error('❌ Error syncing institute to user:', error)
+      console.error('Error syncing institute to user:', error)
       throw error
     }
   }
 
- private async syncFacultyToUser(faculty: Faculty) {
+  private async syncFacultyToUser(faculty: Faculty) {
     try {
-      let user = await User.query()
-        .where('email', faculty.facultyEmail)
-        .where('userType', 'faculty')
-        .first()
-
-      if (user) {
-        await db.rawQuery(
-          `UPDATE users SET full_name = ?, mobile = ?, institute_id = ?, faculty_id = ?, is_active = ?, password = ?, deleted_at = NULL, updated_at = NOW() WHERE id = ?`,
-          [faculty.facultyName, faculty.facultyMobile || '0000000000', faculty.instituteId, faculty.id, faculty.isActive, faculty.facultyPassword, user.id]
-        )
-        user = await User.findOrFail(user.id)
-      } else {
-        await db.rawQuery(
-          `INSERT INTO users (full_name, email, password, user_type, faculty_id, institute_id, mobile, is_active, is_email_verified, is_mobile_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [faculty.facultyName, faculty.facultyEmail, faculty.facultyPassword, 'faculty', faculty.id, faculty.instituteId, faculty.facultyMobile || '0000000000', faculty.isActive, false, false]
-        )
-        user = await User.query().where('email', faculty.facultyEmail).where('userType', 'faculty').firstOrFail()
-      }
+      const user = await User.updateOrCreate(
+        {
+          email: faculty.facultyEmail,
+          userType: 'faculty',
+        },
+        {
+          fullName: faculty.facultyName,
+          mobile: faculty.facultyMobile || '0000000000',
+          instituteId: faculty.instituteId,
+          facultyId: faculty.id,
+          isActive: faculty.isActive,
+          password: faculty.facultyPassword,
+          isEmailVerified: false,
+          isMobileVerified: false,
+        }
+      )
 
       return user
     } catch (error) {
-      console.error('❌ Error syncing faculty to user:', error)
+      console.error('Error syncing faculty to user:', error)
       throw error
     }
   }
 
-
-private async syncStudentToUser(student: Student) {
+  private async syncStudentToUser(student: Student) {
     try {
-      let user = await User.query()
-        .where('email', student.studentEmail)
-        .where('userType', 'student')
-        .first()
-
-      if (user) {
-        await db.rawQuery(
-          `UPDATE users SET full_name = ?, mobile = ?, institute_id = ?, student_id = ?, is_active = ?, password = ?, deleted_at = NULL, updated_at = NOW() WHERE id = ?`,
-          [student.studentName, student.studentMobile || '0000000000', student.instituteId, student.id, student.isActive, student.studentPassword, user.id]
-        )
-        user = await User.findOrFail(user.id)
-      } else {
-        await db.rawQuery(
-          `INSERT INTO users (full_name, email, password, user_type, student_id, institute_id, mobile, is_active, is_email_verified, is_mobile_verified, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [student.studentName, student.studentEmail, student.studentPassword, 'student', student.id, student.instituteId, student.studentMobile || '0000000000', student.isActive, false, false]
-        )
-        user = await User.query().where('email', student.studentEmail).where('userType', 'student').firstOrFail()
-      }
+      const user = await User.updateOrCreate(
+        {
+          email: student.studentEmail,
+          userType: 'student',
+        },
+        {
+          fullName: student.studentName,
+          mobile: student.studentMobile || '0000000000',
+          instituteId: student.instituteId,
+          studentId: student.id,
+          isActive: student.isActive,
+          password: student.studentPassword,
+          isEmailVerified: false,
+          isMobileVerified: false,
+        }
+      )
 
       return user
     } catch (error) {
-      console.error('❌ Error syncing student to user:', error)
+      console.error('Error syncing student to user:', error)
       throw error
     }
   }
 
+  /**
+   * @login
+   * @summary User Login
+   * @description Login with email and password to receive Bearer token
+   * @requestBody {"email":"super@admin.com","password":"12345678"}
+   * @responseBody 200 - {"success":true,"token":"string","message":"Login successful"}
+   */
   public async login({ request, response }: HttpContext) {
     try {
       const { email, password } = request.only(['email', 'password'])
@@ -426,15 +409,16 @@ private async syncStudentToUser(student: Student) {
           const apiAuth = auth.use('api')
           const apiCheck = await apiAuth.check()
           if (apiCheck) authenticatedUser = (apiAuth.user as AuthUserType | undefined) || null
-        } catch {}
+        } catch { }
       }
 
       if (!authenticatedUser) {
         try {
           const adminapiAuth = auth.use('adminapi')
           const adminapiCheck = await adminapiAuth.check()
-          if (adminapiCheck) authenticatedUser = (adminapiAuth.user as AuthUserType | undefined) || null
-        } catch {}
+          if (adminapiCheck)
+            authenticatedUser = (adminapiAuth.user as AuthUserType | undefined) || null
+        } catch { }
       }
 
       if (!authenticatedUser) {
@@ -448,11 +432,11 @@ private async syncStudentToUser(student: Student) {
       } else {
         authType = 'admin'
       }
-      
+
       const userProfile = await authService.getProfile(authenticatedUser, authType as AuthType)
 
       if (!userProfile) {
-         return response.unauthorized({ success: false, message: 'Unknown user type' })
+        return response.unauthorized({ success: false, message: 'Unknown user type' })
       }
 
       return response.ok({
@@ -468,8 +452,14 @@ private async syncStudentToUser(student: Student) {
       })
     }
   }
-  public async logout({ auth, response }: HttpContext) {
+  public async logout({ auth, request, response }: HttpContext) {
     try {
+      const authHeader = request.header('authorization')
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const { invalidateAuthToken } = await import('#middleware/auth_middleware')
+        invalidateAuthToken(authHeader.slice(7).trim())
+      }
+
       const { tokenService } = makeServices()
 
       let user = auth.user as AuthUserType | null
@@ -479,7 +469,7 @@ private async syncStudentToUser(student: Student) {
           const apiAuth = auth.use('api')
           await apiAuth.authenticate()
           if (apiAuth.user) user = apiAuth.user as AuthUserType
-        } catch {}
+        } catch { }
       }
 
       if (!user) {
@@ -487,7 +477,7 @@ private async syncStudentToUser(student: Student) {
           const adminAuth = auth.use('adminapi')
           await adminAuth.authenticate()
           if (adminAuth.user) user = adminAuth.user as AuthUserType
-        } catch {}
+        } catch { }
       }
 
       if (user) {
@@ -554,6 +544,25 @@ private async syncStudentToUser(student: Student) {
     }
   }
 
+  private async getUserPermissionKeys(userId: number): Promise<string[]> {
+    return apiCacheService.getOrSet(`user:permissions:${userId}`, 60_000, async () => {
+      const userWithPermissions = await User.query()
+        .where('id', userId)
+        .preload('userRoles', (query) => {
+          query.preload('permissions')
+        })
+        .first()
+
+      if (userWithPermissions && userWithPermissions.userRoles) {
+        const perms = userWithPermissions.userRoles.flatMap((role) =>
+          role.permissions ? role.permissions.map((p) => p.permissionKey) : []
+        )
+        return [...new Set(perms)]
+      }
+      return []
+    })
+  }
+
   public async checkPermission({ auth, response, request }: HttpContext) {
     try {
       const { permissionKey } = request.only(['permissionKey'])
@@ -569,18 +578,8 @@ private async syncStudentToUser(student: Student) {
       let hasPermission = false
 
       if (this.isUserModel(user)) {
-        const userWithPermissions = await User.query()
-          .where('id', user.id)
-          .preload('userRoles', (query) => {
-            query.preload('permissions')
-          })
-          .first()
-
-        if (userWithPermissions) {
-          hasPermission = userWithPermissions.userRoles.some((role) =>
-            role.permissions.some((permission) => permission.permissionKey === permissionKey)
-          )
-        }
+        const permissions = await this.getUserPermissionKeys(user.id)
+        hasPermission = permissions.includes(permissionKey)
       } else if (this.isAdminUserModel(user)) {
         hasPermission = true
       }
@@ -613,19 +612,7 @@ private async syncStudentToUser(student: Student) {
       let permissions: string[] = []
 
       if (this.isUserModel(user)) {
-        const userWithPermissions = await User.query()
-          .where('id', user.id)
-          .preload('userRoles', (query) => {
-            query.preload('permissions')
-          })
-          .first()
-
-        if (userWithPermissions && userWithPermissions.userRoles) {
-          permissions = userWithPermissions.userRoles.flatMap((role) =>
-            role.permissions ? role.permissions.map((p) => p.permissionKey) : []
-          )
-          permissions = [...new Set(permissions)]
-        }
+        permissions = await this.getUserPermissionKeys(user.id)
       } else if (this.isAdminUserModel(user)) {
         permissions = ['*']
       }
@@ -873,17 +860,17 @@ private async syncStudentToUser(student: Student) {
             } else {
               const errorMsg = `Institute ${user.instituteId} has no role assigned for user ${user.email}`
               errors.push(errorMsg)
-              console.log(`❌ ${errorMsg}`)
+              console.log(`âŒ ${errorMsg}`)
             }
           } else {
             const errorMsg = `User ${user.email} has no instituteId`
             errors.push(errorMsg)
-            console.log(`❌ ${errorMsg}`)
+            console.log(`âŒ ${errorMsg}`)
           }
         } catch (error: unknown) {
           const errorMsg = `Failed to assign role to ${user.email}: ${error instanceof Error ? error.message : String(error)}`
           errors.push(errorMsg)
-          console.log(`❌ ${errorMsg}`)
+          console.log(`âŒ ${errorMsg}`)
         }
       }
 
@@ -896,7 +883,7 @@ private async syncStudentToUser(student: Student) {
         errors: errors.length > 0 ? errors : undefined,
       })
     } catch (error: unknown) {
-      console.error('❌ Error in fixInstituteRoles:', error)
+      console.error('âŒ Error in fixInstituteRoles:', error)
       return response.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

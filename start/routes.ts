@@ -1,3 +1,5 @@
+import AutoSwagger from 'adonis-autoswagger'
+import swagger from '#config/swagger'
 /*
 |--------------------------------------------------------------------------
 | Routes file
@@ -29,7 +31,7 @@ const QuizzesControllersController = () => import('#controllers/quizzes_controll
 const QuizAttemptController = () => import('#controllers/quiz_attempt_controller')
 const AssignmentUploadsController = () => import('#controllers/assignment_uploads_controller')
 import { RateLimitConfigs } from '../app/helper/rate_limiter.js'
-import MaterialsController from '#controllers/materials_controller'
+const MaterialsController = () => import('#controllers/materials_controller')
 const FacultyLeaveController = () => import('#controllers/faculty_leave_controller')
 const StudentQueriesController = () => import('#controllers/student_queries_controller')
 const InstituteEventWithGovtEventsController = () => import('#controllers/institute_event_with_govt_events_controller')
@@ -52,16 +54,29 @@ router.get('/api/online-library/metadata/:identifier', [OnlineLibrariesControlle
 
 // RAG Skill Learning & Semantic Search Endpoints (both /api/rag and /rag prefixes)
 for (const prefix of ['/api/rag', '/rag']) {
-  router.post(`${prefix}/course`, [RagController, 'createCourse'])
-  router.post(`${prefix}/query`, [RagController, 'queryCourses'])
+  // Read-only routes — require authentication only
   router.get(`${prefix}/courses`, [RagController, 'listCourses'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
   router.get(`${prefix}/courses/:id`, [RagController, 'showCourse'])
-  router.put(`${prefix}/courses/:id`, [RagController, 'updateCourse'])
-  router.delete(`${prefix}/courses/:id`, [RagController, 'deleteCourse'])
-  router.post(`${prefix}/sync`, [RagController, 'syncLms'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+  router.post(`${prefix}/query`, [RagController, 'queryCourses'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
   router.get(`${prefix}/stats`, [RagController, 'stats'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
-  // generate-quiz requires authentication — move it into the auth group below
+  // Write routes — require authentication + SKILL_RAG_COURSE_CREATE permission
+  router.post(`${prefix}/course`, [RagController, 'createCourse'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
+  router.put(`${prefix}/courses/:id`, [RagController, 'updateCourse'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
+  router.delete(`${prefix}/courses/:id`, [RagController, 'deleteCourse'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
+  router.post(`${prefix}/sync`, [RagController, 'syncLms'])
+    .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    .use(middleware.permission([PermissionKeys.SKILL_RAG_COURSE_CREATE]))
 }
 
 // RAG generate-quiz: authenticated (students + faculty + admin all call this)
@@ -307,11 +322,7 @@ router
     router.patch('/api/materials/:id', [MaterialsController, 'update'])
     router.delete('/api/materials/:id', [MaterialsController, 'destroy'])
 
-    router
-      .resource('materials', MaterialsController)
-      .apiOnly()
-
-
+    router.resource('materials', MaterialsController).apiOnly()
 
     // Quiz Routes
     router
@@ -378,9 +389,32 @@ router
   .use(middleware.rateLimit({ config: RateLimitConfigs.api }))
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
 
+// ── Swagger / OpenAPI Documentation ──────────────────────────────────────
+router.get('/swagger', async () => {
+  return AutoSwagger.default.docs(router.toJSON(), swagger)
+})
+
+router.get('/docs', async () => {
+  return AutoSwagger.default.ui('/swagger', swagger)
+})
+
+router.get('/scalar', async () => {
+  return AutoSwagger.default.scalar('/swagger')
+})
+
 router.any('*', ({ response }) => {
   return response.status(404).json({
     success: false,
     message: 'Route not found',
   })
 })
+
+
+// ── Background Warmup for DB Connection Pool & Auth Controller ──────────
+setTimeout(async () => {
+  try {
+    const { default: database } = await import('@adonisjs/lucid/services/db')
+    await database.rawQuery('SELECT 1')
+    await import('#controllers/auth_controller')
+  } catch {}
+}, 50)

@@ -7,6 +7,7 @@ import Role from '#models/role'
 import { createInstituteValidator, updateInstituteValidator } from '#validators/institute'
 import EmailService from './email_services.js'
 import { generateCredentialPassword } from '../helper/password_generator.js'
+import apiCacheService from './api_cache_service.js'
 
 @inject()
 export default class instituteController {
@@ -30,27 +31,8 @@ export default class instituteController {
   }
 
   private async getAuthenticatedUser() {
-    try {
-      const apiAuth = this.ctx.auth.use('api')
-      const isApiAuth = await apiAuth.check()
-      if (isApiAuth && apiAuth.user) {
-        return apiAuth.user
-      }
-    } catch {
-      // Try admin guard next
-    }
-
-    try {
-      const adminAuth = this.ctx.auth.use('adminapi')
-      const isAdminAuth = await adminAuth.check()
-      if (isAdminAuth && adminAuth.user) {
-        return adminAuth.user
-      }
-    } catch {
-      // No authenticated user found in supported guards
-    }
-
-    return null
+    const ctx = this.ctx as any
+    return ctx.user ?? ctx.authUser ?? this.ctx.auth.user ?? null
   }
   private async sendEmail(email: string, password: string, userType: string, name: string) {
     try {
@@ -148,6 +130,7 @@ export default class instituteController {
       }
 
       const institute = await Institute.create(instituteData)
+      apiCacheService.invalidateByPrefix('institute:')
       this.sendEmail(
         institute.instituteEmail,
         instituteData.institutePassword,
@@ -183,30 +166,38 @@ export default class instituteController {
         })
       }
 
-      let instituteQuery = Institute.query()
-        .where('id', id)
-        .apply((scopes) => scopes.softDeletes())
-        .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
+      const cacheKey = `institute:one:${id}:scope:${scopeInstituteId ?? 'all'}`
+      return await apiCacheService.getOrSet(
+        cacheKey,
+        30_000,
+        async () => {
+          let instituteQuery = Institute.query()
+            .where('id', id)
+            .apply((scopes) => scopes.softDeletes())
+            .preload('role', (q) => q.select(['id', 'roleName', 'roleKey']))
 
-      if (this.isInstituteScopedUser(authUser)) {
-        instituteQuery = instituteQuery.where('id', scopeInstituteId || 0)
-      }
+          if (this.isInstituteScopedUser(authUser)) {
+            instituteQuery = instituteQuery.where('id', scopeInstituteId || 0)
+          }
 
-      const institute = await instituteQuery.first()
+          const institute = await instituteQuery.first()
 
-      if (institute) {
-        return {
-          status: true,
-          message: messages.indtitute_fetched_successfully,
-          data: institute,
-        }
-      } else {
-        return {
-          status: false,
-          message: messages.institute_not_found,
-          data: null,
-        }
-      }
+          if (institute) {
+            return {
+              status: true,
+              message: messages.indtitute_fetched_successfully,
+              data: institute,
+            }
+          } else {
+            return {
+              status: false,
+              message: messages.institute_not_found,
+              data: null,
+            }
+          }
+        },
+        [`institute-${id}`]
+      )
     } catch (error) {
       return {
         status: false,
@@ -246,6 +237,7 @@ export default class instituteController {
 
       existinginstitute.merge(validatedData)
       await existinginstitute.save()
+      apiCacheService.invalidateByPrefix('institute:')
 
       await existinginstitute.load('role', (q) => q.select(['id', 'roleName', 'roleKey']))
 
@@ -287,6 +279,7 @@ export default class instituteController {
 
     // Institute aur linked user dono permanently delete karo
     await institute.delete()
+    apiCacheService.invalidateByPrefix('institute:')
     
 
     return {

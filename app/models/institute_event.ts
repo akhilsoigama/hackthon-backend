@@ -85,14 +85,14 @@ export default class InstituteEvent extends BaseModel {
     @column() declare eventVenue: string;
     @column() declare eventLocation: string;
     @column() declare registrationLink: string;
-    @column() declare eventFee: string;
+    @column() declare eventFee: string | null;
     @column() declare eventDuration: number;
     @column() declare eventDate: Date;
     @column() declare eventStartTime: string;
     @column() declare eventEndTime: string;
     @column() declare eventCategory: string;
-    @column() declare latitude: string
-    @column() declare longitude: string
+
+
     @column() declare eventContact: string
     @column() declare eventEmail: string
     @column() declare eventPhone: string

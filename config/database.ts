@@ -14,12 +14,9 @@ const dbConfig = defineConfig({
         database: env.get('DB_DATABASE'),
         ssl: env.get('DB_SSL', true) ? { rejectUnauthorized: false } : false,
       },
-      // ── Connection Pool ────────────────────────────────────────────────────
-      // Tune via DB_POOL_MIN / DB_POOL_MAX environment variables.
-      // Defaults: min=2, max=10 — suitable for most deployments.
       pool: {
-        min: 2,
-        max: 10,
+        min: env.get('DB_POOL_MIN') ?? 5,
+        max: env.get('DB_POOL_MAX') ?? 50,
 
         acquireTimeoutMillis: 60_000,
         createTimeoutMillis: 30_000,

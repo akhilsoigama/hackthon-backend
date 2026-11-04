@@ -27,7 +27,7 @@ export default class StudentServices {
 
   private async getAuthenticatedUser() {
     try {
-      return await this.ctx.auth.authenticate()
+      const ctx = this.ctx as any; return ctx.user ?? ctx.authUser ?? this.ctx.auth.user ?? null
     } catch {
       return null
     }
