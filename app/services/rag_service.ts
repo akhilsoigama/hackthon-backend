@@ -167,70 +167,6 @@ export default class RagService {
       )
       courseId = newCourse.id
 
-      // Build hierarchical chunks for vector indexing
-      const chunksToIndex: Array<{
-        title: string
-        content: string
-        metadata: Record<string, unknown>
-      }> = []
-
-      // 1. Course overview chunk
-      const overviewContent = [
-        `Course: ${title}`,
-        `Category: ${category}${course.subCategory ? ` / ${course.subCategory}` : ''}`,
-        `Description: ${course.description || ''}`,
-        tags.length ? `Tags: ${tags.join(', ')}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n')
-
-      chunksToIndex.push({
-        title,
-        content: overviewContent,
-        metadata: { courseId, title, category, subCategory: course.subCategory, tags },
-      })
-
-      // 2. Submodule & video chunks
-      for (const [modIdx, sm] of subModules.entries()) {
-        const videoTitles = sm.videos?.map((v) => v.title).filter(Boolean) || []
-        const modContent = [
-          `Course: ${title} - Module ${modIdx + 1}: ${sm.title}`,
-          sm.description ? `Module Description: ${sm.description}` : '',
-          videoTitles.length ? `Lessons: ${videoTitles.join('; ')}` : '',
-        ]
-          .filter(Boolean)
-          .join('\n')
-
-        chunksToIndex.push({
-          title: `${title} - ${sm.title}`,
-          content: modContent,
-          metadata: { courseId, moduleIndex: modIdx, moduleTitle: sm.title },
-        })
-      }
-
-      // Generate embeddings
-      const embeddings = await Promise.all(chunksToIndex.map((c) => this.embed(c.content)))
-
-      // Clean old chunks if any exist for this course
-      await trx
-        .from('rag_documents')
-        .where('source_type', 'course')
-        .where('source_id', courseId)
-        .delete()
-
-      for (const [index, chunkItem] of chunksToIndex.entries()) {
-        await trx.table('rag_documents').insert({
-          source_type: 'course',
-          source_id: courseId,
-          institute_id: instituteId,
-          title: chunkItem.title,
-          content: chunkItem.content,
-          chunk_index: index,
-          embedding: this.toVector(embeddings[index]),
-          metadata: JSON.stringify(chunkItem.metadata),
-        })
-      }
-
       await trx.commit()
 
       return {
@@ -313,71 +249,6 @@ export default class RagService {
       existing.subModules = subModules
       await existing.save()
 
-      // Re-index vector chunks
-      const chunksToIndex: Array<{
-        title: string
-        content: string
-        metadata: Record<string, unknown>
-      }> = []
-
-      // 1. Overview chunk
-      const overviewContent = [
-        `Course Title: ${title}`,
-        `Category: ${category}`,
-        subCategory ? `Sub-Category: ${subCategory}` : '',
-        description ? `Description: ${description}` : '',
-        tags.length ? `Tags: ${tags.join(', ')}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n')
-
-      chunksToIndex.push({
-        title,
-        content: overviewContent,
-        metadata: { courseId, title, category, subCategory, tags },
-      })
-
-      // 2. Submodule & video chunks
-      for (const [modIdx, sm] of subModules.entries()) {
-        const videoTitles = sm.videos?.map((v: { title: string }) => v.title).filter(Boolean) || []
-        const modContent = [
-          `Course: ${title} - Module ${modIdx + 1}: ${sm.title}`,
-          sm.description ? `Module Description: ${sm.description}` : '',
-          videoTitles.length ? `Lessons: ${videoTitles.join('; ')}` : '',
-        ]
-          .filter(Boolean)
-          .join('\n')
-
-        chunksToIndex.push({
-          title: `${title} - ${sm.title}`,
-          content: modContent,
-          metadata: { courseId, moduleIndex: modIdx, moduleTitle: sm.title },
-        })
-      }
-
-      // Generate embeddings
-      const embeddings = await Promise.all(chunksToIndex.map((c) => this.embed(c.content)))
-
-      // Clean old chunks
-      await trx
-        .from('rag_documents')
-        .where('source_type', 'course')
-        .where('source_id', courseId)
-        .delete()
-
-      for (const [index, chunkItem] of chunksToIndex.entries()) {
-        await trx.table('rag_documents').insert({
-          source_type: 'course',
-          source_id: courseId,
-          institute_id: existing.instituteId,
-          title: chunkItem.title,
-          content: chunkItem.content,
-          chunk_index: index,
-          embedding: this.toVector(embeddings[index]),
-          metadata: JSON.stringify(chunkItem.metadata),
-        })
-      }
-
       await trx.commit()
 
       return {
@@ -416,60 +287,10 @@ export default class RagService {
     const subCategory = (params.subCategory ?? '').trim()
     const instituteId = params.instituteId ?? null
 
-    // If query is empty, return recent courses ordered by creation date
-    if (!query) {
-      let qb = RagCourse.query()
-      if (category) {
-        qb = qb.whereILike('category', category)
-      }
-      if (subCategory) {
-        qb = qb.whereILike('sub_category', subCategory)
-      }
-      if (instituteId !== null) {
-        qb = qb.where((builder) => {
-          builder.where('institute_id', instituteId).orWhereNull('institute_id')
-        })
-      }
-      const rows = await qb.orderBy('created_at', 'desc').limit(limit).offset(offset)
-      return rows.map((row) => this.mapCourseRowToResult(row, 1.0))
-    }
+    let qb = RagCourse.query()
 
-    // When query is non-empty: perform Hybrid Search (Vector + Lexical)
-    const embedding = await this.embed(query)
-    const vector = this.toVector(embedding)
-
-    // 1. Vector Search on course document chunks
-    const vectorSql = `
-      SELECT source_id AS course_id,
-             MIN(embedding <=> ?::vector) AS min_dist,
-             MAX(1 - (embedding <=> ?::vector)) AS vector_score
-      FROM rag_documents
-      WHERE source_type = 'course'
-        AND (?::int IS NULL OR institute_id = ?::int OR institute_id IS NULL)
-      GROUP BY source_id
-      ORDER BY min_dist ASC
-      LIMIT ?
-    `
-    const vectorResult = await db.rawQuery(vectorSql, [
-      vector,
-      vector,
-      instituteId,
-      instituteId,
-      limit * 2,
-    ])
-
-    const vectorScores = new Map<number, number>()
-    for (const r of vectorResult.rows || []) {
-      const courseId = Number(r.course_id)
-      const score = Math.max(0, Math.min(Number(r.vector_score || 0), 1))
-      vectorScores.set(courseId, score)
-    }
-
-    // 2. Lexical keyword matching on rag_courses
-    let lexicalQb = db
-      .from('rag_courses')
-      .select('id')
-      .where((builder) => {
+    if (query) {
+      qb = qb.where((builder) => {
         builder
           .whereILike('title', `%${query}%`)
           .orWhereILike('description', `%${query}%`)
@@ -477,83 +298,22 @@ export default class RagService {
           .orWhereILike('sub_category', `%${query}%`)
           .orWhereRaw(`tags::text ILIKE ?`, [`%${query}%`])
       })
+    }
 
     if (category) {
-      lexicalQb = lexicalQb.whereILike('category', category)
+      qb = qb.whereILike('category', category)
+    }
+    if (subCategory) {
+      qb = qb.whereILike('sub_category', subCategory)
     }
     if (instituteId !== null) {
-      lexicalQb = lexicalQb.where((builder) => {
+      qb = qb.where((builder) => {
         builder.where('institute_id', instituteId).orWhereNull('institute_id')
       })
     }
-    const lexicalMatches = await lexicalQb.limit(limit * 2)
-    const lexicalCourseIds = new Set(lexicalMatches.map((m: { id: number }) => Number(m.id)))
 
-    // 3. Combine unique candidate course IDs and compute weighted relevance scores
-    const candidateIds = new Set<number>([
-      ...Array.from(vectorScores.keys()),
-      ...Array.from(lexicalCourseIds.values()),
-    ])
-
-    if (candidateIds.size === 0) {
-      return []
-    }
-
-    // Fetch full course details for candidates
-    const courses = await db.from('rag_courses').whereIn('id', Array.from(candidateIds)).select('*')
-
-    const scoredCourses: Array<{ row: Record<string, unknown>; score: number }> = []
-
-    for (const courseRow of courses) {
-      const cId = Number(courseRow.id)
-
-      // Category filter verification
-      if (category && String(courseRow.category).toLowerCase() !== category.toLowerCase()) {
-        continue
-      }
-      // Sub-category filter verification
-      if (
-        subCategory &&
-        String(courseRow.sub_category || '').toLowerCase() !== subCategory.toLowerCase()
-      ) {
-        continue
-      }
-      // Institute filter verification
-      if (
-        instituteId !== null &&
-        courseRow.institute_id !== null &&
-        Number(courseRow.institute_id) !== instituteId
-      ) {
-        continue
-      }
-
-      const vecScore = vectorScores.get(cId) ?? 0.0
-      const hasLexical = lexicalCourseIds.has(cId)
-      const lexScore = hasLexical ? 0.9 : 0.0
-
-      // Exact title match bonus
-      const titleBonus = String(courseRow.title).toLowerCase().includes(query.toLowerCase())
-        ? 0.15
-        : 0.0
-
-      // Weighted score
-      const combinedScore = Math.min(
-        1.0,
-        Math.max(0.1, 0.65 * vecScore + 0.35 * lexScore + titleBonus)
-      )
-
-      scoredCourses.push({
-        row: courseRow,
-        score: Math.round(combinedScore * 100) / 100,
-      })
-    }
-
-    // Sort by combined score descending
-    scoredCourses.sort((a, b) => b.score - a.score)
-
-    // Slice for pagination
-    const paged = scoredCourses.slice(offset, offset + limit)
-    return paged.map((item) => this.mapCourseRowToResult(item.row, item.score))
+    const rows = await qb.orderBy('created_at', 'desc').limit(limit).offset(offset)
+    return rows.map((row) => this.mapCourseRowToResult(row, 1.0))
   }
 
   /**
@@ -651,11 +411,15 @@ export default class RagService {
       }
       await courseToDelete.useTransaction(trx).delete()
 
-      await trx
-        .from('rag_documents')
-        .where('source_type', 'course')
-        .where('source_id', courseId)
-        .delete()
+      try {
+        await trx
+          .from('rag_documents')
+          .where('source_type', 'course')
+          .where('source_id', courseId)
+          .delete()
+      } catch {
+        // rag_documents table is optional
+      }
 
       await trx.commit()
       return { success: true, id: courseId }
@@ -792,18 +556,22 @@ export default class RagService {
     const courseCountResult = await db.from('rag_courses').count('* as total')
     const totalCourses = Number(courseCountResult[0]?.total ?? 0)
 
-    const docCounts = await db
-      .from('rag_documents')
-      .groupBy('source_type')
-      .select('source_type')
-      .count('* as count')
-
-    const documentsByType: Record<string, number> = {}
+    let documentsByType: Record<string, number> = {}
     let totalDocuments = 0
-    for (const row of docCounts) {
-      const count = Number(row.count)
-      documentsByType[String(row.source_type)] = count
-      totalDocuments += count
+    try {
+      const docCounts = await db
+        .from('rag_documents')
+        .groupBy('source_type')
+        .select('source_type')
+        .count('* as count')
+
+      for (const row of docCounts) {
+        const count = Number(row.count)
+        documentsByType[String(row.source_type)] = count
+        totalDocuments += count
+      }
+    } catch {
+      // rag_documents table is optional
     }
 
     return {
