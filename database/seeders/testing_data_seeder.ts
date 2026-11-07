@@ -107,7 +107,5 @@ export default class extends BaseSeeder {
         updatedBy: null,
       })
     }
-
-   
   }
 }

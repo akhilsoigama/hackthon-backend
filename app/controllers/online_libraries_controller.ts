@@ -40,7 +40,11 @@ export default class OnlineLibrariesController {
         return response.badRequest({ error: 'Missing required query param: q' })
       }
 
-      const cacheKey = `${q}|${rows ?? 12}|${page ?? 1}`
+      // Safe bounds: limit max rows to 60 to prevent Archive.org timeouts and memory lockup
+      const parsedRows = Math.min(Math.max(parseInt(rows, 10) || 12, 1), 60)
+      const parsedPage = Math.max(parseInt(page, 10) || 1, 1)
+
+      const cacheKey = `${q}|${parsedRows}|${parsedPage}`
       const cached = getCached(searchCache, cacheKey)
       if (cached) {
         return response.ok(cached)
@@ -52,8 +56,8 @@ export default class OnlineLibrariesController {
           // licenseurl is required so the frontend can verify a book is
           // actually public-domain / Creative Commons before showing it.
           'fl[]': ['identifier', 'title', 'creator', 'language', 'licenseurl', 'collection'],
-          rows: rows ?? 12,
-          page: page ?? 1,
+          rows: parsedRows,
+          page: parsedPage,
           output: 'json',
         },
         timeout: 20000,

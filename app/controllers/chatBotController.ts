@@ -75,13 +75,6 @@ export default class ChatBotController {
         chatMessages.push({ role: 'system', content: roleContextMessage })
       }
 
-      const apiKey = env.get('CHATBOT_API_KEY', '')
-      if (!apiKey) {
-        return response.status(500).json({
-          message: 'CHATBOT_API_KEY is not configured',
-        })
-      }
-
       // ── Web search context ───────────────────────────────────────────────
       if (useWebSearch === true && normalizedSpeed !== 'fast') {
         const prompt = query || trimmedMessages.at(-1)?.content || ''
@@ -114,25 +107,83 @@ export default class ChatBotController {
 
       chatMessages.push(...trimmedMessages)
 
-      const model =
-        normalizedSpeed === 'fast'
-          ? env.get('CHATBOT_FAST_MODEL', 'llama-3.1-8b-instant')
-          : env.get('CHATBOT_MODEL', 'llama-3.3-70b-versatile')
       const maxTokens =
         normalizedSpeed === 'fast'
           ? Number(env.get('CHATBOT_FAST_MAX_TOKENS', '256'))
           : Number(env.get('CHATBOT_MAX_TOKENS', '800'))
 
-      const groq = new Groq({ apiKey })
-      const completion = await groq.chat.completions.create({
-        model,
-        messages: chatMessages,
-        max_tokens: Number.isFinite(maxTokens) ? maxTokens : 800,
-      })
+      // ── API Key resolution ──────────────────────────────────────────
+      const isGeminiKey = (k: string) => k.startsWith('AIza') || k.startsWith('AQ.')
+      const isGroqKey = (k: string) => k.startsWith('gsk_')
+
+      const rawGemini = env.get('GEMINI_API_KEY', '') || process.env.GEMINI_API_KEY || ''
+      const rawChatbot = env.get('CHATBOT_API_KEY', '') || process.env.CHATBOT_API_KEY || ''
+      const rawEmbedding = env.get('EMBEDDING_API_KEY', '') || process.env.EMBEDDING_API_KEY || ''
+
+      const geminiApiKey =
+        rawGemini ||
+        (isGeminiKey(rawChatbot) ? rawChatbot : '') ||
+        (isGeminiKey(rawEmbedding) ? rawEmbedding : '')
+
+      const groqApiKey = isGroqKey(rawChatbot) ? rawChatbot : (!isGeminiKey(rawChatbot) && rawChatbot ? rawChatbot : '')
+
+      if (!geminiApiKey && !groqApiKey) {
+        return response.status(500).json({
+          message: 'Neither GEMINI_API_KEY nor CHATBOT_API_KEY is configured',
+        })
+      }
+
+      let reply = ''
+      let providerUsed = ''
+      let lastGeminiError = ''
+      let lastGroqError = ''
+
+      // 1. Primary Model: Groq LPU (Ultra-Fast ~1-2s Response)
+      if (groqApiKey) {
+        try {
+          const groqModel =
+            normalizedSpeed === 'fast'
+              ? env.get('CHATBOT_FAST_MODEL', 'llama-3.1-8b-instant')
+              : env.get('CHATBOT_MODEL', 'llama-3.1-8b-instant')
+          reply = await this.callGroq(chatMessages, groqApiKey, groqModel, maxTokens)
+          providerUsed = `groq (${groqModel})`
+        } catch (groqError: any) {
+          lastGroqError = groqError?.message || String(groqError)
+          console.warn('[ChatBotController] Groq primary call failed, attempting Gemini fallback:', groqError)
+        }
+      }
+
+      // 2. Production Failover: Google Gemini (if Groq is unavailable)
+      if (!reply && geminiApiKey) {
+        const configuredModel = env.get('GEMINI_MODEL', 'gemini-3.8-flash')
+        const modelsToTry = [configuredModel, 'gemini-3.8-flash'].filter(
+          (m, idx, arr) => arr.indexOf(m) === idx
+        )
+
+        for (const geminiModel of modelsToTry) {
+          try {
+            reply = await this.callGemini(chatMessages, geminiApiKey, geminiModel, maxTokens)
+            if (reply) {
+              providerUsed = `gemini (${geminiModel})`
+              break
+            }
+          } catch (geminiError: any) {
+            lastGeminiError = geminiError?.message || String(geminiError)
+            console.warn(`[ChatBotController] Gemini fallback with ${geminiModel} failed:`, geminiError)
+          }
+        }
+      }
+
+      if (!reply) {
+        return response.status(500).json({
+          message: 'Chat service currently unavailable. Please check API keys or try again.',
+          error: lastGeminiError || lastGroqError || undefined,
+        })
+      }
 
       return response.status(200).json({
-        message: completion.choices[0]?.message?.content || '',
-        completion,
+        message: reply,
+        provider: providerUsed,
       })
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -141,6 +192,147 @@ export default class ChatBotController {
         error: errorMessage,
       })
     }
+  }
+
+  // ── Call Google Gemini generateContent ───────────────────────────────────
+  private async callGemini(
+    chatMessages: ChatMessage[],
+    apiKey: string,
+    modelName: string,
+    maxTokens: number
+  ): Promise<string> {
+    const systemMessages = chatMessages.filter((m) => m.role === 'system')
+    const nonSystemMessages = chatMessages.filter((m) => m.role !== 'system')
+
+    const systemInstruction =
+      systemMessages.length > 0
+        ? {
+            parts: systemMessages.map((m) => ({ text: m.content })),
+          }
+        : undefined
+
+    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = []
+
+    for (const msg of nonSystemMessages) {
+      const geminiRole = msg.role === 'assistant' ? 'model' : 'user'
+
+      if (contents.length > 0 && contents[contents.length - 1].role === geminiRole) {
+        contents[contents.length - 1].parts[0].text += `\n\n${msg.content}`
+      } else {
+        contents.push({
+          role: geminiRole,
+          parts: [{ text: msg.content }],
+        })
+      }
+    }
+
+    if (contents.length === 0) {
+      throw new Error('No valid user messages to send to Gemini')
+    }
+
+    if (contents[0].role !== 'user') {
+      contents.unshift({ role: 'user', parts: [{ text: 'Hello' }] })
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`
+
+    const requestOptions = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey,
+      },
+      body: JSON.stringify({
+        contents,
+        ...(systemInstruction ? { systemInstruction } : {}),
+        generationConfig: {
+          maxOutputTokens: Number.isFinite(maxTokens) ? maxTokens : 800,
+          temperature: 0.7,
+        },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    }
+
+    let response = await fetch(url, requestOptions)
+
+    // Handle temporary 503 high demand spike with 1 retry after 1s
+    if (response.status === 503) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      response = await fetch(url, requestOptions)
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      throw new Error(`Gemini API error (${response.status}): ${errorText}`)
+    }
+
+    const data = (await response.json()) as any
+    const parts = data.candidates?.[0]?.content?.parts
+    const candidateText = Array.isArray(parts)
+      ? parts.map((p: any) => p.text || '').join('').trim()
+      : data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!candidateText) {
+      const blockReason = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason
+      throw new Error(`Empty response from Gemini API${blockReason ? ` (Finish reason: ${blockReason})` : ''}`)
+    }
+
+    return candidateText
+  }
+
+  // ── Call Groq completions fallback ──────────────────────────────────────
+  private async callGroq(
+    chatMessages: ChatMessage[],
+    apiKey: string,
+    model: string,
+    maxTokens: number
+  ): Promise<string> {
+    const groq = new Groq({ apiKey })
+    let candidateModels = [model, 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile'].filter(
+      (m, idx, arr) => arr.indexOf(m) === idx
+    )
+
+    try {
+      const list = await groq.models.list()
+      const liveChatModels = list.data
+        .map((m) => m.id)
+        .filter((id) => !id.includes('whisper') && !id.includes('guard'))
+
+      if (liveChatModels.length > 0) {
+        console.log('[ChatBotController] Live available Groq models:', liveChatModels)
+        candidateModels = [...new Set([...liveChatModels, ...candidateModels])]
+      }
+    } catch (listErr) {
+      console.warn('[ChatBotController] Failed to fetch Groq model list:', listErr)
+    }
+
+    const systemParts = chatMessages.filter((m) => m.role === 'system').map((m) => m.content)
+    const nonSystem = chatMessages.filter((m) => m.role !== 'system')
+    const groqMessages = [
+      ...(systemParts.length > 0 ? [{ role: 'system' as const, content: systemParts.join('\n\n') }] : []),
+      ...nonSystem.map((m) => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
+    ]
+
+    let lastError: unknown
+    for (const groqModel of candidateModels) {
+      try {
+        const completion = await groq.chat.completions.create({
+          model: groqModel,
+          messages: groqMessages,
+          max_tokens: Number.isFinite(maxTokens) ? maxTokens : 800,
+        })
+        const replyText = completion.choices[0]?.message?.content || ''
+        if (replyText) {
+          return replyText
+        }
+      } catch (err) {
+        lastError = err
+        console.warn(`[ChatBotController] Groq model ${groqModel} failed:`, err)
+      }
+    }
+    throw lastError || new Error('All Groq models failed')
   }
 
   // ── Parse & validate userContext ────────────────────────────────────────
@@ -203,16 +395,26 @@ export default class ChatBotController {
     if (!Array.isArray(input)) return []
 
     return input
-      .filter((item): item is Partial<ChatMessage> => typeof item === 'object' && item !== null)
-      .map((item) => ({
-        role: this.isValidRole(item.role) ? item.role : 'user',
-        content: typeof item.content === 'string' ? item.content.trim() : '',
-      }))
+      .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+      .filter(
+        (item) =>
+          typeof item.content === 'string' &&
+          !item.content.toLowerCase().includes('trouble responding')
+      )
+      .map((item) => {
+        const rawRole = typeof item.role === 'string' ? item.role.toLowerCase() : ''
+        const role: ChatRole =
+          rawRole === 'bot' || rawRole === 'assistant' || rawRole === 'model'
+            ? 'assistant'
+            : rawRole === 'system'
+              ? 'system'
+              : 'user'
+        return {
+          role,
+          content: typeof item.content === 'string' ? item.content.trim() : '',
+        }
+      })
       .filter((message) => message.content.length > 0)
-  }
-
-  private isValidRole(role: unknown): role is ChatRole {
-    return role === 'system' || role === 'user' || role === 'assistant'
   }
 
   private async webSearch(query: string): Promise<string> {

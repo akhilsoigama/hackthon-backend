@@ -59,7 +59,6 @@ export default class extends BaseSeeder {
         PermissionKeys.DASHBOARD_ACCESS,
         PermissionKeys.COMMUNICATION_ACCESS,
         PermissionKeys.GAMIFICATION_ACCESS,
-        PermissionKeys.OFFLINE_LIBRARY_ACCESS,
         PermissionKeys.SETTINGS_ACCESS,
         PermissionKeys.EVENTS_ACCESS,
 
@@ -132,8 +131,6 @@ export default class extends BaseSeeder {
         PermissionKeys.ASSIGNMENT_UPLOAD_UPDATE,
         PermissionKeys.ASSIGNMENT_UPLOAD_DELETE,
 
-        // Offline Library
-        PermissionKeys.OFFLINE_LIBRARY_ACCESS,
 
         // Q&A
         // Settings
@@ -165,7 +162,6 @@ export default class extends BaseSeeder {
         PermissionKeys.DASHBOARD_ACCESS,
         PermissionKeys.COMMUNICATION_ACCESS,
         PermissionKeys.GAMIFICATION_ACCESS,
-        PermissionKeys.OFFLINE_LIBRARY_ACCESS,
         PermissionKeys.FACULTY_ANSWER_QNA_ACCESS,
         PermissionKeys.SETTINGS_ACCESS,
         PermissionKeys.EVENTS_ACCESS,
@@ -232,8 +228,6 @@ export default class extends BaseSeeder {
         PermissionKeys.INSTITUTE_VIEW,
         PermissionKeys.INSTITUTE_LIST,
 
-        // Offline Library
-        PermissionKeys.OFFLINE_LIBRARY_ACCESS,
 
         // Q&A
         PermissionKeys.FACULTY_ANSWER_QNA_ACCESS,
@@ -270,7 +264,6 @@ export default class extends BaseSeeder {
         PermissionKeys.STUDENT_UPLOAD_ACCESS,
         PermissionKeys.COMMUNICATION_ACCESS,
         PermissionKeys.GAMIFICATION_ACCESS,
-        PermissionKeys.OFFLINE_LIBRARY_ACCESS,
         PermissionKeys.STUDENT_QNA_ACCESS,
         PermissionKeys.SETTINGS_ACCESS,
         PermissionKeys.EVENTS_ACCESS,
@@ -318,8 +311,6 @@ export default class extends BaseSeeder {
         // Gamification
         PermissionKeys.GAMIFICATION_ACCESS,
 
-        // Offline Library
-        PermissionKeys.OFFLINE_LIBRARY_ACCESS,
 
         // Q&A
         PermissionKeys.STUDENT_QNA_ACCESS,

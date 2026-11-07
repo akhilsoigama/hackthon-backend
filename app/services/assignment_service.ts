@@ -178,6 +178,37 @@ export default class AssignmentService {
 
       this.invalidateAssignmentCache()
 
+      // Non-blocking notification dispatch to relevant students
+      ;(async () => {
+        try {
+          const { default: NotificationsService } = await import('#modules/notifications/services/notifications_service')
+          const { default: User } = await import('#models/user')
+          const notificationService = new NotificationsService()
+
+          const studentQuery = User.query().where('userType', 'student').where('isActive', true)
+          if (velidatedData.instituteId) {
+            studentQuery.where('instituteId', velidatedData.instituteId)
+          }
+
+          const targetUsers = await studentQuery.select('id').limit(500)
+          if (targetUsers.length > 0) {
+            const notifications = targetUsers.map((u) => ({
+              userId: u.id,
+              title: `New Assignment: ${assignment.assignmentTitle}`,
+              message: `New assignment uploaded for ${assignment.subject || 'your course'}. Due: ${
+                assignment.dueDate ? assignment.dueDate.toFormat('dd LLL') : 'Soon'
+              }`,
+              type: 'assignment' as const,
+              link: '/dashboard/assignment-upload',
+              metadata: { assignmentId: assignment.id },
+            }))
+            await notificationService.createBulk(notifications)
+          }
+        } catch (err) {
+          console.error('[Notification Trigger] Failed to dispatch assignment notifications:', err)
+        }
+      })()
+
       return {
         status: true,
         messages: messages.assignemnt_created_successfully,

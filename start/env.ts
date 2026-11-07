@@ -46,15 +46,23 @@ export default await Env.create(new URL('../', import.meta.url), {
   AWS_SECRET_ACCESS_KEY: Env.schema.string.optional(),
   AWS_REGION: Env.schema.string.optional(),
   AWS_BUCKET: Env.schema.string.optional(),
-  AWS_ENDPOINT: Env.schema.string.optional(),  // For Cloudflare R2 custom endpoint
+  AWS_ENDPOINT: Env.schema.string.optional(), // For Cloudflare R2 custom endpoint
 
   // ── Mail ─────────────────────────────────────────────────────────────────────
   SMTP_HOST: Env.schema.string(),
   SMTP_PORT: Env.schema.string(),
 
-  // RAG embeddings
+  // RAG embeddings & AI
   EMBEDDING_API_KEY: Env.schema.string.optional(),
   EMBEDDING_API_URL: Env.schema.string.optional(),
   EMBEDDING_MODEL: Env.schema.string.optional(),
-})
+  GEMINI_API_KEY: Env.schema.string.optional(),
+  GEMINI_MODEL: Env.schema.string.optional(),
+  CHATBOT_API_KEY: Env.schema.string.optional(),
+  CHATBOT_MODEL: Env.schema.string.optional(),
+  CHATBOT_FAST_MODEL: Env.schema.string.optional(),
 
+  VAPID_SUBJECT: Env.schema.string.optional(),
+  VAPID_PUBLIC_KEY: Env.schema.string.optional(),
+  VAPID_PRIVATE_KEY: Env.schema.string.optional(),
+})

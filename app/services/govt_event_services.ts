@@ -189,6 +189,35 @@ export default class GovtEventServices {
             
             const govtEvent = await GovtEvent.create(govtEventData, uploadOptions);
             this.invalidateEventCaches()
+
+            // Non-blocking notification dispatch for Government Event
+            ;(async () => {
+                try {
+                    const { default: NotificationsService } = await import('#modules/notifications/services/notifications_service')
+                    const { default: User } = await import('#models/user')
+                    const notificationService = new NotificationsService()
+
+                    // Target all institutes, teachers (faculty), and students across the platform
+                    const targetUsers = await User.query()
+                        .where('isActive', true)
+                        .whereIn('userType', ['institute', 'faculty', 'student'])
+                        .select('id')
+                        .limit(2000)
+                    if (targetUsers.length > 0) {
+                        const notifications = targetUsers.map((u) => ({
+                            userId: u.id,
+                            title: `🏛️ Govt Event: ${govtEvent.eventTitle}`,
+                            message: `New event organized by ${govtEvent.eventOrganizer || 'Government'}. Tap to view details.`,
+                            type: 'system' as const,
+                            link: '/dashboard/events',
+                            metadata: { govtEventId: govtEvent.id },
+                        }))
+                        await notificationService.createBulk(notifications)
+                    }
+                } catch (err) {
+                    console.error('[Notification Trigger] Failed to dispatch govt event notifications:', err)
+                }
+            })()
             
             return this.ctx.response.send({
                 status: true,

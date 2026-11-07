@@ -9,7 +9,6 @@ export enum PermissionKeys {
   DASHBOARD_ACCESS = "dashboard_access",
   COMMUNICATION_ACCESS = "communication_access",
   GAMIFICATION_ACCESS = "gamification_access",
-  OFFLINE_LIBRARY_ACCESS = "offline_library_access",
   STUDENT_QNA_ACCESS = "student_qna_access",
   SETTINGS_ACCESS = "settings_access",
   EVENTS_ACCESS = "events_access",
