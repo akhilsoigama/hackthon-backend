@@ -1,3 +1,5 @@
+import registerNotificationsRoutes from '#modules/notifications/routes/notifications.routes'
+import registerSearchRoutes from '#modules/search/routes/search.routes'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
 /*
@@ -98,9 +100,21 @@ router
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
       .use(middleware.permission([PermissionKeys.LECTURE_CREATE]))
 
-    // Auth routes
+    // Auth & Profile Settings routes
     router
       .get('/profile', [AuthController, 'me'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    router
+      .put('/profile', [AuthController, 'updateProfile'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    router
+      .post('/profile/change-password', [AuthController, 'changePassword'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    router
+      .get('/profile/sessions', [AuthController, 'getSessions'])
+      .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+    router
+      .post('/profile/logout-other-sessions', [AuthController, 'logoutOtherSessions'])
       .use(middleware.auth({ guards: ['adminapi', 'api'] }))
     router.post('/logout', [AuthController, 'logout'])
     router.get('/auth-type', [AuthController, 'getAuthType'])
@@ -392,6 +406,12 @@ router
   })
   .use(middleware.rateLimit({ config: RateLimitConfigs.api }))
   .use(middleware.auth({ guards: ['adminapi', 'api'] }))
+
+// ── Notifications & Web Push Routes ──────────────────────────────────────
+registerNotificationsRoutes()
+
+// ── Global Search Routes ─────────────────────────────────────────────────
+registerSearchRoutes()
 
 // ── Swagger / OpenAPI Documentation ──────────────────────────────────────
 router.get('/swagger', async () => {

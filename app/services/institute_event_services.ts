@@ -156,6 +156,42 @@ export default class InstituteEventService {
       }
       const instituteEvent = await InstituteEvent.create(instituteEventData)
       this.invalidateEventCaches()
+
+      // Non-blocking notification dispatch for Campus Event
+      ;(async () => {
+        try {
+          const { default: NotificationsService } = await import('#modules/notifications/services/notifications_service')
+          const { default: User } = await import('#models/user')
+          const notificationService = new NotificationsService()
+
+          // Target strictly teachers (faculty) and students belonging to this institute
+          const targetInstituteId = instituteEvent.instituteId || (this.ctx.auth?.user as any)?.instituteId
+          const userQuery = User.query()
+            .where('isActive', true)
+            .whereIn('userType', ['faculty', 'student'])
+
+          if (targetInstituteId) {
+            userQuery.where('instituteId', targetInstituteId)
+          }
+
+          const targetUsers = await userQuery.select('id').limit(1500)
+          if (targetUsers.length > 0) {
+            const notifications = targetUsers.map((u) => ({
+              userId: u.id,
+              title: `🏫 Campus Event: ${instituteEvent.eventTitle}`,
+              message: `New event scheduled${
+                instituteEvent.eventDate ? ' on ' + new Date(instituteEvent.eventDate).toLocaleDateString() : ''
+              }. Tap to view details.`,
+              type: 'system' as const,
+              link: '/dashboard/events',
+              metadata: { instituteEventId: instituteEvent.id },
+            }))
+            await notificationService.createBulk(notifications)
+          }
+        } catch (err) {
+          console.error('[Notification Trigger] Failed to dispatch institute event notifications:', err)
+        }
+      })()
       return {
         status: true,
         message: messages.institute_event_created_successfully,

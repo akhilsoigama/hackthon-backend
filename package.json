@@ -71,6 +71,7 @@
     "@adonisjs/lucid": "^21.6.1",
     "@adonisjs/mail": "^9.2.2",
     "@tavily/core": "^0.7.2",
+    "@types/web-push": "^3.6.4",
     "@vinejs/vine": "^3.0.1",
     "@vitalets/google-translate-api": "^9.2.1",
     "axios": "^1.13.2",
@@ -83,7 +84,8 @@
     "pg": "^8.16.3",
     "redis": "^6.1.0",
     "reflect-metadata": "^0.2.2",
-    "streamifier": "^0.1.1"
+    "streamifier": "^0.1.1",
+    "web-push": "^4.0.0"
   },
   "hotHook": {
     "boundaries": [
