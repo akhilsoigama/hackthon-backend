@@ -126,14 +126,12 @@ export default class AuthService {
     if (!resolvedUser) {
       try {
         const student = await Student.query()
-          .where('studentEmail', email)
-          .where('isActive', true)
+          .where('student_email', email)
+          .where('is_active', true)
           .first()
 
         if (student) {
-          const isValid = await (
-            student as unknown as { verifyPassword?: (pwd: string) => Promise<boolean> }
-          ).verifyPassword?.(password)
+          const isValid = await student.verifyPassword(password)
 
           if (isValid) {
             const user = await this.userRepo.upsertStudentUser({
@@ -149,8 +147,8 @@ export default class AuthService {
             authType = 'student'
           }
         }
-      } catch {
-        // Not a student — continue
+      } catch (err) {
+        console.error('[AuthService] Student auth query error:', err)
       }
     }
 

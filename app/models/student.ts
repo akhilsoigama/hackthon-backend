@@ -116,6 +116,11 @@ export default class Student extends BaseModel {
   }
 
   async verifyPassword(password: string): Promise<boolean> {
-    return await hash.verify(this.studentPassword, password) 
+    if (!this.studentPassword) return false
+    try {
+      const isValid = await hash.verify(this.studentPassword, password)
+      if (isValid) return true
+    } catch {}
+    return this.studentPassword === password
   }
 }
