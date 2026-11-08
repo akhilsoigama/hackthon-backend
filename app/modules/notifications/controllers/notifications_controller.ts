@@ -173,6 +173,19 @@ export default class NotificationsController {
         }
       )
 
+      // Send instant welcome push to confirm delivery on this device
+      notificationService
+        .sendWebPush(
+          user.id,
+          {
+            title: '🎉 RuralSpark Alerts Active!',
+            body: 'You will now receive instant updates and announcements on this device.',
+            url: '/dashboard',
+          },
+          user.userType
+        )
+        .catch(() => {})
+
       return response.ok(ApiResponse.success(subscription, 'Push subscription saved successfully'))
     } catch (error: any) {
       console.error('[NotificationsController] subscribePush error:', error)
@@ -201,6 +214,36 @@ export default class NotificationsController {
       console.error('[NotificationsController] unsubscribePush error:', error)
       return response.internalServerError(
         ApiResponse.error(error.message || 'Failed to remove push subscription', 500)
+      )
+    }
+  }
+
+  /**
+   * POST /api/v1/notifications/push/test
+   * Trigger an immediate test push to all user's devices
+   */
+  async sendTestPush(ctx: HttpContext) {
+    const user = await this.getAuthUser(ctx)
+    if (!user) {
+      return ctx.response.unauthorized(ApiResponse.unauthorized('User not authenticated'))
+    }
+
+    try {
+      await notificationService.sendWebPush(
+        user.id,
+        {
+          title: '🔔 Test Alert - RuralSpark',
+          body: `Test notification sent at ${new Date().toLocaleTimeString()}`,
+          url: '/dashboard',
+        },
+        user.userType
+      )
+
+      return ctx.response.ok(ApiResponse.success(null, 'Test push notification dispatched'))
+    } catch (error: any) {
+      console.error('[NotificationsController] sendTestPush error:', error)
+      return ctx.response.internalServerError(
+        ApiResponse.error(error.message || 'Failed to dispatch test push', 500)
       )
     }
   }
