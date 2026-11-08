@@ -60,6 +60,15 @@ type UpdateQuizPayload = {
 export default class QuizzesService {
   constructor(protected ctx: HttpContext) {}
 
+  private getAuthenticatedUser() {
+    try {
+      const ctx = this.ctx as any
+      return ctx.user ?? ctx.authUser ?? this.ctx.auth?.user ?? null
+    } catch {
+      return null
+    }
+  }
+
   private parseDueDate(dueDate?: string) {
     if (!dueDate) {
       return undefined
@@ -157,7 +166,22 @@ export default class QuizzesService {
 
   async findAll({ searchFor }: { searchFor?: string | null } = {}) {
     try {
-      const cacheKey = `quizzes:list:${JSON.stringify({ searchFor: searchFor || null })}`
+      const authUser = this.getAuthenticatedUser()
+      let userInstituteId: number | undefined
+      let userFacultyId: number | undefined
+
+      if (authUser?.userType === 'faculty') {
+        userFacultyId = authUser.facultyId ? Number(authUser.facultyId) : undefined
+        userInstituteId = authUser.instituteId ? Number(authUser.instituteId) : undefined
+      } else if (authUser?.userType === 'institute' || authUser?.userType === 'student') {
+        userInstituteId = authUser.instituteId ? Number(authUser.instituteId) : undefined
+      }
+
+      const cacheKey = `quizzes:list:${JSON.stringify({
+        searchFor: searchFor || null,
+        instituteId: userInstituteId ?? 'all',
+        facultyId: userFacultyId ?? 'all',
+      })}`
 
       return await apiCacheService.getOrSet(
         cacheKey,
@@ -185,6 +209,14 @@ export default class QuizzesService {
               questionQuery.select(['id'])
             })
             .apply((scopes) => scopes.softDeletes())
+
+          if (userInstituteId) {
+            query = query.where('institute_id', userInstituteId)
+          }
+
+          if (userFacultyId && searchFor === 'create') {
+            query = query.where('faculty_id', userFacultyId)
+          }
 
           if (searchFor === 'create') {
             query = query.where('is_active', true)
@@ -220,15 +252,27 @@ export default class QuizzesService {
   async findOne() {
     try {
       const id = this.ctx.request.param('id')
-      const cacheKey = `quizzes:one:${id}`
+      const authUser = this.getAuthenticatedUser()
+      let userInstituteId: number | undefined
+      if (authUser?.userType === 'institute' || authUser?.userType === 'student') {
+        userInstituteId = authUser.instituteId ? Number(authUser.instituteId) : undefined
+      }
+
+      const cacheKey = `quizzes:one:${id}:inst:${userInstituteId ?? 'all'}`
 
       return await apiCacheService.getOrSet(
         cacheKey,
         30_000,
         async () => {
-          const quiz = await Quizzes.query()
+          let query = Quizzes.query()
             .where('id', id)
             .whereNull('deleted_at')
+
+          if (userInstituteId) {
+            query = query.where('institute_id', userInstituteId)
+          }
+
+          const quiz = await query
             .preload('department', (departmentQuery) => {
               departmentQuery.select(['id', 'departmentName'])
             })

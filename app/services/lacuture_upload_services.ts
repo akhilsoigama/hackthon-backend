@@ -453,6 +453,38 @@ export default class LectureUploadServices {
                   },
                 }
               }
+            } else if (user.userType === 'student') {
+              let studentInstituteId = typeof user.instituteId === 'number' ? user.instituteId : null
+              if (!studentInstituteId && user.id) {
+                try {
+                  const StudentModel = (await import('#models/student')).default
+                  const studentRecord = await StudentModel.find((user as any).studentId || user.id)
+                  if (studentRecord?.instituteId) {
+                    studentInstituteId = Number(studentRecord.instituteId)
+                  }
+                } catch {}
+              }
+
+              if (studentInstituteId) {
+                const FacultyModel = (await import('#models/faculty')).default
+                const facultyIds = await FacultyModel.query().where('institute_id', studentInstituteId).select('id')
+
+                if (facultyIds.length > 0) {
+                  query.whereIn('faculty_id', facultyIds.map((f) => f.id))
+                } else {
+                  return {
+                    success: true,
+                    message: 'Lectures fetched successfully',
+                    data: [],
+                    meta: {
+                      total: 0,
+                      currentPage: page,
+                      perPage: limit,
+                      lastPage: 0,
+                    },
+                  }
+                }
+              }
             } else {
               return {
                 success: false,
