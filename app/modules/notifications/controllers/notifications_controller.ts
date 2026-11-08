@@ -13,22 +13,44 @@ export default class NotificationsController {
   /**
    * Safe helper to extract authenticated user from any guard or middleware context
    */
-  private async getAuthUser(ctx: HttpContext): Promise<{ id: number } | null> {
+  private async getAuthUser(
+    ctx: HttpContext
+  ): Promise<{ id: number; userType: 'admin' | 'user' } | null> {
     const anyCtx = ctx as any
-    if (anyCtx.authUser?.id) return anyCtx.authUser as { id: number }
-    if (anyCtx.user?.id) return anyCtx.user as { id: number }
-    if (ctx.auth?.user?.id) return ctx.auth.user as { id: number }
+    if (anyCtx.authUser?.id) {
+      const type =
+        anyCtx.authUser.isAdmin || anyCtx.authUser.userType === 'super_admin' ? 'admin' : 'user'
+      return { id: anyCtx.authUser.id, userType: type }
+    }
+    if (anyCtx.user?.id) {
+      const type =
+        anyCtx.user.isAdmin || anyCtx.user.userType === 'super_admin' ? 'admin' : 'user'
+      return { id: anyCtx.user.id, userType: type }
+    }
 
-    // Multi-guard check ('api' & 'adminapi')
-    for (const guard of ['api', 'adminapi'] as const) {
-      try {
-        const authInstance = ctx.auth.use(guard)
-        if (await authInstance.check()) {
-          if (authInstance.user?.id) {
-            return authInstance.user as { id: number }
-          }
+    // Multi-guard check ('adminapi' & 'api')
+    try {
+      const adminAuth = ctx.auth.use('adminapi')
+      if (await adminAuth.check()) {
+        if (adminAuth.user?.id) {
+          return { id: adminAuth.user.id, userType: 'admin' }
         }
-      } catch {}
+      }
+    } catch {}
+
+    try {
+      const apiAuth = ctx.auth.use('api')
+      if (await apiAuth.check()) {
+        if (apiAuth.user?.id) {
+          return { id: apiAuth.user.id, userType: 'user' }
+        }
+      }
+    } catch {}
+
+    if (ctx.auth?.user?.id) {
+      const user = ctx.auth.user as any
+      const type = user.isAdmin || user.userType === 'super_admin' ? 'admin' : 'user'
+      return { id: user.id, userType: type }
     }
 
     return null
@@ -49,11 +71,15 @@ export default class NotificationsController {
     const limit = request.input('limit', 20)
     const unreadOnly = request.input('unreadOnly', 'false') === 'true'
 
-    const paginated = await notificationService.listUserNotifications(user.id, {
-      page: Number(page),
-      limit: Number(limit),
-      unreadOnly,
-    })
+    const paginated = await notificationService.listUserNotifications(
+      user.id,
+      user.userType,
+      {
+        page: Number(page),
+        limit: Number(limit),
+        unreadOnly,
+      }
+    )
 
     return response.ok(
       ApiResponse.success(paginated.all(), 'Notifications fetched successfully', 200, {
@@ -75,7 +101,7 @@ export default class NotificationsController {
       return ctx.response.unauthorized(ApiResponse.unauthorized('User not authenticated'))
     }
 
-    const count = await notificationService.getUnreadCount(user.id)
+    const count = await notificationService.getUnreadCount(user.id, user.userType)
     return ctx.response.ok(ApiResponse.success({ count }, 'Unread count fetched'))
   }
 
@@ -90,7 +116,7 @@ export default class NotificationsController {
     }
 
     const { params, response } = ctx
-    const updated = await notificationService.markAsRead(Number(params.id), user.id)
+    const updated = await notificationService.markAsRead(Number(params.id), user.id, user.userType)
 
     if (!updated) {
       return response.notFound(ApiResponse.notFound('Notification not found'))
@@ -109,7 +135,7 @@ export default class NotificationsController {
       return ctx.response.unauthorized(ApiResponse.unauthorized('User not authenticated'))
     }
 
-    await notificationService.markAllAsRead(user.id)
+    await notificationService.markAllAsRead(user.id, user.userType)
     return ctx.response.ok(ApiResponse.success(null, 'All notifications marked as read'))
   }
 
@@ -133,16 +159,27 @@ export default class NotificationsController {
     }
 
     const { request, response } = ctx
-    const payload = await request.validateUsing(subscribePushValidator)
-    const userAgent = request.header('user-agent')
+    try {
+      const payload = await request.validateUsing(subscribePushValidator)
+      const userAgent = request.header('user-agent')
 
-    const subscription = await notificationService.savePushSubscription(user.id, {
-      endpoint: payload.endpoint,
-      keys: payload.keys,
-      userAgent: payload.userAgent || userAgent,
-    })
+      const subscription = await notificationService.savePushSubscription(
+        user.id,
+        user.userType,
+        {
+          endpoint: payload.endpoint,
+          keys: payload.keys,
+          userAgent: payload.userAgent || userAgent,
+        }
+      )
 
-    return response.ok(ApiResponse.success(subscription, 'Push subscription saved successfully'))
+      return response.ok(ApiResponse.success(subscription, 'Push subscription saved successfully'))
+    } catch (error: any) {
+      console.error('[NotificationsController] subscribePush error:', error)
+      return response.internalServerError(
+        ApiResponse.error(error.message || 'Failed to save push subscription', 500)
+      )
+    }
   }
 
   /**
@@ -156,9 +193,15 @@ export default class NotificationsController {
     }
 
     const { request, response } = ctx
-    const payload = await request.validateUsing(unsubscribePushValidator)
-
-    await notificationService.removePushSubscription(user.id, payload.endpoint)
-    return response.ok(ApiResponse.success(null, 'Push subscription removed successfully'))
+    try {
+      const payload = await request.validateUsing(unsubscribePushValidator)
+      await notificationService.removePushSubscription(user.id, user.userType, payload.endpoint)
+      return response.ok(ApiResponse.success(null, 'Push subscription removed successfully'))
+    } catch (error: any) {
+      console.error('[NotificationsController] unsubscribePush error:', error)
+      return response.internalServerError(
+        ApiResponse.error(error.message || 'Failed to remove push subscription', 500)
+      )
+    }
   }
 }
