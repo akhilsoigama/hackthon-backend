@@ -93,6 +93,7 @@ export default class UserRepository {
     mobile: string
     instituteId: number
     isActive: boolean
+    roleId?: number
   }): Promise<InstanceType<typeof User>> {
     let user = await User.query()
       .where('email', data.email)
@@ -100,16 +101,12 @@ export default class UserRepository {
       .first()
 
     if (user) {
-      await User.query().where('id', user.id).update({
-        fullName: data.fullName,
-        mobile: data.mobile,
-        instituteId: data.instituteId,
-        isActive: data.isActive,
-        password: data.password,
-        deletedAt: null,
-        updatedAt: new Date(),
-      })
-      user = await User.findOrFail(user.id)
+      user.fullName = data.fullName
+      user.mobile = data.mobile
+      user.instituteId = data.instituteId
+      user.isActive = data.isActive
+      user.password = data.password
+      await user.save()
     } else {
       user = await User.create({
         fullName: data.fullName,
@@ -122,6 +119,10 @@ export default class UserRepository {
         isEmailVerified: false,
         isMobileVerified: false,
       })
+    }
+
+    if (data.roleId) {
+      await this.assignRoleIfMissing(user, data.roleId)
     }
 
     return user
@@ -138,6 +139,7 @@ export default class UserRepository {
     facultyId: number
     instituteId: number
     isActive: boolean
+    roleId?: number
   }): Promise<InstanceType<typeof User>> {
     let user = await User.query()
       .where('email', data.email)
@@ -145,17 +147,13 @@ export default class UserRepository {
       .first()
 
     if (user) {
-      await User.query().where('id', user.id).update({
-        fullName: data.fullName,
-        mobile: data.mobile,
-        instituteId: data.instituteId,
-        facultyId: data.facultyId,
-        isActive: data.isActive,
-        password: data.password,
-        deletedAt: null,
-        updatedAt: new Date(),
-      })
-      user = await User.findOrFail(user.id)
+      user.fullName = data.fullName
+      user.mobile = data.mobile
+      user.instituteId = data.instituteId
+      user.facultyId = data.facultyId
+      user.isActive = data.isActive
+      user.password = data.password
+      await user.save()
     } else {
       user = await User.create({
         fullName: data.fullName,
@@ -169,6 +167,10 @@ export default class UserRepository {
         isEmailVerified: false,
         isMobileVerified: false,
       })
+    }
+
+    if (data.roleId) {
+      await this.assignRoleIfMissing(user, data.roleId)
     }
 
     return user
@@ -185,6 +187,7 @@ export default class UserRepository {
     studentId: number
     instituteId: number
     isActive: boolean
+    roleId?: number
   }): Promise<InstanceType<typeof User>> {
     let user = await User.query()
       .where('email', data.email)
@@ -192,17 +195,13 @@ export default class UserRepository {
       .first()
 
     if (user) {
-      await User.query().where('id', user.id).update({
-        fullName: data.fullName,
-        mobile: data.mobile,
-        instituteId: data.instituteId,
-        studentId: data.studentId,
-        isActive: data.isActive,
-        password: data.password,
-        deletedAt: null,
-        updatedAt: new Date(),
-      })
-      user = await User.findOrFail(user.id)
+      user.fullName = data.fullName
+      user.mobile = data.mobile
+      user.instituteId = data.instituteId
+      user.studentId = data.studentId
+      user.isActive = data.isActive
+      user.password = data.password
+      await user.save()
     } else {
       user = await User.create({
         fullName: data.fullName,
@@ -216,6 +215,10 @@ export default class UserRepository {
         isEmailVerified: false,
         isMobileVerified: false,
       })
+    }
+
+    if (data.roleId) {
+      await this.assignRoleIfMissing(user, data.roleId)
     }
 
     return user

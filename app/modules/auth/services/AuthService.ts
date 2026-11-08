@@ -80,6 +80,7 @@ export default class AuthService {
               mobile: institute.institutePhone || '0000000000',
               instituteId: institute.id,
               isActive: institute.isActive,
+              roleId: institute.roleId,
             })
             resolvedUser = user
             authType = 'institute'
@@ -112,6 +113,7 @@ export default class AuthService {
               facultyId: faculty.id,
               instituteId: faculty.instituteId,
               isActive: faculty.isActive,
+              roleId: faculty.roleId,
             })
             resolvedUser = user
             authType = 'faculty'
@@ -125,26 +127,40 @@ export default class AuthService {
     // ── 4. Student ────────────────────────────────────────────────────────────
     if (!resolvedUser) {
       try {
+        const normalizedEmail = email ? email.trim().toLowerCase() : ''
         const student = await Student.query()
-          .where('student_email', email)
-          .where('is_active', true)
+          .where('student_email', normalizedEmail)
           .first()
 
-        if (student) {
-          const isValid = await student.verifyPassword(password)
+        console.log('[AuthService] Student lookup:', {
+          email: normalizedEmail,
+          found: !!student,
+          id: student?.id,
+          isActive: student?.isActive,
+          passwordPrefix: student?.studentPassword ? student.studentPassword.substring(0, 10) : 'none',
+        })
 
-          if (isValid) {
-            const user = await this.userRepo.upsertStudentUser({
-              email: student.studentEmail,
-              fullName: student.studentName,
-              password: student.studentPassword,
-              mobile: student.studentMobile || '0000000000',
-              studentId: student.id,
-              instituteId: student.instituteId,
-              isActive: student.isActive,
-            })
-            resolvedUser = user
-            authType = 'student'
+        if (student) {
+          if (student.isActive === false) {
+            console.log('[AuthService] Student account is marked inactive')
+          } else {
+            const isValid = await student.verifyPassword(password)
+            console.log('[AuthService] Student password verification result:', isValid)
+
+            if (isValid) {
+              const user = await this.userRepo.upsertStudentUser({
+                email: student.studentEmail,
+                fullName: student.studentName,
+                password: student.studentPassword,
+                mobile: student.studentMobile || '0000000000',
+                studentId: student.id,
+                instituteId: student.instituteId,
+                isActive: student.isActive,
+                roleId: student.roleId,
+              })
+              resolvedUser = user
+              authType = 'student'
+            }
           }
         }
       } catch (err) {

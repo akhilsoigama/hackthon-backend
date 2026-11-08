@@ -117,10 +117,36 @@ export default class Student extends BaseModel {
 
   async verifyPassword(password: string): Promise<boolean> {
     if (!this.studentPassword) return false
+    const cleanPassword = password ? password.trim() : ''
+
+    // 1. Plain text comparison
+    if (this.studentPassword === password) {
+      return true
+    }
+
+    // 2. Bcrypt verify (if hash starts with $2a$ or $2b$)
+    if (this.studentPassword.startsWith('$2a$') || this.studentPassword.startsWith('$2b$')) {
+      try {
+        // @ts-ignore
+        const bcryptModule = await import('bcrypt')
+        const bcrypt = bcryptModule.default || bcryptModule
+        const isValidBcrypt = await bcrypt.compare(password, this.studentPassword)
+        if (isValidBcrypt) return true
+      } catch {}
+    }
+
+    // 3. Adonis general hash verify
     try {
       const isValid = await hash.verify(this.studentPassword, password)
       if (isValid) return true
     } catch {}
-    return this.studentPassword === password
+
+    // 4. Adonis scrypt driver verify
+    try {
+      const isValidScrypt = await hash.use('scrypt').verify(this.studentPassword, password)
+      if (isValidScrypt) return true
+    } catch {}
+
+    return false
   }
 }
