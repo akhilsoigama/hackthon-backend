@@ -186,8 +186,8 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 
 # ── Web Push Notifications (VAPID) ───────────────────────────
-VAPID_PUBLIC_KEY=BHAsuvuJfIxqzNUsI0EW0RyoSbdp9PgfHyT4YI93JzQ8vFNsq1Gasdc0gUcaXAYyQ6gOL644uvfFGrgJ-0yAaII
-VAPID_PRIVATE_KEY=qHL3bPsaO--7QCPFTUrav8o_eugIgFPZNanOuRUXXNw
+VAPID_PUBLIC_KEY=your_vapid_public_key
+VAPID_PRIVATE_KEY=your_vapid_private_key
 VAPID_SUBJECT=mailto:support@ruralspark.in
 
 # ── AI & RAG ────────────────────────────────────────────────
