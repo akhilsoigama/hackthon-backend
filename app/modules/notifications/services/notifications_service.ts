@@ -23,6 +23,7 @@ try {
 
 export interface CreateNotificationDTO {
   userId: number
+  userType?: 'admin' | 'user'
   title: string
   message: string
   type?: NotificationType
@@ -42,8 +43,10 @@ export default class NotificationsService {
    * Create a single notification and trigger background web push
    */
   public async create(dto: CreateNotificationDTO) {
+    const userType = dto.userType || 'user'
     const notification = await Notification.create({
       userId: dto.userId,
+      userType,
       title: dto.title,
       message: dto.message,
       type: dto.type || 'general',
@@ -57,7 +60,7 @@ export default class NotificationsService {
       title: dto.title,
       body: dto.message,
       url: dto.link || '/dashboard',
-    }).catch(() => { })
+    }, userType).catch(() => { })
 
     return notification
   }
@@ -70,6 +73,7 @@ export default class NotificationsService {
 
     const rows = notifications.map((dto) => ({
       userId: dto.userId,
+      userType: dto.userType || 'user',
       title: dto.title,
       message: dto.message,
       type: dto.type || 'general',
@@ -86,7 +90,7 @@ export default class NotificationsService {
         title: dto.title,
         body: dto.message,
         url: dto.link || '/dashboard',
-      }).catch(() => { })
+      }, dto.userType || 'user').catch(() => { })
     }
 
     return created
@@ -97,12 +101,16 @@ export default class NotificationsService {
    */
   public async listUserNotifications(
     userId: number,
+    userType: 'admin' | 'user' = 'user',
     options: { page?: number; limit?: number; unreadOnly?: boolean } = {}
   ) {
     const page = options.page && options.page > 0 ? options.page : 1
     const limit = options.limit && options.limit > 0 ? options.limit : 20
 
-    const query = Notification.query().where('userId', userId).orderBy('createdAt', 'desc')
+    const query = Notification.query()
+      .where('userId', userId)
+      .where('userType', userType)
+      .orderBy('createdAt', 'desc')
 
     if (options.unreadOnly) {
       query.where('isRead', false)
@@ -114,9 +122,10 @@ export default class NotificationsService {
   /**
    * Get total unread count for badge
    */
-  public async getUnreadCount(userId: number): Promise<number> {
+  public async getUnreadCount(userId: number, userType: 'admin' | 'user' = 'user'): Promise<number> {
     const count = await Notification.query()
       .where('userId', userId)
+      .where('userType', userType)
       .where('isRead', false)
       .count('* as total')
 
@@ -126,10 +135,11 @@ export default class NotificationsService {
   /**
    * Mark single notification as read
    */
-  public async markAsRead(notificationId: number, userId: number) {
+  public async markAsRead(notificationId: number, userId: number, userType: 'admin' | 'user' = 'user') {
     const notification = await Notification.query()
       .where('id', notificationId)
       .where('userId', userId)
+      .where('userType', userType)
       .first()
 
     if (!notification) return null
@@ -142,9 +152,10 @@ export default class NotificationsService {
   /**
    * Mark all unread notifications as read for a user
    */
-  public async markAllAsRead(userId: number) {
+  public async markAllAsRead(userId: number, userType: 'admin' | 'user' = 'user') {
     return await Notification.query()
       .where('userId', userId)
+      .where('userType', userType)
       .where('isRead', false)
       .update({ isRead: true })
   }
@@ -154,6 +165,7 @@ export default class NotificationsService {
    */
   public async savePushSubscription(
     userId: number,
+    userType: 'admin' | 'user',
     data: {
       endpoint: string
       keys: { p256dh: string; auth: string }
@@ -164,6 +176,7 @@ export default class NotificationsService {
 
     if (existing) {
       existing.userId = userId
+      existing.userType = userType
       existing.p256dh = data.keys.p256dh
       existing.auth = data.keys.auth
       existing.userAgent = data.userAgent || null
@@ -173,6 +186,7 @@ export default class NotificationsService {
 
     return await PushSubscription.create({
       userId,
+      userType,
       endpoint: data.endpoint,
       p256dh: data.keys.p256dh,
       auth: data.keys.auth,
@@ -183,9 +197,14 @@ export default class NotificationsService {
   /**
    * Delete push subscription (e.g. user toggled notifications off)
    */
-  public async removePushSubscription(userId: number, endpoint: string) {
+  public async removePushSubscription(
+    userId: number,
+    userType: 'admin' | 'user',
+    endpoint: string
+  ) {
     const subscription = await PushSubscription.query()
       .where('userId', userId)
+      .where('userType', userType)
       .where('endpoint', endpoint)
       .first()
 
@@ -201,9 +220,12 @@ export default class NotificationsService {
    */
   public async sendWebPush(
     userId: number,
-    payload: { title: string; body: string; url?: string; icon?: string }
+    payload: { title: string; body: string; url?: string; icon?: string },
+    userType: 'admin' | 'user' = 'user'
   ) {
-    const subscriptions = await PushSubscription.query().where('userId', userId)
+    const subscriptions = await PushSubscription.query()
+      .where('userId', userId)
+      .where('userType', userType)
     if (!subscriptions.length) return
 
     const pushPayload = JSON.stringify({

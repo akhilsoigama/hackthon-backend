@@ -23,6 +23,9 @@ export default class Notification extends BaseModel {
   declare userId: number
 
   @column()
+  declare userType: 'admin' | 'user'
+
+  @column()
   declare title: string
 
   @column()

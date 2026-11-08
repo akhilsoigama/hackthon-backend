@@ -14,6 +14,9 @@ export default class PushSubscription extends BaseModel {
   declare userId: number
 
   @column()
+  declare userType: 'admin' | 'user'
+
+  @column()
   declare endpoint: string
 
   @column()
