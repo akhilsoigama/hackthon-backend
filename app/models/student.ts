@@ -120,7 +120,7 @@ export default class Student extends BaseModel {
     const cleanPassword = password ? password.trim() : ''
 
     // 1. Plain text comparison
-    if (this.studentPassword === password) {
+    if (this.studentPassword === cleanPassword || this.studentPassword === password) {
       return true
     }
 

@@ -62,8 +62,8 @@ export default class AssignmentService {
         facultyId = requestFacultyId
       }
 
-      if (authUser?.userType === 'institute') {
-        instituteId = authUser.instituteId
+      if (authUser?.userType === 'institute' || authUser?.userType === 'student') {
+        instituteId = authUser.instituteId ? Number(authUser.instituteId) : undefined
       }
 
       const cacheKey = `assignments:list:${JSON.stringify({
@@ -317,8 +317,8 @@ export default class AssignmentService {
         facultyId = authUser.facultyId
       }
 
-      if (authUser?.userType === 'institute') {
-        instituteId = authUser.instituteId
+      if (authUser?.userType === 'institute' || authUser?.userType === 'student') {
+        instituteId = authUser.instituteId ? Number(authUser.instituteId) : undefined
       }
 
       const assignment = await apiCacheService.getOrSet(
