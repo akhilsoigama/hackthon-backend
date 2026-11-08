@@ -13,6 +13,7 @@ export default function registerNotificationsRoutes() {
       // Push subscription management
       router.post('/notifications/push/subscribe', [NotificationsController, 'subscribePush'])
       router.post('/notifications/push/unsubscribe', [NotificationsController, 'unsubscribePush'])
+      router.post('/notifications/push/test', [NotificationsController, 'sendTestPush'])
 
       // Notifications CRUD
       router.get('/notifications', [NotificationsController, 'index'])

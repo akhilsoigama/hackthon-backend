@@ -226,6 +226,10 @@ export default class NotificationsService {
     const subscriptions = await PushSubscription.query()
       .where('userId', userId)
       .where('userType', userType)
+
+    console.log(
+      `[WebPush] Dispatching push to user ${userId} (${userType}). Subscribed devices: ${subscriptions.length}`
+    )
     if (!subscriptions.length) return
 
     const pushPayload = JSON.stringify({
@@ -234,6 +238,7 @@ export default class NotificationsService {
       url: payload.url || '/dashboard',
       icon: payload.icon || '/android-chrome-192x192.png',
       badge: '/android-chrome-192x192.png',
+      tag: 'ruralspark-' + Date.now(),
       timestamp: Date.now(),
     })
 
@@ -247,10 +252,21 @@ export default class NotificationsService {
       }
 
       try {
-        await webpush.sendNotification(pushConfig, pushPayload)
+        const res = await webpush.sendNotification(pushConfig, pushPayload, {
+          urgency: 'high',
+          TTL: 86400,
+        })
+        console.log(`[WebPush] Push delivered successfully to device ${sub.id}: HTTP ${res.statusCode}`)
       } catch (error: any) {
+        console.error(
+          `[WebPush] Push failed for device ${sub.id}:`,
+          error.message,
+          'Status:',
+          error.statusCode
+        )
         // If statusCode is 410 (Gone) or 404 (Not Found), token has expired/unsubscribed
         if (error.statusCode === 410 || error.statusCode === 404) {
+          console.log(`[WebPush] Removing expired subscription device ${sub.id}`)
           await sub.delete()
         }
       }
