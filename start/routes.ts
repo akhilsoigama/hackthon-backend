@@ -45,10 +45,15 @@ router
   .use(middleware.rateLimit({ config: RateLimitConfigs.auth }))
 router.get('/test-db', [AuthController, 'testDB'])
 router.post('/api/contact', [ContactController, 'store'])
-router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
-router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
-router.post('/sync/institute', [AuthController, 'syncInstitute'])
-router.post('/sync/faculty', [AuthController, 'syncFaculty'])
+
+router
+  .group(() => {
+    router.post('/sync/institutes', [AuthController, 'syncAllInstitutes'])
+    router.post('/sync/faculties', [AuthController, 'syncAllFaculties'])
+    router.post('/sync/institute', [AuthController, 'syncInstitute'])
+    router.post('/sync/faculty', [AuthController, 'syncFaculty'])
+  })
+  .use(middleware.auth({ guards: ['adminapi'] }))
 
 router.get('/ping', [PingController, 'handle'])
 router.get('/api/online-library/search', [OnlineLibrariesController, 'search'])
