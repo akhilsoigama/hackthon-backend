@@ -286,18 +286,13 @@ export default class NotificationsService {
   public async sendWebPush(
     userId: number,
     payload: { title: string; body: string; url?: string; icon?: string },
-    userType?: 'admin' | 'user'
+    _userType?: 'admin' | 'user'
   ) {
-    const query = PushSubscription.query().where('userId', userId)
-    if (userType) {
-      query.where((builder) => {
-        builder.where('userType', userType).orWhereNull('userType')
-      })
-    }
-    const subscriptions = await query
+    // Deliver to all active registered devices for this userId (regardless of userType mismatch)
+    const subscriptions = await PushSubscription.query().where('userId', userId)
 
     console.log(
-      `[WebPush] Dispatching push to user ${userId} (${userType || 'any'}). Subscribed devices: ${subscriptions.length}`
+      `[WebPush] Dispatching push to user ${userId}. Subscribed devices: ${subscriptions.length}`
     )
     if (!subscriptions.length) return
 
