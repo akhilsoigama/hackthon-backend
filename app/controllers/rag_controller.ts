@@ -8,40 +8,52 @@ import User from '#models/user'
 export default class RagController {
   constructor(private ragService: RagService) {}
 
-  private async resolveUser(auth: HttpContext['auth']) {
-    if (auth.user) {
-      return auth.user as { id?: number; instituteId?: number | null; userType?: string }
-    }
+  private async resolveUser(ctx: HttpContext) {
+    const anyCtx = ctx as any
+    if (anyCtx.authUser) return anyCtx.authUser as { id?: number; instituteId?: number | null; userType?: string; isAdmin?: boolean; authType?: string; roles?: string[] }
+    if (anyCtx.user) return anyCtx.user as { id?: number; instituteId?: number | null; userType?: string; isAdmin?: boolean; authType?: string; roles?: string[] }
+    if (ctx.request && (ctx.request as any).user) return (ctx.request as any).user as { id?: number; instituteId?: number | null; userType?: string; isAdmin?: boolean; authType?: string; roles?: string[] }
+    if (ctx.auth?.user) return ctx.auth.user as { id?: number; instituteId?: number | null; userType?: string; isAdmin?: boolean; authType?: string; roles?: string[] }
+
     try {
-      if (await auth.use('api').check()) {
-        return auth.use('api').user as { id?: number; instituteId?: number | null; userType?: string }
+      const adminAuth = ctx.auth.use('adminapi')
+      if (await adminAuth.check()) {
+        return adminAuth.user as { id?: number; instituteId?: number | null; userType?: string; isAdmin?: boolean; authType?: string; roles?: string[] }
       }
-    } catch {
-      // guest / no token
-    }
+    } catch {}
+
     try {
-      if (await auth.use('adminapi').check()) {
-        return auth.use('adminapi').user as { id?: number; instituteId?: number | null; userType?: string }
+      const apiAuth = ctx.auth.use('api')
+      if (await apiAuth.check()) {
+        return apiAuth.user as { id?: number; instituteId?: number | null; userType?: string; isAdmin?: boolean; authType?: string; roles?: string[] }
       }
-    } catch {
-      // guest / no token
-    }
+    } catch {}
+
     return undefined
   }
 
-  private isSuperAdminUser(user?: { id?: number; instituteId?: number | null; userType?: string }): boolean {
+  private isSuperAdminUser(user: any): boolean {
     if (!user) return false
+    const uType = user.userType || user.user_type
+    const aType = user.authType || user.auth_type
+    const isAdmin = Boolean(user.isAdmin || user.is_admin)
+
     return (
-      user.userType === 'super_admin' ||
-      user.userType === 'admin' ||
-      user.userType === 'system_admin'
+      isAdmin ||
+      uType === 'super_admin' ||
+      uType === 'admin' ||
+      uType === 'system_admin' ||
+      aType === 'admin' ||
+      aType === 'super_admin' ||
+      (Array.isArray(user.roles) && user.roles.some((r: string) => ['super_admin', 'admin', 'system_admin'].includes(r)))
     )
   }
 
   /**
    * Generic document chunk ingestion (backward compatible)
    */
-  public async ingest({ request, response, auth }: HttpContext) {
+  public async ingest(ctx: HttpContext) {
+    const { request, response } = ctx
     const payload = request.only(['title', 'content', 'sourceType', 'sourceId', 'metadata'])
 
     if (typeof payload.title !== 'string' || !payload.title.trim()) {
@@ -51,7 +63,7 @@ export default class RagController {
       return response.badRequest({ success: false, message: 'content is required' })
     }
 
-    const user = await this.resolveUser(auth)
+    const user = await this.resolveUser(ctx)
     try {
       const result = await this.ragService.ingest({
         title: payload.title.trim(),
@@ -78,7 +90,8 @@ export default class RagController {
    * Create course and vectorize its contents
    * POST /api/rag/course or POST /rag/course
    */
-  public async createCourse({ request, response, auth }: HttpContext) {
+  public async createCourse(ctx: HttpContext) {
+    const { request, response } = ctx
     const body = request.body() as Partial<CourseData>
 
     if (!body.title || typeof body.title !== 'string' || !body.title.trim()) {
@@ -91,7 +104,7 @@ export default class RagController {
       return response.badRequest({ success: false, message: 'Course videoUrl is required' })
     }
 
-    const user = await this.resolveUser(auth)
+    const user = await this.resolveUser(ctx)
     if (!this.isSuperAdminUser(user)) {
       return response.forbidden({
         success: false,
@@ -127,7 +140,8 @@ export default class RagController {
    * Search courses (Semantic & Lexical)
    * POST /api/rag/query or POST /rag/query
    */
-  public async queryCourses({ request, response, auth }: HttpContext) {
+  public async queryCourses(ctx: HttpContext) {
+    const { request, response } = ctx
     const { query, category, subCategory, top_k, page } = request.only([
       'query',
       'category',
@@ -135,7 +149,7 @@ export default class RagController {
       'top_k',
       'page',
     ])
-    const user = await this.resolveUser(auth)
+    const user = await this.resolveUser(ctx)
 
     try {
       const courses = await this.ragService.queryCourses({
@@ -160,9 +174,10 @@ export default class RagController {
    * List courses with optional filters
    * GET /api/rag/courses or GET /rag/courses
    */
-  public async listCourses({ request, response, auth }: HttpContext) {
+  public async listCourses(ctx: HttpContext) {
+    const { request, response } = ctx
     const { category, subCategory, limit, page, query } = request.qs()
-    const user = await this.resolveUser(auth)
+    const user = await this.resolveUser(ctx)
 
     try {
       const courses = await this.ragService.listCourses({
@@ -206,12 +221,13 @@ export default class RagController {
    * Update course by ID
    * PUT /api/rag/courses/:id or PUT /rag/courses/:id
    */
-  public async updateCourse({ params, request, response, auth }: HttpContext) {
-    const user = await this.resolveUser(auth)
+  public async updateCourse(ctx: HttpContext) {
+    const { params, request, response } = ctx
+    const user = await this.resolveUser(ctx)
     if (!this.isSuperAdminUser(user)) {
       return response.forbidden({
         success: false,
-        message: 'Access denied: Only Super Admin is authorized to add RAG courses',
+        message: 'Access denied: Only Super Admin is authorized to edit RAG courses',
       })
     }
     const body = request.body() as Partial<CourseData>
@@ -231,8 +247,9 @@ export default class RagController {
    * Delete course by ID
    * DELETE /api/rag/courses/:id or DELETE /rag/courses/:id
    */
-  public async deleteCourse({ params, response, auth }: HttpContext) {
-    const user = await this.resolveUser(auth)
+  public async deleteCourse(ctx: HttpContext) {
+    const { params, response } = ctx
+    const user = await this.resolveUser(ctx)
     if (!this.isSuperAdminUser(user)) {
       return response.forbidden({
         success: false,
@@ -255,12 +272,13 @@ export default class RagController {
    * Sync LMS resources (study materials & lectures) into RAG vector index
    * POST /api/rag/sync or POST /rag/sync
    */
-  public async syncLms({ request, response, auth }: HttpContext) {
-    const user = await this.resolveUser(auth)
+  public async syncLms(ctx: HttpContext) {
+    const { request, response } = ctx
+    const user = await this.resolveUser(ctx)
     if (!this.isSuperAdminUser(user)) {
       return response.forbidden({
         success: false,
-        message: 'Access denied: Only Super Admin is authorized to add RAG courses',
+        message: 'Access denied: Only Super Admin is authorized to sync LMS RAG index',
       })
     }
     const { target } = request.only(['target']) // 'materials' | 'lectures' | 'all'
@@ -320,7 +338,7 @@ export default class RagController {
       (ctx as unknown & { user?: User; authUser?: User }).authUser ||
       (ctx.request as unknown & { user?: User }).user ||
       auth.user ||
-      (await this.resolveUser(auth))) as (User & { id?: number; userType?: string }) | undefined
+      (await this.resolveUser(ctx))) as (User & { id?: number; userType?: string }) | undefined
 
     if (!user?.id) {
       return response.unauthorized({ success: false, message: 'User not authenticated' })

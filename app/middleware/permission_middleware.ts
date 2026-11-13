@@ -168,9 +168,18 @@ export default class PermissionMiddleware {
 
       const userRecord =
         typeof user === 'object' && user !== null ? (user as Record<string, unknown>) : null
-      const userType = typeof userRecord?.userType === 'string' ? userRecord.userType : undefined
+      const userType =
+        typeof userRecord?.userType === 'string'
+          ? userRecord.userType
+          : typeof userRecord?.user_type === 'string'
+            ? userRecord.user_type
+            : undefined
+      const isAdmin = Boolean(userRecord?.isAdmin || userRecord?.is_admin)
 
-      if (userType && ['super_admin', 'admin', 'system_admin', 'institute'].includes(userType)) {
+      if (
+        isAdmin ||
+        (userType && ['super_admin', 'admin', 'system_admin', 'institute'].includes(userType))
+      ) {
         return next()
       }
 
