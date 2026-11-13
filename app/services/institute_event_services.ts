@@ -164,6 +164,21 @@ export default class InstituteEventService {
           const { default: User } = await import('#models/user')
           const notificationService = new NotificationsService()
 
+          // Notify creator (Institute / Faculty)
+          if ((this.ctx.auth?.user as any)?.id) {
+            await notificationService
+              .notifyUser((this.ctx.auth?.user as any).id, {
+                title: `🏫 Campus Event Published: ${instituteEvent.eventTitle}`,
+                message: `Campus event scheduled${
+                  instituteEvent.eventDate ? ' on ' + new Date(instituteEvent.eventDate).toLocaleDateString() : ''
+                }.`,
+                type: 'system',
+                link: '/dashboard/events',
+                metadata: { instituteEventId: instituteEvent.id },
+              })
+              .catch(() => {})
+          }
+
           // Target strictly teachers (faculty) and students belonging to this institute
           const targetInstituteId = instituteEvent.instituteId || (this.ctx.auth?.user as any)?.instituteId
           const userQuery = User.query()

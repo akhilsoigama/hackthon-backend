@@ -185,6 +185,17 @@ export default class AssignmentService {
           const { default: User } = await import('#models/user')
           const notificationService = new NotificationsService()
 
+          // Notify the creator (Teacher / Institute)
+          if (authUser?.id) {
+            await notificationService.notifyUser(authUser.id, {
+              title: `Assignment Published: ${assignment.assignmentTitle}`,
+              message: `Assignment for ${assignment.subject || 'course'} created and published.`,
+              type: 'assignment',
+              link: '/dashboard/assignment',
+              metadata: { assignmentId: assignment.id },
+            }).catch(() => {})
+          }
+
           const studentQuery = User.query().where('userType', 'student').where('isActive', true)
           if (velidatedData.instituteId) {
             studentQuery.where('instituteId', velidatedData.instituteId)

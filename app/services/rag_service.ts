@@ -169,6 +169,46 @@ export default class RagService {
 
       await trx.commit()
 
+      // Non-blocking notification dispatch for newly published course
+      ;(async () => {
+        try {
+          const { default: NotificationsService } = await import(
+            '#modules/notifications/services/notifications_service'
+          )
+          const notificationService = new NotificationsService()
+
+          if (createdBy) {
+            await notificationService
+              .notifyUser(createdBy, {
+                title: `Course Published: ${title}`,
+                message: `Course "${title}" has been indexed and published to Skill Learning.`,
+                type: 'system',
+                link: '/dashboard/skills/rag',
+                metadata: { courseId },
+              })
+              .catch(() => {})
+          }
+
+          if (instituteId) {
+            await notificationService
+              .notifyInstitute(
+                instituteId,
+                {
+                  title: `New Skill Course: ${title}`,
+                  message: `New interactive course "${title}" is now available to learn.`,
+                  type: 'system',
+                  link: '/dashboard/skills/rag',
+                  metadata: { courseId },
+                },
+                ['faculty', 'student']
+              )
+              .catch(() => {})
+          }
+        } catch (err) {
+          console.error('[Notification Trigger] RAG course creation notify error:', err)
+        }
+      })()
+
       return {
         id: String(courseId),
         title,
@@ -383,11 +423,10 @@ export default class RagService {
   }
 
   /**
-   * Delete course and its indexed document chunks
+   * Delete course and its indexed document chunks (Super Admin only)
    */
   public async deleteCourse(
-    id: number | string,
-    instituteId?: number | null
+    id: number | string
   ): Promise<{ success: boolean; id: number }> {
     const courseId = Number(id)
     if (Number.isNaN(courseId)) throw new Error('Invalid course ID')
@@ -401,13 +440,9 @@ export default class RagService {
     try {
       await trx.rawQuery(`SET LOCAL statement_timeout = '${this.databaseTimeoutMs}ms'`)
 
-      let courseQuery = RagCourse.query({ client: trx }).where('id', courseId)
-      if (instituteId !== undefined && instituteId !== null) {
-        courseQuery = courseQuery.where('institute_id', instituteId)
-      }
-      const courseToDelete = await courseQuery.first()
+      const courseToDelete = await RagCourse.query({ client: trx }).where('id', courseId).first()
       if (!courseToDelete) {
-        throw new Error('Course not found or access denied')
+        throw new Error('Course not found')
       }
       await courseToDelete.useTransaction(trx).delete()
 

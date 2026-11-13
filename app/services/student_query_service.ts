@@ -86,6 +86,48 @@ export default class StudentQueryService {
       isActive: true,
     })
 
+    // Non-blocking notification dispatch
+    ;(async () => {
+      try {
+        const { default: NotificationsService } = await import(
+          '#modules/notifications/services/notifications_service'
+        )
+        const notificationService = new NotificationsService()
+
+        // 1. Notify the student who asked
+        if (user.id) {
+          await notificationService
+            .notifyUser(user.id, {
+              title: 'Doubt Submitted',
+              message: `Your query "${query.title}" was submitted successfully.`,
+              type: 'system',
+              link: '/dashboard/student-query',
+              metadata: { queryId: query.id },
+            })
+            .catch(() => {})
+        }
+
+        // 2. Notify institute faculty & admin
+        if (user.instituteId) {
+          await notificationService
+            .notifyInstitute(
+              user.instituteId,
+              {
+                title: `New Student Query: ${query.title}`,
+                message: `A student submitted a new doubt. Tap to review and answer.`,
+                type: 'system',
+                link: '/dashboard/student-query',
+                metadata: { queryId: query.id },
+              },
+              ['institute', 'faculty']
+            )
+            .catch(() => {})
+        }
+      } catch (err) {
+        console.error('[Notification Trigger] Student query create error:', err)
+      }
+    })()
+
     return response
       .status(201)
       .send(ApiResponse.success(query, messages.student_query_created_successfully, 201))
@@ -183,6 +225,46 @@ export default class StudentQueryService {
     if (payload.status === 'resolved' || payload.status === 'closed') {
       query.resolvedAt = DateTime.now()
       query.resolvedByUserId = user.id
+
+      // Non-blocking notification dispatch
+      ;(async () => {
+        try {
+          const { default: NotificationsService } = await import(
+            '#modules/notifications/services/notifications_service'
+          )
+          const { default: User } = await import('#models/user')
+          const notificationService = new NotificationsService()
+
+          if (query.studentId) {
+            const studentUser = await User.query().where('studentId', query.studentId).first()
+            if (studentUser) {
+              await notificationService
+                .notifyUser(studentUser.id, {
+                  title: 'Doubt Resolved',
+                  message: `Your query "${query.title}" has been answered and resolved.`,
+                  type: 'system',
+                  link: '/dashboard/student-query',
+                  metadata: { queryId: query.id },
+                })
+                .catch(() => {})
+            }
+          }
+
+          if (user.id) {
+            await notificationService
+              .notifyUser(user.id, {
+                title: 'Query Resolved',
+                message: `You marked "${query.title}" as resolved.`,
+                type: 'system',
+                link: '/dashboard/student-query',
+                metadata: { queryId: query.id },
+              })
+              .catch(() => {})
+          }
+        } catch (err) {
+          console.error('[Notification Trigger] Student query resolve error:', err)
+        }
+      })()
     }
 
     await query.save()
