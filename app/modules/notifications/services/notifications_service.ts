@@ -84,15 +84,63 @@ export default class NotificationsService {
 
     const created = await Notification.createMany(rows)
 
-    // Trigger push for each distinct user in background
-    for (const dto of notifications) {
-      this.sendWebPush(dto.userId, {
-        title: dto.title,
-        body: dto.message,
-        url: dto.link || '/dashboard',
-      }, dto.userType || 'user').catch(() => { })
-    }
+      // Trigger push for all registered devices in a single fast, non-blocking batch
+      ; (async () => {
+        try {
+          const userIds = Array.from(new Set(notifications.map((n) => n.userId)))
+          if (!userIds.length) return
 
+          const subscriptions = await PushSubscription.query().whereIn('userId', userIds)
+          if (!subscriptions.length) return
+
+          const notifMap = new Map<number, CreateNotificationDTO>()
+          for (const dto of notifications) {
+            if (!notifMap.has(dto.userId)) {
+              notifMap.set(dto.userId, dto)
+            }
+          }
+
+          const pushPromises = subscriptions.map(async (sub) => {
+            const dto = notifMap.get(sub.userId)
+            if (!dto) return
+
+            const pushPayload = JSON.stringify({
+              title: dto.title,
+              body: dto.message,
+              url: dto.link || '/dashboard',
+              icon: '/android-chrome-192x192.png',
+              badge: '/android-chrome-192x192.png',
+              tag: 'ruralspark-' + Date.now(),
+              timestamp: Date.now(),
+            })
+
+            const pushConfig = {
+              endpoint: sub.endpoint,
+              keys: {
+                p256dh: sub.p256dh,
+                auth: sub.auth,
+              },
+            }
+
+            try {
+              await webpush.sendNotification(pushConfig, pushPayload, {
+                urgency: 'high',
+                TTL: 86400,
+              })
+              console.log(`[WebPush] Bulk push delivered to user ${sub.userId} device ${sub.id}`)
+            } catch (error: any) {
+              console.error(`[WebPush] Bulk push error device ${sub.id}:`, error.message)
+              if (error.statusCode === 410 || error.statusCode === 404) {
+                await sub.delete().catch(() => { })
+              }
+            }
+          })
+
+          await Promise.allSettled(pushPromises)
+        } catch (err) {
+          console.error('[WebPush] createBulk error:', err)
+        }
+      })()
     return created
   }
 

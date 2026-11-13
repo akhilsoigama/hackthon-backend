@@ -21,6 +21,30 @@ export default class GovtEventServices {
         apiCacheService.invalidateByPrefix('institute-govt-events:list:')
     }
 
+    private async resolveAuthUser() {
+        const anyCtx = this.ctx as any
+        if (anyCtx.authUser) return anyCtx.authUser
+        if (anyCtx.user) return anyCtx.user
+        if (anyCtx.request?.user) return anyCtx.request.user
+
+        try {
+            const adminAuth = this.ctx.auth.use('adminapi')
+            if (await adminAuth.check()) {
+                if (adminAuth.user) return adminAuth.user
+            }
+        } catch {}
+
+        try {
+            const apiAuth = this.ctx.auth.use('api')
+            if (await apiAuth.check()) {
+                if (apiAuth.user) return apiAuth.user
+            }
+        } catch {}
+
+        if (this.ctx.auth?.user) return this.ctx.auth.user
+        return null
+    }
+
     async sync() {
         try {
             this.setSecurityHeaders();
@@ -167,10 +191,10 @@ export default class GovtEventServices {
             }
 
             const validatedData = await createGovtEventValidator.validate(requestData);
-            const user = this.ctx.auth?.user as any;
+            const creator = await this.resolveAuthUser();
             const govtEventData = {
                 ...validatedData,
-                instituteId: user?.instituteId || null,
+                instituteId: creator?.instituteId || null,
                 isActive: validatedData.isActive ?? true,
             };
             
@@ -198,28 +222,30 @@ export default class GovtEventServices {
                     const notificationService = new NotificationsService()
 
                     // Notify admin creator
-                    if ((this.ctx.auth?.user as any)?.id) {
+                    if (creator?.id) {
                         await notificationService
                             .notifyUser(
-                                (this.ctx.auth?.user as any).id,
+                                creator.id,
                                 {
                                     title: `🏛️ Govt Event Published: ${govtEvent.eventTitle}`,
-                                    message: `Event broadcasted to all institutions across the platform.`,
+                                    message: `Your event "${govtEvent.eventTitle}" has been broadcasted to all institutions across the platform.`,
                                     type: 'system',
                                     link: '/dashboard/events',
                                     metadata: { govtEventId: govtEvent.id },
-                                },
-                                (this.ctx.auth?.user as any)?.isAdmin ? 'admin' : 'user'
+                                }
                             )
-                            .catch(() => {})
+                            .catch((err) => {
+                                console.error('[Notification Trigger] Failed to notify creator:', err)
+                            })
                     }
 
-                    // Target all institutes, teachers (faculty), and students across the platform
-                    const targetUsers = await User.query()
-                        .where('isActive', true)
-                        .whereIn('userType', ['institute', 'faculty', 'student'])
-                        .select('id')
-                        .limit(2000)
+                    // Target all active platform users (excluding creator to prevent duplicate push)
+                    const targetUsersQuery = User.query().where('isActive', true)
+                    if (creator?.id) {
+                        targetUsersQuery.whereNot('id', creator.id)
+                    }
+
+                    const targetUsers = await targetUsersQuery.select('id').limit(2000)
                     if (targetUsers.length > 0) {
                         const notifications = targetUsers.map((u) => ({
                             userId: u.id,

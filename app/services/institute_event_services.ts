@@ -23,6 +23,30 @@ export default class InstituteEventService {
     apiCacheService.invalidateByPrefix('institute-govt-events:list:')
   }
 
+  private async resolveAuthUser() {
+    const anyCtx = this.ctx as any
+    if (anyCtx.authUser) return anyCtx.authUser
+    if (anyCtx.user) return anyCtx.user
+    if (anyCtx.request?.user) return anyCtx.request.user
+
+    try {
+      const adminAuth = this.ctx.auth.use('adminapi')
+      if (await adminAuth.check()) {
+        if (adminAuth.user) return adminAuth.user
+      }
+    } catch {}
+
+    try {
+      const apiAuth = this.ctx.auth.use('api')
+      if (await apiAuth.check()) {
+        if (apiAuth.user) return apiAuth.user
+      }
+    } catch {}
+
+    if (this.ctx.auth?.user) return this.ctx.auth.user
+    return null
+  }
+
   private normalizeFilters(input: unknown): InstituteEventFilters | undefined {
     if (!input || typeof input !== 'object') {
       return undefined
@@ -163,11 +187,12 @@ export default class InstituteEventService {
           const { default: NotificationsService } = await import('#modules/notifications/services/notifications_service')
           const { default: User } = await import('#models/user')
           const notificationService = new NotificationsService()
+          const creator = await this.resolveAuthUser()
 
           // Notify creator (Institute / Faculty)
-          if ((this.ctx.auth?.user as any)?.id) {
+          if (creator?.id) {
             await notificationService
-              .notifyUser((this.ctx.auth?.user as any).id, {
+              .notifyUser(creator.id, {
                 title: `🏫 Campus Event Published: ${instituteEvent.eventTitle}`,
                 message: `Campus event scheduled${
                   instituteEvent.eventDate ? ' on ' + new Date(instituteEvent.eventDate).toLocaleDateString() : ''
@@ -176,14 +201,20 @@ export default class InstituteEventService {
                 link: '/dashboard/events',
                 metadata: { instituteEventId: instituteEvent.id },
               })
-              .catch(() => {})
+              .catch((err) => {
+                console.error('[Notification Trigger] Failed to notify campus event creator:', err)
+              })
           }
 
           // Target strictly teachers (faculty) and students belonging to this institute
-          const targetInstituteId = instituteEvent.instituteId || (this.ctx.auth?.user as any)?.instituteId
+          const targetInstituteId = instituteEvent.instituteId || creator?.instituteId
           const userQuery = User.query()
             .where('isActive', true)
             .whereIn('userType', ['faculty', 'student'])
+
+          if (creator?.id) {
+            userQuery.whereNot('id', creator.id)
+          }
 
           if (targetInstituteId) {
             userQuery.where('instituteId', targetInstituteId)
