@@ -49,6 +49,46 @@ export default class FacultyLeaveService {
         status: 'pending',
       })
 
+      // Non-blocking notification dispatch
+      ;(async () => {
+        try {
+          const { default: NotificationsService } = await import(
+            '#modules/notifications/services/notifications_service'
+          )
+          const notificationService = new NotificationsService()
+
+          if (user.id) {
+            await notificationService
+              .notifyUser(user.id, {
+                title: 'Leave Request Submitted',
+                message: `Your ${payload.leaveType} leave application (${totalDays} days) has been sent for approval.`,
+                type: 'system',
+                link: '/dashboard/leave',
+                metadata: { leaveId: leave.id },
+              })
+              .catch(() => {})
+          }
+
+          if (user.instituteId) {
+            await notificationService
+              .notifyInstitute(
+                user.instituteId,
+                {
+                  title: 'New Faculty Leave Request',
+                  message: `A faculty member submitted a ${payload.leaveType} leave request. Tap to review.`,
+                  type: 'system',
+                  link: '/dashboard/leave',
+                  metadata: { leaveId: leave.id },
+                },
+                ['institute']
+              )
+              .catch(() => {})
+          }
+        } catch (err) {
+          console.error('[Notification Trigger] Faculty leave create notify error:', err)
+        }
+      })()
+
       return {
         status: true,
         message: messages.faculty_leave_created_successfully,
@@ -311,6 +351,34 @@ export default class FacultyLeaveService {
       leave.reviewedByUserId = user.id
       leave.reviewedAt = DateTime.now()
       await leave.save()
+
+      // Non-blocking notification dispatch
+      ;(async () => {
+        try {
+          const { default: NotificationsService } = await import(
+            '#modules/notifications/services/notifications_service'
+          )
+          const { default: User } = await import('#models/user')
+          const notificationService = new NotificationsService()
+
+          if (leave.facultyId) {
+            const facultyUser = await User.query().where('facultyId', leave.facultyId).first()
+            if (facultyUser) {
+              await notificationService
+                .notifyUser(facultyUser.id, {
+                  title: `Leave Application ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+                  message: `Your leave request has been ${status}.${validatedReview.instituteRemark ? ' Remark: ' + validatedReview.instituteRemark : ''}`,
+                  type: 'system',
+                  link: '/dashboard/leave',
+                  metadata: { leaveId: leave.id, status },
+                })
+                .catch(() => {})
+            }
+          }
+        } catch (err) {
+          console.error('[Notification Trigger] Faculty leave review notify error:', err)
+        }
+      })()
 
       return {
         status: true,

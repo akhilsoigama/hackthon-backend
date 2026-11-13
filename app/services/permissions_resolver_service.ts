@@ -64,7 +64,7 @@ export default class PermissionsResolverService {
 
       // Fast path: check userType field before hitting DB or cache
       const userType = this.getUserType(user)
-      if (userType && ['super_admin', 'admin', 'system_admin'].includes(userType)) {
+      if (userType && ['super_admin', 'admin', 'system_admin', 'institute'].includes(userType)) {
         return {
           user,
           userPermissions: Object.values(PermissionKeys),
@@ -135,7 +135,12 @@ export default class PermissionsResolverService {
   private async getUserPermissions(user: unknown): Promise<PermissionKeys[]> {
     try {
       const userType = this.getUserType(user)
-      if (userType === 'super_admin' || userType === 'system_admin' || userType === 'admin') {
+      if (
+        userType === 'super_admin' ||
+        userType === 'system_admin' ||
+        userType === 'admin' ||
+        userType === 'institute'
+      ) {
         return Object.values(PermissionKeys) as PermissionKeys[]
       }
 

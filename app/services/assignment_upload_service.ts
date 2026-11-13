@@ -153,6 +153,52 @@ async create() {
     }
 
     const assignment = await AssignmentUpload.create(requestData)
+
+    // Non-blocking notification dispatch
+    ;(async () => {
+      try {
+        const { default: NotificationsService } = await import(
+          '#modules/notifications/services/notifications_service'
+        )
+        const { default: AssignmentModel } = await import('#models/assignment')
+        const { default: User } = await import('#models/user')
+        const notificationService = new NotificationsService()
+
+        // 1. Notify the submitting student
+        if (authUser?.id) {
+          await notificationService
+            .notifyUser(authUser.id, {
+              title: 'Assignment Submitted',
+              message: 'Your assignment has been uploaded and submitted successfully.',
+              type: 'assignment',
+              link: '/dashboard/assignment-upload',
+              metadata: { uploadId: assignment.id },
+            })
+            .catch(() => {})
+        }
+
+        // 2. Notify the assigned faculty member
+        const parentAssignment = await AssignmentModel.find(assignment.assignmentId)
+        if (parentAssignment?.facultyId) {
+          const facultyUser = await User.query()
+            .where('facultyId', parentAssignment.facultyId)
+            .first()
+          if (facultyUser) {
+            await notificationService
+              .notifyUser(facultyUser.id, {
+                title: `New Submission: ${parentAssignment.assignmentTitle}`,
+                message: `A student submitted work for ${parentAssignment.subject || 'course'}.`,
+                type: 'assignment',
+                link: '/dashboard/assignment',
+                metadata: { assignmentId: parentAssignment.id, uploadId: assignment.id },
+              })
+              .catch(() => {})
+          }
+        }
+      } catch (err) {
+        console.error('[Notification Trigger] Assignment upload notify error:', err)
+      }
+    })()
     return {
       status: true,
       messages: messages.assignment_uploads_created_successfully,

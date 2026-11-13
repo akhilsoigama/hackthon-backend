@@ -216,19 +216,88 @@ export default class NotificationsService {
   }
 
   /**
+   * Helper to notify a single user and deliver WebPush
+   */
+  public async notifyUser(
+    userId: number,
+    notification: {
+      title: string
+      message: string
+      type?: NotificationType
+      link?: string | null
+      metadata?: Record<string, any> | null
+    },
+    userType: 'admin' | 'user' = 'user'
+  ) {
+    return await this.create({
+      userId,
+      userType,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type,
+      link: notification.link,
+      metadata: notification.metadata,
+    })
+  }
+
+  /**
+   * Broadcast notification to users within an institute
+   */
+  public async notifyInstitute(
+    instituteId: number,
+    notification: {
+      title: string
+      message: string
+      type?: NotificationType
+      link?: string | null
+      metadata?: Record<string, any> | null
+    },
+    targetUserTypes: ('institute' | 'faculty' | 'student')[] = ['faculty', 'student']
+  ) {
+    try {
+      const { default: User } = await import('#models/user')
+      const targetUsers = await User.query()
+        .where('instituteId', instituteId)
+        .where('isActive', true)
+        .whereIn('userType', targetUserTypes)
+        .select('id', 'userType')
+        .limit(1000)
+
+      if (targetUsers.length > 0) {
+        const dtoList: CreateNotificationDTO[] = targetUsers.map((u) => ({
+          userId: u.id,
+          userType: 'user',
+          title: notification.title,
+          message: notification.message,
+          type: notification.type || 'general',
+          link: notification.link || null,
+          metadata: notification.metadata || null,
+        }))
+        await this.createBulk(dtoList)
+      }
+    } catch (err) {
+      console.error('[NotificationsService] notifyInstitute error:', err)
+    }
+  }
+
+  /**
    * Dispatch push alert to all registered devices for user
    */
   public async sendWebPush(
     userId: number,
     payload: { title: string; body: string; url?: string; icon?: string },
-    userType: 'admin' | 'user' = 'user'
+    userType?: 'admin' | 'user'
   ) {
-    const subscriptions = await PushSubscription.query()
-      .where('userId', userId)
-      .where('userType', userType)
+    const query = PushSubscription.query().where('userId', userId)
+    if (userType) {
+      query.where((builder) => {
+        builder.where('userType', userType).orWhereNull('userType')
+      })
+    }
+    const subscriptions = await query
 
     console.log(
-      `[WebPush] Dispatching push to user ${userId} (${userType}). Subscribed devices: ${subscriptions.length}`
+      `[WebPush] Dispatching push to user ${userId} (${userType || 'any'}). Subscribed devices: ${subscriptions.length}`
     )
     if (!subscriptions.length) return
 

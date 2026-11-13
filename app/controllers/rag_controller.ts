@@ -10,23 +10,32 @@ export default class RagController {
 
   private async resolveUser(auth: HttpContext['auth']) {
     if (auth.user) {
-      return auth.user as { id?: number; instituteId?: number | null }
+      return auth.user as { id?: number; instituteId?: number | null; userType?: string }
     }
     try {
       if (await auth.use('api').check()) {
-        return auth.use('api').user as { id?: number; instituteId?: number | null }
+        return auth.use('api').user as { id?: number; instituteId?: number | null; userType?: string }
       }
     } catch {
       // guest / no token
     }
     try {
       if (await auth.use('adminapi').check()) {
-        return auth.use('adminapi').user as { id?: number; instituteId?: number | null }
+        return auth.use('adminapi').user as { id?: number; instituteId?: number | null; userType?: string }
       }
     } catch {
       // guest / no token
     }
     return undefined
+  }
+
+  private isSuperAdminUser(user?: { id?: number; instituteId?: number | null; userType?: string }): boolean {
+    if (!user) return false
+    return (
+      user.userType === 'super_admin' ||
+      user.userType === 'admin' ||
+      user.userType === 'system_admin'
+    )
   }
 
   /**
@@ -83,6 +92,12 @@ export default class RagController {
     }
 
     const user = await this.resolveUser(auth)
+    if (!this.isSuperAdminUser(user)) {
+      return response.forbidden({
+        success: false,
+        message: 'Access denied: Only Super Admin is authorized to add RAG courses',
+      })
+    }
 
     try {
       const course = await this.ragService.ingestCourse(
@@ -193,6 +208,12 @@ export default class RagController {
    */
   public async updateCourse({ params, request, response, auth }: HttpContext) {
     const user = await this.resolveUser(auth)
+    if (!this.isSuperAdminUser(user)) {
+      return response.forbidden({
+        success: false,
+        message: 'Access denied: Only Super Admin is authorized to add RAG courses',
+      })
+    }
     const body = request.body() as Partial<CourseData>
 
     try {
@@ -212,9 +233,15 @@ export default class RagController {
    */
   public async deleteCourse({ params, response, auth }: HttpContext) {
     const user = await this.resolveUser(auth)
+    if (!this.isSuperAdminUser(user)) {
+      return response.forbidden({
+        success: false,
+        message: 'Access denied: Only Super Admin is authorized to delete RAG courses',
+      })
+    }
 
     try {
-      const result = await this.ragService.deleteCourse(params.id, user?.instituteId)
+      const result = await this.ragService.deleteCourse(params.id)
       return response.json(result)
     } catch (error: unknown) {
       return response.badRequest({
@@ -230,6 +257,12 @@ export default class RagController {
    */
   public async syncLms({ request, response, auth }: HttpContext) {
     const user = await this.resolveUser(auth)
+    if (!this.isSuperAdminUser(user)) {
+      return response.forbidden({
+        success: false,
+        message: 'Access denied: Only Super Admin is authorized to add RAG courses',
+      })
+    }
     const { target } = request.only(['target']) // 'materials' | 'lectures' | 'all'
 
     try {

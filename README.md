@@ -89,6 +89,14 @@ RuralSpark is architected as an **Event-Driven, Modular Monolith** designed for 
 * **Faculty Leave Management:** Structured leave applications with Admin/HOD approval/rejection audit trail.
 * **Institutional & Government Events:** Unified event feed with synchronization hooks.
 
+### 🔍 5. Global Search Engine & Cloudinary Media
+* **Global Search Module:** Dedicated search across institutes, departments, assignments, and curriculum materials.
+* **Cloudinary CDN Integration:** Direct and secure upload pipelines for high-definition course materials and student submissions.
+
+### 💳 6. Subscription & Multi-Tier Entitlements
+* **Tier Isolation:** Architectural segregation for **Rural Initiative** (Free), **Coaching Pro** (AI & Gamification), and **Institution** (Enterprise Multi-Tenancy).
+* **Feature Guard Enforcement:** Middleware-ready feature gating to ensure strict multi-tenant billing compliance.
+
 ---
 
 ## 3. Multi-Tenant Role Hierarchy

@@ -197,6 +197,23 @@ export default class GovtEventServices {
                     const { default: User } = await import('#models/user')
                     const notificationService = new NotificationsService()
 
+                    // Notify admin creator
+                    if ((this.ctx.auth?.user as any)?.id) {
+                        await notificationService
+                            .notifyUser(
+                                (this.ctx.auth?.user as any).id,
+                                {
+                                    title: `🏛️ Govt Event Published: ${govtEvent.eventTitle}`,
+                                    message: `Event broadcasted to all institutions across the platform.`,
+                                    type: 'system',
+                                    link: '/dashboard/events',
+                                    metadata: { govtEventId: govtEvent.id },
+                                },
+                                (this.ctx.auth?.user as any)?.isAdmin ? 'admin' : 'user'
+                            )
+                            .catch(() => {})
+                    }
+
                     // Target all institutes, teachers (faculty), and students across the platform
                     const targetUsers = await User.query()
                         .where('isActive', true)
